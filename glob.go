@@ -6,17 +6,19 @@ import (
 )
 
 const (
-	Any = "*"
-	SuperAny = "**"
-	SingleAny = "?"
+	any = "*"
+	superAny = "**"
+	singleAny = "?"
 )
 
-var Chars = []string{Any, SuperAny, SingleAny}
+var chars = []string{any, superAny, singleAny}
 
+// Glob represents compiled glob pattern.
 type Glob interface {
 	Match(string) bool
 }
 
+// New creates Glob for given pattern and uses other given (if any) strings as delimiters.
 func New(pattern string, d ...string) Glob {
 	chunks := parse(pattern, nil, strings.Join(d, ""))
 
@@ -32,7 +34,7 @@ func parse(p string, m []Glob, d string) []Glob {
 		return m
 	}
 
-	i, c := firstIndexOfChars(p, Chars)
+	i, c := firstIndexOfChars(p, chars)
 	if i == -1 {
 		return append(m, raw{p})
 	}
@@ -42,11 +44,11 @@ func parse(p string, m []Glob, d string) []Glob {
 	}
 
 	switch c {
-	case SuperAny:
+	case superAny:
 		m = append(m, multiple{})
-	case Any:
+	case any:
 		m = append(m, multiple{d})
-	case SingleAny:
+	case singleAny:
 		m = append(m, single{d})
 	}
 

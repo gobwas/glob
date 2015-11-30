@@ -52,7 +52,7 @@ func main() {
 ## Performance
 
 In comparison with [go-glob](https://github.com/ryanuber/go-glob), it is ~2.7x faster (on my personal Mac),
-because my glob is compiling patterns for multiple usages. If you will not use compiled `glob.Glob` object,
+because my impl compiles patterns for future usage. If you will not use compiled `glob.Glob` object,
 and do `g := glob.New(pattern); g.Match(...)` every time, then your code will be about ~3x slower.
 
 Run `go test bench=.` from source root to see the benchmarks:
