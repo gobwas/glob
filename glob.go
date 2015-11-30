@@ -13,40 +13,28 @@ const (
 
 var Chars = []string{Any, SuperAny, SingleAny}
 
-type Matcher interface {
+type Glob interface {
 	Match(string) bool
 }
 
-func firstIndexOfChars(p string, any []string) (min int, c string) {
-	l := len(p)
-	min = l
-	weight := 0
+func New(pattern string, d ...string) Glob {
+	chunks := parse(pattern, nil, strings.Join(d, ""))
 
-	for _, s := range any {
-		w := len(s)
-		i := strings.Index(p, s)
-		if i != -1 && i <= min && w > weight {
-			min = i
-			weight = w
-			c = s
-		}
+	if len(chunks) == 1 {
+		return chunks[0]
 	}
 
-	if min == l {
-		return -1, ""
-	}
-
-	return
+	return &composite{chunks}
 }
 
-func parse(p string, m []Matcher, d []string) ([]Matcher, error) {
+func parse(p string, m []Glob, d string) []Glob {
 	if len(p) == 0 {
-		return m, nil
+		return m
 	}
 
 	i, c := firstIndexOfChars(p, Chars)
 	if i == -1 {
-		return append(m, raw{p}), nil
+		return append(m, raw{p})
 	}
 
 	if i > 0 {
@@ -65,19 +53,6 @@ func parse(p string, m []Matcher, d []string) ([]Matcher, error) {
 	return parse(p[i+len(c):], m, d)
 }
 
-func New(pattern string, d ...string) (Matcher, error) {
-	chunks, err := parse(pattern, nil, d)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(chunks) == 1 {
-		return chunks[0], nil
-	}
-
-	return &composite{chunks}, nil
-}
-
 type raw struct {
 	s string
 }
@@ -89,39 +64,36 @@ func (self raw) String() string {
 }
 
 type multiple struct {
-	delimiters []string
+	delimiters string
 }
+
 func (self multiple) Match(s string) bool {
-	i, _ := firstIndexOfChars(s, self.delimiters)
-	return i == -1
+	return strings.IndexAny(s, self.delimiters) == -1
 }
+
 func (self multiple) String() string {
 	return fmt.Sprintf("[multiple:%s]", self.delimiters)
 }
 
 type single struct {
-	delimiters []string
+	delimiters string
 }
+
 func (self single) Match(s string) bool {
-	if len(s) != 1 {
-		return false
-	}
-
-	i, _ := firstIndexOfChars(s, self.delimiters)
-
-	return i == -1
+	return len(s) == 1 && strings.IndexAny(s, self.delimiters) == -1
 }
+
 func (self single) String() string {
 	return fmt.Sprintf("[single:%s]", self.delimiters)
 }
 
 type composite struct {
-	chunks []Matcher
+	chunks []Glob
 }
 
 
 func (self composite) Match(m string) bool {
-	var prev Matcher
+	var prev Glob
 
 	for _, c := range self.chunks {
 		if str, ok := c.(raw); ok {
@@ -152,4 +124,26 @@ func (self composite) Match(m string) bool {
 	}
 
 	return len(m) == 0
+}
+
+func firstIndexOfChars(p string, any []string) (min int, c string) {
+	l := len(p)
+	min = l
+	weight := 0
+
+	for _, s := range any {
+		w := len(s)
+		i := strings.Index(p, s)
+		if i != -1 && i <= min && w > weight {
+			min = i
+			weight = w
+			c = s
+		}
+	}
+
+	if min == l {
+		return -1, ""
+	}
+
+	return
 }

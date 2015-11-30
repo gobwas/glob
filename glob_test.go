@@ -56,10 +56,12 @@ func TestGlob(t *testing.T) {
 		glob(true, "a.?.c", "a.b.c", "."),
 		glob(true, "a.?.?", "a.b.c", "."),
 		glob(true, "?at", "cat"),
+		glob(true, "?at", "fat"),
 		glob(true, "*", "abc"),
 		glob(true, "**", "a.b.c", "."),
 
 		glob(false, "?at", "at"),
+		glob(false, "?at", "fat", "f"),
 		glob(false, "a.*", "a.b.c", "."),
 		glob(false, "a.?.c", "a.bb.c", "."),
 		glob(false, "*", "a.b.c", "."),
@@ -74,11 +76,7 @@ func TestGlob(t *testing.T) {
 		glob(false, "*is", "this is a test"),
 		glob(false, "*no*", "this is a test"),
 	}{
-		g, err := New(test.pattern, test.delimiters...)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
+		g := New(test.pattern, test.delimiters...)
 
 		result := g.Match(test.match)
 		if result != test.should {
@@ -91,14 +89,14 @@ func TestGlob(t *testing.T) {
 const Pattern = "*cat*eyes*"
 const ExpPattern = ".*cat.*eyes.*"
 const String = "my cat has very bright eyes"
+//const Pattern = "*.google.com"
+//const ExpPattern = ".*google\\.com"
+//const String = "mail.google.com"
 
 func BenchmarkGobwas(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		m, err := New(Pattern)
-		if err != nil {
-			b.Fatal(err)
-		}
+	m := New(Pattern)
 
+	for i := 0; i < b.N; i++ {
 		_ = m.Match(String)
 	}
 }
