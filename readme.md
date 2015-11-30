@@ -1,6 +1,6 @@
 # glob.[go](https://golang.org)
 
-[![GoDoc](https://godoc.org/github.com/gobwas/glob?status.svg)](https://godoc.org/github.com/gobwas/glob)
+[![GoDoc][godoc-image]][godoc-url] [![Build Status][travis-image]][travis-url]
 
 > Simple globbing library.
 
@@ -63,3 +63,9 @@ Test | Operations | Speed
 -----|------------|------
 github.com/gobwas/glob | 20000000 | 165 ns/op
 github.com/ryanuber/go-glob | 10000000 | 452 ns/op
+
+
+[godoc-image]: https://godoc.org/github.com/gobwas/glob?status.svg
+[godoc-url]: https://godoc.org/github.com/gobwas/glob
+[travis-image]: https://travis-ci.org/gobwas/glob.svg?branch=master
+[travis-url]: https://travis-ci.org/gobwas/glob
