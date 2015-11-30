@@ -1,6 +1,8 @@
 # glob.[go](https://golang.org)
 
-Simple globbing library.
+[![GoDoc](https://godoc.org/github.com/gobwas/glob?status.svg)](https://godoc.org/github.com/gobwas/glob)
+
+> Simple globbing library.
 
 ## Install
 
