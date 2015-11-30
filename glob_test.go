@@ -1,11 +1,11 @@
 package glob
+
 import (
-	"testing"
 	rGlob "github.com/ryanuber/go-glob"
 	"regexp"
 	"strings"
+	"testing"
 )
-
 
 type test struct {
 	pattern, match string
@@ -18,7 +18,7 @@ func glob(s bool, p, m string, d ...string) test {
 }
 
 func TestFirstIndexOfChars(t *testing.T) {
-	for _, test := range []struct{
+	for _, test := range []struct {
 		s string
 		c []string
 		i int
@@ -36,7 +36,7 @@ func TestFirstIndexOfChars(t *testing.T) {
 			0,
 			"**",
 		},
-	}{
+	} {
 		i, r := firstIndexOfChars(test.s, test.c)
 		if i != test.i || r != test.r {
 			t.Errorf("unexpeted index: expected %q at %v, got %q at %v", test.r, test.i, r, i)
@@ -45,7 +45,7 @@ func TestFirstIndexOfChars(t *testing.T) {
 }
 
 func TestGlob(t *testing.T) {
-	for _, test := range []test {
+	for _, test := range []test{
 		glob(true, "abc", "abc"),
 		glob(true, "a*c", "abc"),
 		glob(true, "a*c", "a12345c"),
@@ -76,7 +76,7 @@ func TestGlob(t *testing.T) {
 
 		glob(false, "*is", "this is a test"),
 		glob(false, "*no*", "this is a test"),
-	}{
+	} {
 		g := New(test.pattern, test.delimiters...)
 
 		result := g.Match(test.match)
@@ -86,13 +86,16 @@ func TestGlob(t *testing.T) {
 	}
 }
 
-
 const Pattern = "*cat*eyes*"
 const ExpPattern = ".*cat.*eyes.*"
 const String = "my cat has very bright eyes"
+
 //const Pattern = "*.google.com"
 //const ExpPattern = ".*google\\.com"
 //const String = "mail.google.com"
+// const Pattern = "google.com"
+// const ExpPattern = "google\\.com"
+// const String = "google.com"
 
 func BenchmarkGobwas(b *testing.B) {
 	m := New(Pattern)
@@ -115,9 +118,9 @@ func BenchmarkRegExp(b *testing.B) {
 }
 
 var ALPHABET_S = []string{"a", "b", "c"}
+
 const ALPHABET = "abc"
 const STR = "faafsdfcsdffc"
-
 
 func BenchmarkIndexOfAny(b *testing.B) {
 	for i := 0; i < b.N; i++ {
