@@ -6,21 +6,32 @@ import (
 )
 
 const (
-	any = "*"
-	superAny = "**"
-	singleAny = "?"
+	any       = `*`
+	superAny  = `**`
+	singleAny = `?`
+	escape    = `\`
 )
 
-var chars = []string{any, superAny, singleAny}
+var chars = []string{any, superAny, singleAny, escape}
 
 // Glob represents compiled glob pattern.
 type Glob interface {
 	Match(string) bool
 }
 
-// New creates Glob for given pattern and uses other given (if any) strings as delimiters.
+// New creates Glob for given pattern and uses other given (if any) strings as separators.
+// The pattern syntax is:
+//
+//	pattern:
+//		{ term }
+//	term:
+//		`*`         matches any sequence of non-separator characters
+//		`**`        matches any sequence of characters
+//		`?`         matches any single non-separator character
+//		c           matches character c (c != `*`, `**`, `?`, `\`)
+//		`\` c       matches character c
 func New(pattern string, d ...string) Glob {
-	chunks := parse(pattern, nil, strings.Join(d, ""))
+	chunks := parse(pattern, nil, strings.Join(d, ""), false)
 
 	if len(chunks) == 1 {
 		return chunks[0]
@@ -29,7 +40,9 @@ func New(pattern string, d ...string) Glob {
 	return &composite{chunks}
 }
 
-func parse(p string, m []Glob, d string) []Glob {
+func parse(p string, m []Glob, d string, esc bool) []Glob {
+	var e bool
+
 	if len(p) == 0 {
 		return m
 	}
@@ -43,16 +56,22 @@ func parse(p string, m []Glob, d string) []Glob {
 		m = append(m, raw{p[0:i]})
 	}
 
-	switch c {
-	case superAny:
-		m = append(m, multiple{})
-	case any:
-		m = append(m, multiple{d})
-	case singleAny:
-		m = append(m, single{d})
+	if esc {
+		m = append(m, raw{c})
+	} else {
+		switch c {
+		case escape:
+			e = true
+		case superAny:
+			m = append(m, multiple{})
+		case any:
+			m = append(m, multiple{d})
+		case singleAny:
+			m = append(m, single{d})
+		}
 	}
 
-	return parse(p[i+len(c):], m, d)
+	return parse(p[i+len(c):], m, d, e)
 }
 
 type raw struct {
@@ -66,27 +85,27 @@ func (self raw) String() string {
 }
 
 type multiple struct {
-	delimiters string
+	separators string
 }
 
 func (self multiple) Match(s string) bool {
-	return strings.IndexAny(s, self.delimiters) == -1
+	return strings.IndexAny(s, self.separators) == -1
 }
 
 func (self multiple) String() string {
-	return fmt.Sprintf("[multiple:%s]", self.delimiters)
+	return fmt.Sprintf("[multiple:%s]", self.separators)
 }
 
 type single struct {
-	delimiters string
+	separators string
 }
 
 func (self single) Match(s string) bool {
-	return len(s) == 1 && strings.IndexAny(s, self.delimiters) == -1
+	return len(s) == 1 && strings.IndexAny(s, self.separators) == -1
 }
 
 func (self single) String() string {
-	return fmt.Sprintf("[single:%s]", self.delimiters)
+	return fmt.Sprintf("[single:%s]", self.separators)
 }
 
 type composite struct {
@@ -136,7 +155,7 @@ func firstIndexOfChars(p string, any []string) (min int, c string) {
 	for _, s := range any {
 		w := len(s)
 		i := strings.Index(p, s)
-		if i != -1 && i <= min && w > weight {
+		if i != -1 && i <= min && w >= weight {
 			min = i
 			weight = w
 			c = s
