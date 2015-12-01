@@ -44,8 +44,8 @@ type Glob interface {
 //		`?`         matches any single non-separator character
 //		c           matches character c (c != `*`, `**`, `?`, `\`)
 //		`\` c       matches character c
-func New(pattern string, d ...string) Glob {
-	chunks := parse(pattern, nil, strings.Join(d, ""), false)
+func New(pattern string, separators ...string) Glob {
+	chunks := parse(pattern, nil, strings.Join(separators, ""), false)
 
 	switch len(chunks) {
 	case 1:
