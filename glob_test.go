@@ -61,6 +61,8 @@ func TestGlob(t *testing.T) {
 		glob(true, `\*`, "*"),
 		glob(true, "**", "a.b.c", "."),
 
+		glob(true, "* ?at * eyes", "my cat has very bright eyes"),
+
 		glob(false, "?at", "at"),
 		glob(false, "?at", "fat", "f"),
 		glob(false, "a.*", "a.b.c", "."),
@@ -90,12 +92,27 @@ const Pattern = "*cat*eyes*"
 const ExpPattern = ".*cat.*eyes.*"
 const String = "my cat has very bright eyes"
 
+const ProfPattern = "* ?at * eyes"
+const ProfString = "my cat has very bright eyes"
+
 //const Pattern = "*.google.com"
 //const ExpPattern = ".*google\\.com"
 //const String = "mail.google.com"
-// const Pattern = "google.com"
-// const ExpPattern = "google\\.com"
-// const String = "google.com"
+const PlainPattern = "google.com"
+const PlainExpPattern = "google\\.com"
+const PlainString = "google.com"
+
+const PSPattern = "https://*.google.com"
+const PSExpPattern = `https:\/\/[a-z]+\.google\\.com`
+const PSString = "https://account.google.com"
+
+func BenchmarkProf(b *testing.B) {
+	m := New(Pattern)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(String)
+	}
+}
 
 func BenchmarkGobwas(b *testing.B) {
 	m := New(Pattern)
@@ -104,22 +121,69 @@ func BenchmarkGobwas(b *testing.B) {
 		_ = m.Match(String)
 	}
 }
+func BenchmarkGobwasPlain(b *testing.B) {
+	m := New(PlainPattern)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(PlainString)
+	}
+}
+func BenchmarkGobwasPrefix(b *testing.B) {
+	m := New("abc*")
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match("abcdef")
+	}
+}
+func BenchmarkGobwasSuffix(b *testing.B) {
+	m := New("*def")
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match("abcdef")
+	}
+}
+func BenchmarkGobwasPrefixSuffix(b *testing.B) {
+	m := New("ab*ef")
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match("abcdef")
+	}
+}
 
 func BenchmarkRyanuber(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = rGlob.Glob(Pattern, String)
 	}
 }
+func BenchmarkRyanuberPlain(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = rGlob.Glob(PlainPattern, PlainString)
+	}
+}
+func BenchmarkRyanuberPrefixSuffix(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = rGlob.Glob(PSPattern, PSString)
+	}
+}
+
+
 func BenchmarkRegExp(b *testing.B) {
 	r := regexp.MustCompile(ExpPattern)
 	for i := 0; i < b.N; i++ {
 		_ = r.Match([]byte(String))
 	}
 }
+func BenchmarkRegExpPrefixSuffix(b *testing.B) {
+	r := regexp.MustCompile(PSExpPattern)
+	for i := 0; i < b.N; i++ {
+		_ = r.Match([]byte(PSString))
+	}
+}
 
 var ALPHABET_S = []string{"a", "b", "c"}
 
 const ALPHABET = "abc"
+const PREFIX = "faa"
 const STR = "faafsdfcsdffc"
 
 func BenchmarkIndexOfAny(b *testing.B) {

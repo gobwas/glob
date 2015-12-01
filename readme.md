@@ -53,7 +53,7 @@ func main() {
 
 ## Performance
 
-In comparison with [go-glob](https://github.com/ryanuber/go-glob), it is ~2.7x faster (on my personal Mac),
+In comparison with [go-glob](https://github.com/ryanuber/go-glob), it is ~2.5x faster (on my personal Mac),
 because my impl compiles patterns for future usage. If you will not use compiled `glob.Glob` object,
 and do `g := glob.New(pattern); g.Match(...)` every time, then your code will be about ~3x slower.
 
@@ -61,9 +61,16 @@ Run `go test bench=.` from source root to see the benchmarks:
 
 Test | Operations | Speed
 -----|------------|------
-github.com/gobwas/glob | 20000000 | 165 ns/op
-github.com/ryanuber/go-glob | 10000000 | 452 ns/op
+github.com/gobwas/glob | 20000000 | 150 ns/op
+github.com/ryanuber/go-glob | 10000000 | 375 ns/op
 
+Also, there are few simple optimizations, that help to test much faster patterns like `*abc`, `abc*` or `a*c`:
+
+Test | Operations | Speed
+-----|------------|------
+prefix | 200000000 | 8.78 ns/op
+suffix | 200000000 | 9.46 ns/op
+prefix-suffix | 100000000 | 16.3 ns/op
 
 [godoc-image]: https://godoc.org/github.com/gobwas/glob?status.svg
 [godoc-url]: https://godoc.org/github.com/gobwas/glob
