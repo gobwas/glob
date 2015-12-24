@@ -2,35 +2,28 @@ package glob
 
 import (
 	"strings"
-	"fmt"
+	"errors"
+	"github.com/gobwas/glob/match"
 )
 
 const (
-	any       = `*`
-	superAny  = `**`
-	singleAny = `?`
-	escape    = `\`
+	any         = '*'
+	single = '?'
+	escape      = '\\'
+	range_open  = '['
+	range_close = ']'
 )
 
-var chars = []string{any, superAny, singleAny, escape}
-
-type globKind int
-const(
-	glob_raw globKind = iota
-	glob_multiple_separated
-	glob_multiple_super
-	glob_single
-	glob_composite
-	glob_prefix
-	glob_suffix
-	glob_prefix_suffix
+const (
+	inside_range_not = '!'
+	inside_range_minus = '-'
 )
+
+var syntaxPhrases = string([]byte{any, single, escape, range_open, range_close})
 
 // Glob represents compiled glob pattern.
 type Glob interface {
 	Match(string) bool
-	search(string) (int, int, bool)
-	kind() globKind
 }
 
 // New creates Glob for given pattern and uses other given (if any) strings as separators.
@@ -44,292 +37,152 @@ type Glob interface {
 //		`?`         matches any single non-separator character
 //		c           matches character c (c != `*`, `**`, `?`, `\`)
 //		`\` c       matches character c
-func New(pattern string, separators ...string) Glob {
-	chunks := parse(pattern, nil, strings.Join(separators, ""), false)
+func New(pattern string, separators ...string) (Glob, error) {
+	chunks, err := parse(pattern, strings.Join(separators, ""), state{})
+	if err != nil {
+		return nil, err
+	}
 
 	switch len(chunks) {
 	case 1:
-		return chunks[0].glob
+		return chunks[0].matcher, nil
 	case 2:
-		if chunks[0].glob.kind() == glob_raw && chunks[1].glob.kind() == glob_multiple_super {
-			return &prefix{chunks[0].str}
+		if chunks[0].matcher.Kind() == match.KindRaw && chunks[1].matcher.Kind() == match.KindMultipleSuper {
+			return &match.Prefix{chunks[0].str}, nil
 		}
-		if chunks[1].glob.kind() == glob_raw && chunks[0].glob.kind() == glob_multiple_super {
-			return &suffix{chunks[1].str}
+		if chunks[1].matcher.Kind() == match.KindRaw && chunks[0].matcher.Kind() == match.KindMultipleSuper {
+			return &match.Suffix{chunks[1].str}, nil
 		}
 	case 3:
-		if chunks[0].glob.kind() == glob_raw && chunks[1].glob.kind() == glob_multiple_super && chunks[2].glob.kind() == glob_raw {
-			return &prefix_suffix{chunks[0].str, chunks[2].str}
+		if chunks[0].matcher.Kind() == match.KindRaw && chunks[1].matcher.Kind() == match.KindMultipleSuper && chunks[2].matcher.Kind() == match.KindRaw {
+			return &match.PrefixSuffix{chunks[0].str, chunks[2].str}, nil
 		}
 	}
 
-	var c []Glob
+	var c []match.Matcher
 	for _, chunk := range chunks {
-		c = append(c, chunk.glob)
+		c = append(c, chunk.matcher)
 	}
 
-	return &composite{c}
+	return &match.Composite{c}, nil
 }
 
-type token struct {
-	glob Glob
-	str string
-}
 
-func parse(p string, m []token, d string, esc bool) []token {
-	var e bool
-
-	if len(p) == 0 {
-		return m
+// parse parsed given pattern into list of tokens
+func parse(str string, sep string, st state) ([]token, error) {
+	if len(str) == 0 {
+		return st.tokens, nil
 	}
 
-	i, c := firstIndexOfChars(p, chars)
+	// if there are no syntax symbols - pattern is simple string
+	i := strings.IndexAny(str, syntaxPhrases)
 	if i == -1 {
-		return append(m, token{raw{p}, p})
+		return append(st.tokens, token{match.Raw{str}, str}), nil
 	}
 
+	c := string(str[i])
+
+	// if syntax symbol is not at the start of pattern - add raw part before it
 	if i > 0 {
-		m = append(m, token{raw{p[0:i]}, p[0:i]})
+		st.tokens = append(st.tokens, token{match.Raw{str[0:i]}, str[0:i]})
 	}
 
-	if esc {
-		m = append(m, token{raw{c}, c})
+	// if we are in escape state
+	if st.escape {
+		st.tokens = append(st.tokens, token{match.Raw{c}, c})
+		st.escape = false
 	} else {
-		switch c {
+		switch str[i] {
+		case range_open:
+			closed := indexByteNonEscaped(str, range_close, escape, 0)
+			if closed == -1 {
+				return nil, errors.New("invalid format")
+			}
+
+			r := str[i+1:closed]
+			g, err := parseRange(r)
+			if err != nil {
+				return nil, err
+			}
+			st.tokens = append(st.tokens, token{g, r})
+
+			if closed == len(str) -1 {
+				return st.tokens, nil
+			}
+
+			return parse(str[closed+1:], sep, st)
+
 		case escape:
-			e = true
-		case superAny:
-			m = append(m, token{multiple{}, c})
+			st.escape = true
 		case any:
-			m = append(m, token{multiple{d}, c})
-		case singleAny:
-			m = append(m, token{single{d}, c})
+			if len(str) > i+1 && str[i+1] == any {
+				st.tokens = append(st.tokens, token{match.Multiple{}, c})
+				return parse(str[i+len(c)+1:], sep, st)
+			}
+
+			st.tokens = append(st.tokens, token{match.Multiple{sep}, c})
+		case single:
+			st.tokens = append(st.tokens, token{match.Single{sep}, c})
 		}
 	}
 
-	return parse(p[i+len(c):], m, d, e)
-}
-
-// raw represents raw string to match
-type raw struct {
-	s string
-}
-
-func (self raw) Match(s string) bool {
-	return self.s == s
-}
-
-func (self raw) kind() globKind {
-	return glob_raw
-}
-
-func (self raw) search(s string) (i int, l int, ok bool) {
-	index := strings.Index(s, self.s)
-	if index == -1 {
-		return
-	}
-
-	i = index
-	l = len(self.s)
-	ok = true
-
-	return
-}
-
-func (self raw) String() string {
-	return fmt.Sprintf("[raw:%s]", self.s)
-}
-
-// multiple represents *
-type multiple struct {
-	separators string
-}
-
-func (self multiple) Match(s string) bool {
-	return strings.IndexAny(s, self.separators) == -1
-}
-
-func (self multiple) search(s string) (i int, l int, ok bool) {
-	if self.Match(s) {
-		return 0, len(s), true
-	}
-
-	return
-}
-
-func (self multiple) kind() globKind {
-	if self.separators == "" {
-		return glob_multiple_super
-	} else {
-		return glob_multiple_separated
-	}
-}
-
-func (self multiple) String() string {
-	return fmt.Sprintf("[multiple:%s]", self.separators)
-}
-
-// single represents ?
-type single struct {
-	separators string
-}
-
-func (self single) Match(s string) bool {
-	return len(s) == 1 && strings.IndexAny(s, self.separators) == -1
-}
-
-func (self single) search(s string) (i int, l int, ok bool) {
-	if self.Match(s) {
-		return 0, 1, true
-	}
-
-	return
-}
-
-func (self single) kind() globKind {
-	return glob_single
+	return parse(str[i+len(c):], sep, st)
 }
 
 
-func (self single) String() string {
-	return fmt.Sprintf("[single:%s]", self.separators)
-}
+func parseRange(def string) (match.Matcher, error) {
+	var (
+		not   bool
+		esc   bool
+		minus bool
+		b   []byte
+	)
 
-
-// composite
-type composite struct {
-	chunks []Glob
-}
-
-
-func (self composite) kind() globKind {
-	return glob_composite
-}
-
-func (self composite) search(s string) (i int, l int, ok bool) {
-	if self.Match(s) {
-		return 0, len(s), true
-	}
-
-	return
-}
-
-func m(chunks []Glob, s string) bool {
-	var prev Glob
-	for _, c := range chunks {
-		if c.kind() == glob_raw {
-			i, l, ok := c.search(s)
-			if !ok {
-				return false
-			}
-
-			if prev != nil {
-				if !prev.Match(s[:i]) {
-					return false
-				}
-
-				prev = nil
-			}
-
-			s = s[i+l:]
+	for i, c := range []byte(def) {
+		if esc {
+			b = append(b, c)
+			esc = false
 			continue
 		}
 
-		prev = c
-	}
+		switch c{
+		case inside_range_not:
+			if i == 0 {
+				not = true
+			}
+		case escape:
+			if i == len(def) - 1 {
+				return nil, errors.New("escape character without follower")
+			}
 
-	if prev != nil {
-		return prev.Match(s)
-	}
-
-	return len(s) == 0
-}
-
-func (self composite) Match(s string) bool {
-	return m(self.chunks, s)
-}
-
-func firstIndexOfChars(p string, any []string) (min int, c string) {
-	l := len(p)
-	min = l
-	weight := 0
-
-	for _, s := range any {
-		w := len(s)
-		i := strings.Index(p, s)
-		if i != -1 && i <= min && w >= weight {
-			min = i
-			weight = w
-			c = s
+			esc = true
+		case inside_range_minus:
+			minus = true
+		default:
+			b = append(b, c)
 		}
 	}
 
-	if min == l {
-		return -1, ""
+	def = string(b)
+
+	if minus  {
+		r := []rune(def)
+		if len(r) != 3 || r[1] != inside_range_minus {
+			return nil, errors.New("invalid range syntax")
+		}
+
+		return &match.Between{r[0], r[2], not}, nil
 	}
 
-	return
+	return &match.RangeList{def, not}, nil
 }
 
-type prefix struct {
-	s string
+type token struct {
+	matcher match.Matcher
+	str     string
 }
 
-func (self prefix) kind() globKind {
-	return glob_prefix
+type state struct {
+	escape bool
+	tokens []token
 }
-
-func (self prefix) search(s string) (i int, l int, ok bool) {
-	if self.Match(s) {
-		return 0, len(s), true
-	}
-
-	return
-}
-
-func (self prefix) Match(s string) bool {
-	return strings.HasPrefix(s, self.s)
-}
-
-type suffix struct {
-	s string
-}
-
-func (self suffix) kind() globKind {
-	return glob_suffix
-}
-
-func (self suffix) search(s string) (i int, l int, ok bool) {
-	if self.Match(s) {
-		return 0, len(s), true
-	}
-
-	return
-}
-
-func (self suffix) Match(s string) bool {
-	return strings.HasSuffix(s, self.s)
-}
-
-type prefix_suffix struct {
-	p, s string
-}
-
-func (self prefix_suffix) kind() globKind {
-	return glob_prefix_suffix
-}
-
-func (self prefix_suffix) search(s string) (i int, l int, ok bool) {
-	if self.Match(s) {
-		return 0, len(s), true
-	}
-
-	return
-}
-
-func (self prefix_suffix) Match(s string) bool {
-	return strings.HasPrefix(s, self.p) && strings.HasSuffix(s, self.s)
-}
-
-
-

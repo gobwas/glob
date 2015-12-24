@@ -3,7 +3,6 @@ package glob
 import (
 	rGlob "github.com/ryanuber/go-glob"
 	"regexp"
-	"strings"
 	"testing"
 )
 
@@ -17,29 +16,40 @@ func glob(s bool, p, m string, d ...string) test {
 	return test{p, m, s, d}
 }
 
-func TestFirstIndexOfChars(t *testing.T) {
+func TestIndexOfNonEscaped(t *testing.T) {
 	for _, test := range []struct {
 		s string
-		c []string
+		n, e byte
 		i int
-		r string
 	}{
 		{
-			"**",
-			[]string{"**", "*"},
-			0,
-			"**",
+			"\\n_n",
+			'n',
+			'\\',
+			3,
 		},
 		{
-			"**",
-			[]string{"*", "**"},
+			"ab",
+			'a',
+			'\\',
 			0,
-			"**",
+		},
+		{
+			"ab",
+			'b',
+			'\\',
+			1,
+		},
+		{
+			"",
+			'b',
+			'\\',
+			-1,
 		},
 	} {
-		i, r := firstIndexOfChars(test.s, test.c)
-		if i != test.i || r != test.r {
-			t.Errorf("unexpeted index: expected %q at %v, got %q at %v", test.r, test.i, r, i)
+		i := indexByteNonEscaped(test.s, test.n, test.e, 0)
+		if i != test.i {
+			t.Errorf("unexpeted index: expected %v, got %v", test.i, i)
 		}
 	}
 }
@@ -79,7 +89,11 @@ func TestGlob(t *testing.T) {
 		glob(false, "*is", "this is a test"),
 		glob(false, "*no*", "this is a test"),
 	} {
-		g := New(test.pattern, test.delimiters...)
+		g, err := New(test.pattern, test.delimiters...)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
 
 		result := g.Match(test.match)
 		if result != test.should {
@@ -107,7 +121,7 @@ const PSExpPattern = `https:\/\/[a-z]+\.google\\.com`
 const PSString = "https://account.google.com"
 
 func BenchmarkProf(b *testing.B) {
-	m := New(Pattern)
+	m, _ := New(Pattern)
 
 	for i := 0; i < b.N; i++ {
 		_ = m.Match(String)
@@ -115,35 +129,35 @@ func BenchmarkProf(b *testing.B) {
 }
 
 func BenchmarkGobwas(b *testing.B) {
-	m := New(Pattern)
+	m, _ := New(Pattern)
 
 	for i := 0; i < b.N; i++ {
 		_ = m.Match(String)
 	}
 }
 func BenchmarkGobwasPlain(b *testing.B) {
-	m := New(PlainPattern)
+	m, _ := New(PlainPattern)
 
 	for i := 0; i < b.N; i++ {
 		_ = m.Match(PlainString)
 	}
 }
 func BenchmarkGobwasPrefix(b *testing.B) {
-	m := New("abc*")
+	m, _ := New("abc*")
 
 	for i := 0; i < b.N; i++ {
 		_ = m.Match("abcdef")
 	}
 }
 func BenchmarkGobwasSuffix(b *testing.B) {
-	m := New("*def")
+	m, _ := New("*def")
 
 	for i := 0; i < b.N; i++ {
 		_ = m.Match("abcdef")
 	}
 }
 func BenchmarkGobwasPrefixSuffix(b *testing.B) {
-	m := New("ab*ef")
+	m, _ := New("ab*ef")
 
 	for i := 0; i < b.N; i++ {
 		_ = m.Match("abcdef")
@@ -177,22 +191,5 @@ func BenchmarkRegExpPrefixSuffix(b *testing.B) {
 	r := regexp.MustCompile(PSExpPattern)
 	for i := 0; i < b.N; i++ {
 		_ = r.Match([]byte(PSString))
-	}
-}
-
-var ALPHABET_S = []string{"a", "b", "c"}
-
-const ALPHABET = "abc"
-const PREFIX = "faa"
-const STR = "faafsdfcsdffc"
-
-func BenchmarkIndexOfAny(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		strings.IndexAny(STR, ALPHABET)
-	}
-}
-func BenchmarkFirstIndexOfChars(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		firstIndexOfChars(STR, ALPHABET_S)
 	}
 }
