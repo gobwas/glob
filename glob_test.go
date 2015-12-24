@@ -1,10 +1,25 @@
 package glob
 
 import (
-	rGlob "github.com/ryanuber/go-glob"
-	"regexp"
 	"testing"
 )
+
+const (
+	pattern_all = "[a-z][!a-x]*cat*[h][!b]*eyes*"
+	fixture_all = "my cat has very bright eyes"
+
+	pattern_plain = "google.com"
+	fixture_plain = "google.com"
+
+	pattern_multiple = "https://*.google.*"
+	fixture_multiple = "https://account.google.com"
+
+	pattern_prefix = "abc*"
+	pattern_suffix = "*def"
+	pattern_prefix_suffix = "ab*ef"
+	fixture_prefix_suffix = "abcdef"
+)
+
 
 type test struct {
 	pattern, match string
@@ -16,7 +31,7 @@ func glob(s bool, p, m string, d ...string) test {
 	return test{p, m, s, d}
 }
 
-func TestIndexOfNonEscaped(t *testing.T) {
+func TestIndexByteNonEscaped(t *testing.T) {
 	for _, test := range []struct {
 		s string
 		n, e byte
@@ -42,6 +57,12 @@ func TestIndexOfNonEscaped(t *testing.T) {
 		},
 		{
 			"",
+			'b',
+			'\\',
+			-1,
+		},
+		{
+			"\\b",
 			'b',
 			'\\',
 			-1,
@@ -88,10 +109,18 @@ func TestGlob(t *testing.T) {
 
 		glob(false, "*is", "this is a test"),
 		glob(false, "*no*", "this is a test"),
+		glob(true, "[!a]*", "this is a test"),
+
+		glob(true, pattern_all, fixture_all),
+		glob(true, pattern_plain, fixture_plain),
+		glob(true, pattern_multiple, fixture_multiple),
+		glob(true, pattern_prefix, fixture_prefix_suffix),
+		glob(true, pattern_suffix, fixture_prefix_suffix),
+		glob(true, pattern_prefix_suffix, fixture_prefix_suffix),
 	} {
 		g, err := New(test.pattern, test.delimiters...)
 		if err != nil {
-			t.Error(err)
+			t.Errorf("parsing pattern %q error: %s", test.pattern, err)
 			continue
 		}
 
@@ -102,94 +131,53 @@ func TestGlob(t *testing.T) {
 	}
 }
 
-const Pattern = "*cat*eyes*"
-const ExpPattern = ".*cat.*eyes.*"
-const String = "my cat has very bright eyes"
 
-const ProfPattern = "* ?at * eyes"
-const ProfString = "my cat has very bright eyes"
-
-//const Pattern = "*.google.com"
-//const ExpPattern = ".*google\\.com"
-//const String = "mail.google.com"
-const PlainPattern = "google.com"
-const PlainExpPattern = "google\\.com"
-const PlainString = "google.com"
-
-const PSPattern = "https://*.google.com"
-const PSExpPattern = `https:\/\/[a-z]+\.google\\.com`
-const PSString = "https://account.google.com"
-
-func BenchmarkProf(b *testing.B) {
-	m, _ := New(Pattern)
-
+func BenchmarkParse(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = m.Match(String)
+		New(pattern_all)
 	}
 }
 
-func BenchmarkGobwas(b *testing.B) {
-	m, _ := New(Pattern)
+func BenchmarkAll(b *testing.B) {
+	m, _ := New(pattern_all)
 
 	for i := 0; i < b.N; i++ {
-		_ = m.Match(String)
-	}
-}
-func BenchmarkGobwasPlain(b *testing.B) {
-	m, _ := New(PlainPattern)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(PlainString)
-	}
-}
-func BenchmarkGobwasPrefix(b *testing.B) {
-	m, _ := New("abc*")
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match("abcdef")
-	}
-}
-func BenchmarkGobwasSuffix(b *testing.B) {
-	m, _ := New("*def")
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match("abcdef")
-	}
-}
-func BenchmarkGobwasPrefixSuffix(b *testing.B) {
-	m, _ := New("ab*ef")
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match("abcdef")
+		_ = m.Match(fixture_all)
 	}
 }
 
-func BenchmarkRyanuber(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_ = rGlob.Glob(Pattern, String)
-	}
-}
-func BenchmarkRyanuberPlain(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_ = rGlob.Glob(PlainPattern, PlainString)
-	}
-}
-func BenchmarkRyanuberPrefixSuffix(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_ = rGlob.Glob(PSPattern, PSString)
-	}
-}
+func BenchmarkMultiple(b *testing.B) {
+	m, _ := New(pattern_multiple)
 
-
-func BenchmarkRegExp(b *testing.B) {
-	r := regexp.MustCompile(ExpPattern)
 	for i := 0; i < b.N; i++ {
-		_ = r.Match([]byte(String))
+		_ = m.Match(fixture_multiple)
 	}
 }
-func BenchmarkRegExpPrefixSuffix(b *testing.B) {
-	r := regexp.MustCompile(PSExpPattern)
+func BenchmarkPlain(b *testing.B) {
+	m, _ := New(pattern_plain)
+
 	for i := 0; i < b.N; i++ {
-		_ = r.Match([]byte(PSString))
+		_ = m.Match(fixture_plain)
+	}
+}
+func BenchmarkPrefix(b *testing.B) {
+	m, _ := New(pattern_prefix)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(fixture_prefix_suffix)
+	}
+}
+func BenchmarkSuffix(b *testing.B) {
+	m, _ := New(pattern_suffix)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(fixture_prefix_suffix)
+	}
+}
+func BenchmarkPrefixSuffix(b *testing.B) {
+	m, _ := New(pattern_prefix_suffix)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(fixture_prefix_suffix)
 	}
 }

@@ -2,8 +2,8 @@ package glob
 
 import (
 	"strings"
-	"errors"
 	"github.com/gobwas/glob/match"
+	"fmt"
 )
 
 const (
@@ -96,7 +96,7 @@ func parse(str string, sep string, st state) ([]token, error) {
 		case range_open:
 			closed := indexByteNonEscaped(str, range_close, escape, 0)
 			if closed == -1 {
-				return nil, errors.New("invalid format")
+				return nil, fmt.Errorf("'%s' should be closed with '%s'", string(range_open), string(range_close))
 			}
 
 			r := str[i+1:closed]
@@ -135,6 +135,7 @@ func parseRange(def string) (match.Matcher, error) {
 		not   bool
 		esc   bool
 		minus bool
+		minusIndex int
 		b   []byte
 	)
 
@@ -152,26 +153,31 @@ func parseRange(def string) (match.Matcher, error) {
 			}
 		case escape:
 			if i == len(def) - 1 {
-				return nil, errors.New("escape character without follower")
+				return nil, fmt.Errorf("there should be any character after '%s'", string(escape))
 			}
 
 			esc = true
 		case inside_range_minus:
 			minus = true
+			minusIndex = len(b)
 		default:
 			b = append(b, c)
 		}
+	}
+
+	if len(b) == 0 {
+		return nil, fmt.Errorf("range could not be empty")
 	}
 
 	def = string(b)
 
 	if minus  {
 		r := []rune(def)
-		if len(r) != 3 || r[1] != inside_range_minus {
-			return nil, errors.New("invalid range syntax")
+		if len(r) != 2 || minusIndex != 1 {
+			return nil, fmt.Errorf("invalid range syntax: '%s' should be between two characters", string(inside_range_minus))
 		}
 
-		return &match.Between{r[0], r[2], not}, nil
+		return &match.Between{r[0], r[1], not}, nil
 	}
 
 	return &match.RangeList{def, not}, nil
