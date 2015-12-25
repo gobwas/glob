@@ -1,21 +1,21 @@
 package glob
 
 import (
-	"strings"
-	"github.com/gobwas/glob/match"
 	"fmt"
+	"github.com/gobwas/glob/match"
+	"strings"
 )
 
 const (
 	any         = '*'
-	single = '?'
+	single      = '?'
 	escape      = '\\'
 	range_open  = '['
 	range_close = ']'
 )
 
 const (
-	inside_range_not = '!'
+	inside_range_not   = '!'
 	inside_range_minus = '-'
 )
 
@@ -67,7 +67,6 @@ func New(pattern string, separators ...string) (Glob, error) {
 	return &match.Composite{c}, nil
 }
 
-
 // parse parsed given pattern into list of tokens
 func parse(str string, sep string, st state) ([]token, error) {
 	if len(str) == 0 {
@@ -99,14 +98,14 @@ func parse(str string, sep string, st state) ([]token, error) {
 				return nil, fmt.Errorf("'%s' should be closed with '%s'", string(range_open), string(range_close))
 			}
 
-			r := str[i+1:closed]
+			r := str[i+1 : closed]
 			g, err := parseRange(r)
 			if err != nil {
 				return nil, err
 			}
 			st.tokens = append(st.tokens, token{g, r})
 
-			if closed == len(str) -1 {
+			if closed == len(str)-1 {
 				return st.tokens, nil
 			}
 
@@ -116,11 +115,11 @@ func parse(str string, sep string, st state) ([]token, error) {
 			st.escape = true
 		case any:
 			if len(str) > i+1 && str[i+1] == any {
-				st.tokens = append(st.tokens, token{match.Multiple{}, c})
+				st.tokens = append(st.tokens, token{match.Any{}, c})
 				return parse(str[i+len(c)+1:], sep, st)
 			}
 
-			st.tokens = append(st.tokens, token{match.Multiple{sep}, c})
+			st.tokens = append(st.tokens, token{match.Any{sep}, c})
 		case single:
 			st.tokens = append(st.tokens, token{match.Single{sep}, c})
 		}
@@ -129,14 +128,13 @@ func parse(str string, sep string, st state) ([]token, error) {
 	return parse(str[i+len(c):], sep, st)
 }
 
-
 func parseRange(def string) (match.Matcher, error) {
 	var (
-		not   bool
-		esc   bool
-		minus bool
+		not        bool
+		esc        bool
+		minus      bool
 		minusIndex int
-		b   []byte
+		b          []byte
 	)
 
 	for i, c := range []byte(def) {
@@ -146,13 +144,13 @@ func parseRange(def string) (match.Matcher, error) {
 			continue
 		}
 
-		switch c{
+		switch c {
 		case inside_range_not:
 			if i == 0 {
 				not = true
 			}
 		case escape:
-			if i == len(def) - 1 {
+			if i == len(def)-1 {
 				return nil, fmt.Errorf("there should be any character after '%s'", string(escape))
 			}
 
@@ -171,7 +169,7 @@ func parseRange(def string) (match.Matcher, error) {
 
 	def = string(b)
 
-	if minus  {
+	if minus {
 		r := []rune(def)
 		if len(r) != 2 || minusIndex != 1 {
 			return nil, fmt.Errorf("invalid range syntax: '%s' should be between two characters", string(inside_range_minus))

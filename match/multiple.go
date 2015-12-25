@@ -1,20 +1,19 @@
 package match
 
 import (
-	"strings"
 	"fmt"
+	"strings"
 )
 
-// multiple represents *
-type Multiple struct {
+type Any struct {
 	Separators string
 }
 
-func (self Multiple) Match(s string) bool {
+func (self Any) Match(s string) bool {
 	return strings.IndexAny(s, self.Separators) == -1
 }
 
-func (self Multiple) Search(s string) (i, l int, ok bool) {
+func (self Any) Search(s string) (i, l int, ok bool) {
 	if self.Match(s) {
 		return 0, len(s), true
 	}
@@ -22,7 +21,7 @@ func (self Multiple) Search(s string) (i, l int, ok bool) {
 	return
 }
 
-func (self Multiple) Kind() Kind {
+func (self Any) Kind() Kind {
 	if self.Separators == "" {
 		return KindMultipleSuper
 	} else {
@@ -30,6 +29,6 @@ func (self Multiple) Kind() Kind {
 	}
 }
 
-func (self Multiple) String() string {
+func (self Any) String() string {
 	return fmt.Sprintf("[multiple:%s]", self.Separators)
 }
