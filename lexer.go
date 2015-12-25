@@ -27,13 +27,56 @@ const (
 	item_range_close
 )
 
+func (i itemType) String() string {
+	switch i {
+	case item_eof:
+		return "eof"
+
+	case item_error:
+		return "error"
+
+	case item_text:
+		return "text"
+
+	case item_any:
+		return "any"
+
+	case item_single:
+		return "single"
+
+	case item_range_open:
+		return "range_open"
+
+	case item_range_not:
+		return "range_not"
+
+	case item_range_lo:
+		return "range_lo"
+
+	case item_range_minus:
+		return "range_minus"
+
+	case item_range_hi:
+		return "range_hi"
+
+	case item_range_chars:
+		return "range_chars"
+
+	case item_range_close:
+		return "range_close"
+
+	default:
+		return "undef"
+	}
+}
+
 type item struct {
 	t itemType
 	s string
 }
 
 func (i item) String() string {
-	return fmt.Sprintf("%v[%s]", i.t, i.s)
+	return fmt.Sprintf("%v<%s>", i.t, i.s)
 }
 
 type lexer struct {
@@ -193,7 +236,7 @@ func lexInsideRange(l *lexer) stateFn {
 		switch c {
 		case inside_range_not:
 			// only first char makes sense
-			if l.pos == l.start {
+			if l.pos-1 == l.start {
 				l.emit(item_range_not)
 			}
 
@@ -221,6 +264,8 @@ func lexAny(l *lexer) stateFn {
 }
 
 func lexRangeHiLo(l *lexer) stateFn {
+	start := l.start
+
 	for {
 		c := l.read()
 		if c == eof {
@@ -228,22 +273,37 @@ func lexRangeHiLo(l *lexer) stateFn {
 			return nil
 		}
 
-		if l.pos-l.start != 1 {
-			l.errorf("unexpected length of char inside range")
-			return nil
-		}
-
 		switch c {
 		case inside_range_minus:
+			if l.pos-l.start != 1 {
+				l.errorf("unexpected length of range: single character expected before minus")
+				return nil
+			}
+
 			l.emit(item_range_minus)
 
 		case range_close:
 			l.unread()
-			l.flush(item_range_hi)
+
+			if l.pos-l.start != 1 {
+				l.errorf("unexpected length of range: single character expected before close")
+				return nil
+			}
+
+			l.emit(item_range_hi)
 			return lexRangeClose
 
 		default:
-			l.flush(item_range_lo)
+			if start != l.start {
+				continue
+			}
+
+			if l.pos-l.start != 1 {
+				l.errorf("unexpected length of range: single character expected at the begining")
+				return nil
+			}
+
+			l.emit(item_range_lo)
 		}
 	}
 }

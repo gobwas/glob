@@ -104,6 +104,10 @@ func parserRange(lexer *lexer, separators string) ([]token, parseFn, error) {
 				return nil, nil, fmt.Errorf("unexpected length of hi character")
 			}
 
+			if hi < lo {
+				return nil, nil, fmt.Errorf("hi character should be greater than lo")
+			}
+
 			hi = r[0]
 
 		case item_range_chars:
@@ -120,6 +124,10 @@ func parserRange(lexer *lexer, separators string) ([]token, parseFn, error) {
 			if isRange {
 				return []token{token{match.Between{lo, hi, not}, ""}}, parserMain, nil
 			} else {
+				if len(chars) == 0 {
+					return nil, nil, fmt.Errorf("chars range should not be empty")
+				}
+
 				return []token{token{match.RangeList{chars, not}, ""}}, parserMain, nil
 			}
 		}
