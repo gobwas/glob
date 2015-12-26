@@ -122,9 +122,8 @@ func (l *lexer) unread() {
 	l.runes--
 }
 
-func (l *lexer) shift(i int) {
-	l.pos += i
-	l.start = l.pos
+func (l *lexer) reset() {
+	l.pos = l.start
 	l.runes = 0
 }
 
@@ -160,7 +159,7 @@ func (l *lexer) emit(t itemType) {
 	l.width = 0
 }
 
-func (l *lexer) flush(t itemType) {
+func (l *lexer) emitMaybe(t itemType) {
 	if l.pos > l.start {
 		l.emit(t)
 	}
@@ -202,15 +201,15 @@ func lexText(l *lexer) stateFn {
 			}
 		case single:
 			l.unread()
-			l.flush(item_text)
+			l.emitMaybe(item_text)
 			return lexSingle
 		case any:
 			l.unread()
-			l.flush(item_text)
+			l.emitMaybe(item_text)
 			return lexAny
 		case range_open:
 			l.unread()
-			l.flush(item_text)
+			l.emitMaybe(item_text)
 			return lexRangeOpen
 		}
 
@@ -236,22 +235,22 @@ func lexInsideRange(l *lexer) stateFn {
 		switch c {
 		case inside_range_not:
 			// only first char makes sense
-			if l.pos-1 == l.start {
+			if l.pos-l.width == l.start {
 				l.emit(item_range_not)
 			}
 
 		case inside_range_minus:
-			if l.pos-l.start != 2 {
+			if l.runes != 2 {
 				l.errorf("unexpected length of lo char inside range")
 				return nil
 			}
 
-			l.shift(-2)
+			l.reset()
 			return lexRangeHiLo
 
 		case range_close:
 			l.unread()
-			l.flush(item_range_chars)
+			l.emitMaybe(item_range_chars)
 			return lexRangeClose
 		}
 	}
@@ -275,7 +274,7 @@ func lexRangeHiLo(l *lexer) stateFn {
 
 		switch c {
 		case inside_range_minus:
-			if l.pos-l.start != 1 {
+			if l.runes != 1 {
 				l.errorf("unexpected length of range: single character expected before minus")
 				return nil
 			}
@@ -285,7 +284,7 @@ func lexRangeHiLo(l *lexer) stateFn {
 		case range_close:
 			l.unread()
 
-			if l.pos-l.start != 1 {
+			if l.runes != 1 {
 				l.errorf("unexpected length of range: single character expected before close")
 				return nil
 			}
@@ -298,7 +297,7 @@ func lexRangeHiLo(l *lexer) stateFn {
 				continue
 			}
 
-			if l.pos-l.start != 1 {
+			if l.runes != 1 {
 				l.errorf("unexpected length of range: single character expected at the begining")
 				return nil
 			}
