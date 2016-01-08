@@ -1,13 +1,20 @@
 package match
 
-import "fmt"
+import (
+	"fmt"
+	"unicode/utf8"
+)
 
 type Min struct {
 	Limit int
 }
 
 func (self Min) Match(s string) bool {
-	return len([]rune(s)) >= self.Limit
+	return utf8.RuneCountInString(s) >= self.Limit
+}
+
+func (self Min) Len() int {
+	return -1
 }
 
 func (self Min) Search(s string) (int, int, bool) {

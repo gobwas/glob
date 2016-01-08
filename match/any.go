@@ -13,24 +13,24 @@ func (self Any) Match(s string) bool {
 	return strings.IndexAny(s, self.Separators) == -1
 }
 
-func (self Any) Index(s string) (index, min, max int) {
+func (self Any) Index(s string) (index int, segments []int) {
 	index = -1
-
-	for i, r := range []rune(s) {
+	for i, r := range s {
 		if strings.IndexRune(self.Separators, r) == -1 {
 			if index == -1 {
 				index = i
 			}
-			max++
-			continue
-		}
-
-		if index != -1 {
+			segments = append(segments, i-index)
+		} else if index != -1 {
 			break
 		}
 	}
 
 	return
+}
+
+func (self Any) Len() int {
+	return -1
 }
 
 func (self Any) Kind() Kind {

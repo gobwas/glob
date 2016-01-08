@@ -16,6 +16,9 @@ const (
 	pattern_multiple = "https://*.google.*"
 	fixture_multiple = "https://account.google.com"
 
+	pattern_alternatives = "{https://*.google.*,*yahoo.*}"
+	fixture_alternatives = "http://yahoo.com"
+
 	pattern_prefix        = "abc*"
 	pattern_suffix        = "*def"
 	pattern_prefix_suffix = "ab*ef"
@@ -39,7 +42,7 @@ func TestCompilePattern(t *testing.T) {
 		exp     match.Matcher
 	}{
 	//		{
-	//			pattern: "[!a]*****",
+	//			pattern: "{http://*yandex.ru,b}",
 	//			exp:     match.Raw{"t"},
 	//		},
 	} {
@@ -104,6 +107,8 @@ func TestIndexByteNonEscaped(t *testing.T) {
 
 func TestGlob(t *testing.T) {
 	for _, test := range []test{
+		glob(true, "* ?at * eyes", "my cat has very bright eyes"),
+
 		glob(true, "abc", "abc"),
 		glob(true, "a*c", "abc"),
 		glob(true, "a*c", "a12345c"),
@@ -118,8 +123,6 @@ func TestGlob(t *testing.T) {
 		glob(true, "*", "abc"),
 		glob(true, `\*`, "*"),
 		glob(true, "**", "a.b.c", "."),
-
-		glob(true, "* ?at * eyes", "my cat has very bright eyes"),
 
 		glob(false, "?at", "at"),
 		glob(false, "?at", "fat", "f"),
@@ -138,15 +141,16 @@ func TestGlob(t *testing.T) {
 		glob(false, "*no*", "this is a test"),
 		glob(true, "[!a]*", "this is a test3"),
 
-		//		glob(true, "*abc", "abcabc"),
+		glob(true, "*abc", "abcabc"),
 		glob(true, "**abc", "abcabc"),
-		//		glob(true, "???", "abc"),
-		//		glob(true, "?*?", "abc"),
-		//		glob(true, "?*?", "ac"),
+		glob(true, "???", "abc"),
+		glob(true, "?*?", "abc"),
+		glob(true, "?*?", "ac"),
 
 		glob(true, pattern_all, fixture_all),
 		glob(true, pattern_plain, fixture_plain),
 		glob(true, pattern_multiple, fixture_multiple),
+		glob(true, pattern_alternatives, fixture_alternatives),
 		glob(true, pattern_prefix, fixture_prefix_suffix),
 		glob(true, pattern_suffix, fixture_prefix_suffix),
 		glob(true, pattern_prefix_suffix, fixture_prefix_suffix),
@@ -172,6 +176,8 @@ func BenchmarkParse(b *testing.B) {
 
 func BenchmarkAll(b *testing.B) {
 	m, _ := Compile(pattern_all)
+	//	fmt.Println("tree all:")
+	//	fmt.Println(m)
 
 	for i := 0; i < b.N; i++ {
 		_ = m.Match(fixture_all)
@@ -183,6 +189,13 @@ func BenchmarkMultiple(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		_ = m.Match(fixture_multiple)
+	}
+}
+func BenchmarkAlternatives(b *testing.B) {
+	m, _ := Compile(pattern_alternatives)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(fixture_alternatives)
 	}
 }
 func BenchmarkPlain(b *testing.B) {
@@ -213,3 +226,11 @@ func BenchmarkPrefixSuffix(b *testing.B) {
 		_ = m.Match(fixture_prefix_suffix)
 	}
 }
+
+//BenchmarkParse-8          500000              2235 ns/op
+//BenchmarkAll-8          20000000                73.1 ns/op
+//BenchmarkMultiple-8     10000000               130 ns/op
+//BenchmarkPlain-8        200000000                6.70 ns/op
+//BenchmarkPrefix-8       200000000                8.36 ns/op
+//BenchmarkSuffix-8       200000000                8.35 ns/op
+//BenchmarkPrefixSuffix-8 100000000               13.6 ns/op

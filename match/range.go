@@ -2,6 +2,7 @@ package match
 
 import (
 	"fmt"
+	"unicode/utf8"
 )
 
 type Range struct {
@@ -13,28 +14,31 @@ func (self Range) Kind() Kind {
 	return KindRange
 }
 
-func (self Range) Match(s string) bool {
-	r := []rune(s)
+func (self Range) Len() int {
+	return 1
+}
 
-	if len(r) != 1 {
+func (self Range) Match(s string) bool {
+	r, w := utf8.DecodeRuneInString(s)
+	if len(s) > w {
 		return false
 	}
 
-	inRange := r[0] >= self.Lo && r[0] <= self.Hi
+	inRange := r >= self.Lo && r <= self.Hi
 
 	return inRange == !self.Not
 }
 
-func (self Range) Index(s string) (index, min, max int) {
-	for i, r := range []rune(s) {
+func (self Range) Index(s string) (int, []int) {
+	for i, r := range s {
 		if self.Not != (r >= self.Lo && r <= self.Hi) {
-			return i, 1, 1
+			return i, []int{utf8.RuneLen(r)}
 		}
 	}
 
-	return -1, 0, 0
+	return -1, nil
 }
 
 func (self Range) String() string {
-	return fmt.Sprintf("[range_between:%s-%s(%t)]", self.Lo, self.Hi, self.Not)
+	return fmt.Sprintf("[range:%s-%s(%t)]", string(self.Lo), string(self.Hi), self.Not)
 }

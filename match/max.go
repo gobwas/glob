@@ -1,13 +1,20 @@
 package match
 
-import "fmt"
+import (
+	"fmt"
+	"unicode/utf8"
+)
 
 type Max struct {
 	Limit int
 }
 
 func (self Max) Match(s string) bool {
-	return len([]rune(s)) <= self.Limit
+	return utf8.RuneCountInString(s) <= self.Limit
+}
+
+func (self Max) Len() int {
+	return -1
 }
 
 func (self Max) Search(s string) (int, int, bool) {

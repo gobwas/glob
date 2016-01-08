@@ -2,6 +2,7 @@ package match
 
 import (
 	"fmt"
+	"unicode/utf8"
 )
 
 type BTree struct {
@@ -13,51 +14,95 @@ func (self BTree) Kind() Kind {
 	return KindBTree
 }
 
+func (self BTree) len() (l, v, r int, ok bool) {
+	v = self.Value.Len()
+
+	if self.Left != nil {
+		l = self.Left.Len()
+	}
+
+	if self.Right != nil {
+		r = self.Right.Len()
+	}
+
+	ok = l > -1 && v > -1 && r > -1
+
+	return
+}
+
+func (self BTree) Len() int {
+	l, v, r, ok := self.len()
+	if ok {
+		return l + v + r
+	}
+
+	return -1
+}
+
 func (self BTree) Match(s string) bool {
-	runes := []rune(s)
-	inputLen := len(runes)
+	inputLen := len(s)
 
-	for offset := 0; offset < inputLen; {
-		index, min, max := self.Value.Index(string(runes[offset:]))
+	lLen, vLen, rLen, ok := self.len()
+	if ok && lLen+vLen+rLen > inputLen {
+		return false
+	}
 
+	var offset, limit int
+	if lLen >= 0 {
+		offset = lLen
+	}
+	if rLen >= 0 {
+		limit = inputLen - rLen
+	} else {
+		limit = inputLen
+	}
+
+	for offset < limit {
+		index, segments := self.Value.Index(s[offset:limit])
 		if index == -1 {
 			return false
 		}
 
-		for length := min; length <= max; length++ {
-			var left, right bool
+		l := string(s[:offset+index])
+		var left bool
+		if self.Left != nil {
+			left = self.Left.Match(l)
+		} else {
+			left = l == ""
+		}
 
-			l := string(runes[:offset+index])
-			if self.Left != nil {
-				left = self.Left.Match(l)
-			} else {
-				left = l == ""
-			}
+		if left {
+			for i := len(segments) - 1; i >= 0; i-- {
+				length := segments[i]
 
-			if !left {
-				break
-			}
+				if rLen >= 0 && inputLen-(offset+index+length) != rLen {
+					continue
+				}
 
-			var r string
-			// if there is no string for the right branch
-			if inputLen <= offset+index+length {
-				r = ""
-			} else {
-				r = string(runes[offset+index+length:])
-			}
+				var right bool
 
-			if self.Right != nil {
-				right = self.Right.Match(r)
-			} else {
-				right = r == ""
-			}
+				var r string
+				// if there is no string for the right branch
+				if inputLen <= offset+index+length {
+					r = ""
+				} else {
+					r = s[offset+index+length:]
+				}
 
-			if left && right {
-				return true
+				if self.Right != nil {
+					right = self.Right.Match(r)
+				} else {
+					right = r == ""
+				}
+
+				if right {
+					return true
+				}
 			}
 		}
 
-		offset += index + 1
+		_, step := utf8.DecodeRuneInString(s[offset+index:])
+		offset += index + step
 	}
 
 	return false

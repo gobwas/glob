@@ -3,6 +3,7 @@ package match
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 type List struct {
@@ -15,7 +16,7 @@ func (self List) Kind() Kind {
 }
 
 func (self List) Match(s string) bool {
-	if len([]rune(s)) != 1 {
+	if utf8.RuneCountInString(s) > 1 {
 		return false
 	}
 
@@ -24,14 +25,18 @@ func (self List) Match(s string) bool {
 	return inList == !self.Not
 }
 
-func (self List) Index(s string) (index, min, max int) {
-	for i, r := range []rune(s) {
+func (self List) Len() int {
+	return 1
+}
+
+func (self List) Index(s string) (int, []int) {
+	for i, r := range s {
 		if self.Not == (strings.IndexRune(self.List, r) == -1) {
-			return i, 1, 1
+			return i, []int{utf8.RuneLen(r)}
 		}
 	}
 
-	return -1, 0, 0
+	return -1, nil
 }
 
 func (self List) String() string {

@@ -52,7 +52,7 @@ func TestGlueMatchers(t *testing.T) {
 			}},
 		},
 	} {
-		act, err := convertMatchers(test.in)
+		act, err := compileMatchers(test.in)
 		if err != nil {
 			t.Errorf("#%d convert matchers error: %s", id, err)
 			continue
@@ -65,7 +65,7 @@ func TestGlueMatchers(t *testing.T) {
 	}
 }
 
-func TestConvertMatchers(t *testing.T) {
+func TestCompileMatchers(t *testing.T) {
 	for id, test := range []struct {
 		in  []match.Matcher
 		exp match.Matcher
@@ -96,8 +96,22 @@ func TestConvertMatchers(t *testing.T) {
 				Right: match.Any{},
 			},
 		},
+		{
+			[]match.Matcher{
+				match.Range{'a', 'c', true},
+				match.List{"zte", false},
+				match.Raw{"c"},
+				match.Single{},
+			},
+			match.Row{Matchers: match.Matchers{
+				match.Range{'a', 'c', true},
+				match.List{"zte", false},
+				match.Raw{"c"},
+				match.Single{},
+			}},
+		},
 	} {
-		act, err := convertMatchers(test.in)
+		act, err := compileMatchers(test.in)
 		if err != nil {
 			t.Errorf("#%d convert matchers error: %s", id, err)
 			continue
@@ -105,6 +119,58 @@ func TestConvertMatchers(t *testing.T) {
 
 		if !reflect.DeepEqual(act, test.exp) {
 			t.Errorf("#%d unexpected convert matchers result:\nact: %s;\nexp: %s", id, act, test.exp)
+			continue
+		}
+	}
+}
+
+func TestConvertMatchers2(t *testing.T) {
+	for id, test := range []struct {
+		in, exp []match.Matcher
+	}{
+		{
+			[]match.Matcher{
+				match.Range{'a', 'c', true},
+				match.List{"zte", false},
+				match.Raw{"c"},
+				match.Single{},
+				match.Any{},
+			},
+			[]match.Matcher{
+				match.Row{Matchers: match.Matchers{
+					match.Range{'a', 'c', true},
+					match.List{"zte", false},
+					match.Raw{"c"},
+					match.Single{},
+				}},
+				match.Any{},
+			},
+		},
+		{
+			[]match.Matcher{
+				match.Range{'a', 'c', true},
+				match.List{"zte", false},
+				match.Raw{"c"},
+				match.Single{},
+				match.Any{},
+				match.Single{},
+				match.Single{},
+				match.Any{},
+			},
+			[]match.Matcher{
+				match.Row{Matchers: match.Matchers{
+					match.Range{'a', 'c', true},
+					match.List{"zte", false},
+					match.Raw{"c"},
+					match.Single{},
+				}},
+				match.Min{2},
+			},
+		},
+	} {
+		act := convertMatchers(test.in, nil)
+		if !reflect.DeepEqual(act, test.exp) {
+			t.Errorf("#%d unexpected convert matchers 2 result:\nact: %s;\nexp: %s", id, act, test.exp)
 			continue
 		}
 	}
@@ -183,21 +249,23 @@ func TestCompiler(t *testing.T) {
 			ast: pattern(&nodeAny{}, &nodeText{text: "abc"}, &nodeSingle{}),
 			sep: separators,
 			result: match.BTree{
-				Left:  match.Any{separators},
-				Value: match.Raw{"abc"},
-				Right: match.Single{separators},
+				Left: match.Any{separators},
+				Value: match.Row{Matchers: match.Matchers{
+					match.Raw{"abc"},
+					match.Single{separators},
+				}},
 			},
 		},
 		{
 			ast: pattern(&nodeSuper{}, &nodeSingle{}, &nodeText{text: "abc"}, &nodeSingle{}),
 			sep: separators,
 			result: match.BTree{
-				Left: match.BTree{
-					Left:  match.Super{},
-					Value: match.Single{separators},
-				},
-				Value: match.Raw{"abc"},
-				Right: match.Single{separators},
+				Left: match.Super{},
+				Value: match.Row{Matchers: match.Matchers{
+					match.Single{separators},
+					match.Raw{"abc"},
+					match.Single{separators},
+				}},
 			},
 		},
 		{
@@ -242,6 +310,20 @@ func TestCompiler(t *testing.T) {
 					match.Raw{"abc"},
 				}},
 			}},
+		},
+		{
+			ast: pattern(
+				&nodeRange{lo: 'a', hi: 'z'},
+				&nodeRange{lo: 'a', hi: 'x', not: true},
+				&nodeAny{},
+			),
+			result: match.BTree{
+				Value: match.Row{Matchers: match.Matchers{
+					match.Range{Lo: 'a', Hi: 'z'},
+					match.Range{Lo: 'a', Hi: 'x', Not: true},
+				}},
+				Right: match.Super{},
+			},
 		},
 	} {
 		prog, err := compile(test.ast, test.sep)

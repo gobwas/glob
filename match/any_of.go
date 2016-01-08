@@ -8,8 +8,9 @@ type AnyOf struct {
 	Matchers Matchers
 }
 
-func (self *AnyOf) Add(m Matcher) {
+func (self *AnyOf) Add(m Matcher) error {
 	self.Matchers = append(self.Matchers, m)
+	return nil
 }
 
 func (self AnyOf) Match(s string) bool {
@@ -20,6 +21,10 @@ func (self AnyOf) Match(s string) bool {
 	}
 
 	return false
+}
+
+func (self AnyOf) Len() int {
+	return -1
 }
 
 func (self AnyOf) Kind() Kind {

@@ -14,18 +14,21 @@ func (self Raw) Match(s string) bool {
 	return self.Str == s
 }
 
+func (self Raw) Len() int {
+	return len(self.Str)
+}
+
 func (self Raw) Kind() Kind {
 	return KindRaw
 }
 
-func (self Raw) Index(s string) (index, min, max int) {
+func (self Raw) Index(s string) (index int, segments []int) {
 	index = strings.Index(s, self.Str)
 	if index == -1 {
 		return
 	}
 
-	min = len(self.Str)
-	max = min
+	segments = []int{len(self.Str)}
 
 	return
 }

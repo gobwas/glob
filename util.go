@@ -1,6 +1,5 @@
 package glob
 
-
 import (
 	"strings"
 )
@@ -18,6 +17,6 @@ func indexByteNonEscaped(source string, needle, escape byte, shift int) int {
 		return i + shift
 	}
 
-	sh := i+1
+	sh := i + 1
 	return indexByteNonEscaped(source[sh:], needle, escape, sh)
 }

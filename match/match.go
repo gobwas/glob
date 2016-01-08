@@ -29,10 +29,12 @@ const (
 
 type Matcher interface {
 	Match(string) bool
+	Len() int
 }
 
 type Primitive interface {
-	Index(string) (int, int, int)
+	Matcher
+	Index(string) (int, []int)
 }
 
 type Matchers []Matcher

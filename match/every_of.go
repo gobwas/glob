@@ -8,8 +8,21 @@ type Every struct {
 	Matchers Matchers
 }
 
-func (self *Every) Add(m Matcher) {
+func (self *Every) Add(m Matcher) error {
 	self.Matchers = append(self.Matchers, m)
+	return nil
+}
+
+func (self Every) Len() (l int) {
+	for _, m := range self.Matchers {
+		if ml := m.Len(); l > 0 {
+			l += ml
+		} else {
+			return -1
+		}
+	}
+
+	return
 }
 
 func (self Every) Match(s string) bool {

@@ -14,6 +14,10 @@ func (self Contains) Match(s string) bool {
 	return strings.Contains(s, self.Needle) != self.Not
 }
 
+func (self Contains) Len() int {
+	return -1
+}
+
 func (self Contains) Kind() Kind {
 	return KindContains
 }

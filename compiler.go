@@ -62,6 +62,52 @@ func optimize(matcher match.Matcher) match.Matcher {
 }
 
 func glueMatchers(matchers []match.Matcher) match.Matcher {
+	var (
+		glued  []match.Matcher
+		winner match.Matcher
+	)
+	maxLen := -1
+
+	if m := glueAsEvery(matchers); m != nil {
+		glued = append(glued, m)
+		return m
+	}
+
+	if m := glueAsRow(matchers); m != nil {
+		glued = append(glued, m)
+		return m
+	}
+
+	for _, g := range glued {
+		if l := g.Len(); l > maxLen {
+			maxLen = l
+			winner = g
+		}
+	}
+
+	return winner
+}
+
+func glueAsRow(matchers []match.Matcher) match.Matcher {
+	switch len(matchers) {
+	case 0:
+		return nil
+	case 1:
+		return matchers[0]
+	}
+
+	row := match.Row{}
+	for _, matcher := range matchers {
+		err := row.Add(matcher)
+		if err != nil {
+			return nil
+		}
+	}
+
+	return row
+}
+
+func glueAsEvery(matchers []match.Matcher) match.Matcher {
 	switch len(matchers) {
 	case 0:
 		return nil
@@ -147,7 +193,28 @@ func glueMatchers(matchers []match.Matcher) match.Matcher {
 	return every
 }
 
-func convertMatchers(matchers []match.Matcher) (match.Matcher, error) {
+func convertMatchers(matchers []match.Matcher, result []match.Matcher) []match.Matcher {
+	var (
+		buf  []match.Matcher
+		done match.Matcher
+	)
+	for idx, m := range matchers {
+		buf = append(buf, m)
+		if g := glueMatchers(buf); g != nil {
+			done = g
+		} else {
+			return convertMatchers(matchers[idx:], append(result, done))
+		}
+	}
+
+	if done != nil {
+		return append(result, done)
+	}
+
+	return result
+}
+
+func compileMatchers(matchers []match.Matcher) (match.Matcher, error) {
 	if m := glueMatchers(matchers); m != nil {
 		return m, nil
 	}
@@ -156,14 +223,14 @@ func convertMatchers(matchers []match.Matcher) (match.Matcher, error) {
 		val match.Primitive
 		idx int
 	)
-
+	maxLen := -1
 	for i, matcher := range matchers {
 		if p, ok := matcher.(match.Primitive); ok {
-			idx = i
-			val = p
-
-			if _, ok := matcher.(match.Raw); ok {
-				break
+			l := p.Len()
+			if l >= maxLen {
+				maxLen = l
+				idx = i
+				val = p
 			}
 		}
 	}
@@ -181,7 +248,7 @@ func convertMatchers(matchers []match.Matcher) (match.Matcher, error) {
 	tree := match.BTree{Value: val}
 
 	if len(left) > 0 {
-		l, err := convertMatchers(left)
+		l, err := compileMatchers(left)
 		if err != nil {
 			return nil, err
 		}
@@ -190,7 +257,7 @@ func convertMatchers(matchers []match.Matcher) (match.Matcher, error) {
 	}
 
 	if len(right) > 0 {
-		r, err := convertMatchers(right)
+		r, err := compileMatchers(right)
 		if err != nil {
 			return nil, err
 		}
@@ -217,7 +284,7 @@ func do(node node, s string) (m match.Matcher, err error) {
 		if _, ok := node.(*nodeAnyOf); ok {
 			m = match.AnyOf{matchers}
 		} else {
-			m, err = convertMatchers(matchers)
+			m, err = compileMatchers(convertMatchers(matchers, nil))
 			if err != nil {
 				return nil, err
 			}

@@ -1,13 +1,9 @@
 package match
 
 import (
-	"strings"
 	"fmt"
+	"strings"
 )
-
-
-
-
 
 type Suffix struct {
 	Suffix string
@@ -15,6 +11,10 @@ type Suffix struct {
 
 func (self Suffix) Kind() Kind {
 	return KindSuffix
+}
+
+func (self Suffix) Len() int {
+	return -1
 }
 
 func (self Suffix) Search(s string) (i int, l int, ok bool) {
@@ -32,5 +32,3 @@ func (self Suffix) Match(s string) bool {
 func (self Suffix) String() string {
 	return fmt.Sprintf("[suffix:%s]", self.Suffix)
 }
-
-

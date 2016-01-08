@@ -3,6 +3,7 @@ package glob
 import (
 	"errors"
 	"fmt"
+	"unicode/utf8"
 )
 
 type node interface {
@@ -172,23 +173,23 @@ func parserRange(tree *tree, lexer *lexer) (parseFn, error) {
 			not = true
 
 		case item_range_lo:
-			r := []rune(item.s)
-			if len(r) != 1 {
+			r, w := utf8.DecodeRuneInString(item.s)
+			if len(item.s) > w {
 				return nil, fmt.Errorf("unexpected length of lo character")
 			}
 
-			lo = r[0]
+			lo = r
 
 		case item_range_between:
 			//
 
 		case item_range_hi:
-			r := []rune(item.s)
-			if len(r) != 1 {
-				return nil, fmt.Errorf("unexpected length of hi character")
+			r, w := utf8.DecodeRuneInString(item.s)
+			if len(item.s) > w {
+				return nil, fmt.Errorf("unexpected length of lo character")
 			}
 
-			hi = r[0]
+			hi = r
 
 			if hi < lo {
 				return nil, fmt.Errorf("hi character '%s' should be greater than lo '%s'", string(hi), string(lo))

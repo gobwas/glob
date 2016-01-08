@@ -13,6 +13,10 @@ func (self PrefixSuffix) Kind() Kind {
 	return KindPrefixSuffix
 }
 
+func (self PrefixSuffix) Len() int {
+	return -1
+}
+
 func (self PrefixSuffix) Search(s string) (i int, l int, ok bool) {
 	if self.Match(s) {
 		return 0, len(s), true
