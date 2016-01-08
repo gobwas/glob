@@ -1,8 +1,8 @@
 package match
 
 import (
-	"strings"
 	"fmt"
+	"strings"
 )
 
 // raw represents raw string to match
@@ -18,15 +18,14 @@ func (self Raw) Kind() Kind {
 	return KindRaw
 }
 
-func (self Raw) Search(s string) (i int, l int, ok bool) {
-	index := strings.Index(s, self.Str)
+func (self Raw) Index(s string) (index, min, max int) {
+	index = strings.Index(s, self.Str)
 	if index == -1 {
 		return
 	}
 
-	i = index
-	l = len(self.Str)
-	ok = true
+	min = len(self.Str)
+	max = min
 
 	return
 }

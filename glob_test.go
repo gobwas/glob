@@ -1,6 +1,8 @@
 package glob
 
 import (
+	"github.com/gobwas/glob/match"
+	"reflect"
 	"testing"
 )
 
@@ -14,12 +16,11 @@ const (
 	pattern_multiple = "https://*.google.*"
 	fixture_multiple = "https://account.google.com"
 
-	pattern_prefix = "abc*"
-	pattern_suffix = "*def"
+	pattern_prefix        = "abc*"
+	pattern_suffix        = "*def"
 	pattern_prefix_suffix = "ab*ef"
 	fixture_prefix_suffix = "abcdef"
 )
-
 
 type test struct {
 	pattern, match string
@@ -31,11 +32,37 @@ func glob(s bool, p, m string, d ...string) test {
 	return test{p, m, s, d}
 }
 
+func TestCompilePattern(t *testing.T) {
+	for id, test := range []struct {
+		pattern string
+		sep     string
+		exp     match.Matcher
+	}{
+	//		{
+	//			pattern: "[!a]*****",
+	//			exp:     match.Raw{"t"},
+	//		},
+	} {
+		glob, err := Compile(test.pattern, test.sep)
+		if err != nil {
+			t.Errorf("#%d compile pattern error: %s", id, err)
+			continue
+		}
+
+		matcher := glob.(match.Matcher)
+
+		if !reflect.DeepEqual(test.exp, matcher) {
+			t.Errorf("#%d unexpected compilation:\nexp: %s\nact: %s", id, test.exp, matcher)
+			continue
+		}
+	}
+}
+
 func TestIndexByteNonEscaped(t *testing.T) {
 	for _, test := range []struct {
-		s string
+		s    string
 		n, e byte
-		i int
+		i    int
 	}{
 		{
 			"\\n_n",
@@ -109,7 +136,13 @@ func TestGlob(t *testing.T) {
 
 		glob(false, "*is", "this is a test"),
 		glob(false, "*no*", "this is a test"),
-		glob(true, "[!a]*", "this is a test"),
+		glob(true, "[!a]*", "this is a test3"),
+
+		//		glob(true, "*abc", "abcabc"),
+		glob(true, "**abc", "abcabc"),
+		//		glob(true, "???", "abc"),
+		//		glob(true, "?*?", "abc"),
+		//		glob(true, "?*?", "ac"),
 
 		glob(true, pattern_all, fixture_all),
 		glob(true, pattern_plain, fixture_plain),
@@ -118,7 +151,7 @@ func TestGlob(t *testing.T) {
 		glob(true, pattern_suffix, fixture_prefix_suffix),
 		glob(true, pattern_prefix_suffix, fixture_prefix_suffix),
 	} {
-		g, err := New(test.pattern, test.delimiters...)
+		g, err := Compile(test.pattern, test.delimiters...)
 		if err != nil {
 			t.Errorf("parsing pattern %q error: %s", test.pattern, err)
 			continue
@@ -131,15 +164,14 @@ func TestGlob(t *testing.T) {
 	}
 }
 
-
 func BenchmarkParse(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		New(pattern_all)
+		Compile(pattern_all)
 	}
 }
 
 func BenchmarkAll(b *testing.B) {
-	m, _ := New(pattern_all)
+	m, _ := Compile(pattern_all)
 
 	for i := 0; i < b.N; i++ {
 		_ = m.Match(fixture_all)
@@ -147,35 +179,35 @@ func BenchmarkAll(b *testing.B) {
 }
 
 func BenchmarkMultiple(b *testing.B) {
-	m, _ := New(pattern_multiple)
+	m, _ := Compile(pattern_multiple)
 
 	for i := 0; i < b.N; i++ {
 		_ = m.Match(fixture_multiple)
 	}
 }
 func BenchmarkPlain(b *testing.B) {
-	m, _ := New(pattern_plain)
+	m, _ := Compile(pattern_plain)
 
 	for i := 0; i < b.N; i++ {
 		_ = m.Match(fixture_plain)
 	}
 }
 func BenchmarkPrefix(b *testing.B) {
-	m, _ := New(pattern_prefix)
+	m, _ := Compile(pattern_prefix)
 
 	for i := 0; i < b.N; i++ {
 		_ = m.Match(fixture_prefix_suffix)
 	}
 }
 func BenchmarkSuffix(b *testing.B) {
-	m, _ := New(pattern_suffix)
+	m, _ := Compile(pattern_suffix)
 
 	for i := 0; i < b.N; i++ {
 		_ = m.Match(fixture_prefix_suffix)
 	}
 }
 func BenchmarkPrefixSuffix(b *testing.B) {
-	m, _ := New(pattern_prefix_suffix)
+	m, _ := Compile(pattern_prefix_suffix)
 
 	for i := 0; i < b.N; i++ {
 		_ = m.Match(fixture_prefix_suffix)

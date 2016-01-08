@@ -3,72 +3,154 @@ package glob
 import (
 	"errors"
 	"fmt"
-	"github.com/gobwas/glob/match"
 )
 
-func parseAll(source, separators string) ([]token, error) {
-	lexer := newLexer(source)
+type node interface {
+	children() []node
+	append(node)
+}
 
-	var tokens []token
-	for parser := parserMain; parser != nil; {
-		var err error
-		tokens, parser, err = parser(lexer, separators)
+type nodeImpl struct {
+	desc []node
+}
+
+func (n *nodeImpl) append(c node) {
+	n.desc = append(n.desc, c)
+}
+func (n *nodeImpl) children() []node {
+	return n.desc
+}
+
+type nodeList struct {
+	nodeImpl
+	not   bool
+	chars string
+}
+type nodeRange struct {
+	nodeImpl
+	not    bool
+	lo, hi rune
+}
+type nodeText struct {
+	nodeImpl
+	text string
+}
+
+type nodePattern struct{ nodeImpl }
+type nodeAny struct{ nodeImpl }
+type nodeSuper struct{ nodeImpl }
+type nodeSingle struct{ nodeImpl }
+type nodeAnyOf struct{ nodeImpl }
+
+type tree struct {
+	root    node
+	current node
+	path    []node
+}
+
+func (t *tree) enter(c node) {
+	if t.root == nil {
+		t.root = c
+		t.current = c
+		return
+	}
+
+	t.current.append(c)
+	t.path = append(t.path, c)
+	t.current = c
+}
+
+func (t *tree) leave() {
+	if len(t.path)-1 <= 0 {
+		t.current = t.root
+		t.path = nil
+		return
+	}
+
+	t.path = t.path[:len(t.path)-1]
+	t.current = t.path[len(t.path)-1]
+}
+
+type parseFn func(*tree, *lexer) (parseFn, error)
+
+func parse(lexer *lexer) (*nodePattern, error) {
+	var parser parseFn
+
+	root := &nodePattern{}
+	tree := &tree{}
+	tree.enter(root)
+
+	for parser = parserMain; ; {
+		next, err := parser(tree, lexer)
 		if err != nil {
 			return nil, err
 		}
-	}
 
-	return tokens, nil
-}
-
-type parseFn func(*lexer, string) ([]token, parseFn, error)
-
-func parserMain(lexer *lexer, separators string) ([]token, parseFn, error) {
-	var (
-		prev   *token
-		tokens []token
-	)
-
-	for item := lexer.nextItem(); ; {
-		var t token
-
-		if item.t == item_eof {
+		if next == nil {
 			break
 		}
 
-		switch item.t {
-		case item_eof:
-			return tokens, nil, nil
-
-		case item_error:
-			return nil, nil, errors.New(item.s)
-
-		case item_text:
-			t = token{match.Raw{item.s}, item.s}
-
-		case item_any:
-			if prev != nil && prev.matcher.Kind() == match.KindMultipleSeparated {
-				// remove simple any and replace it with super_any
-				tokens = tokens[:len(tokens)-1]
-				t = token{match.Any{""}, item.s}
-			} else {
-				t = token{match.Any{separators}, item.s}
-			}
-
-		case item_single:
-			t = token{match.Single{separators}, item.s}
-
-		case item_range_open:
-			return tokens, parserRange, nil
-		}
-
-		prev = &t
+		parser = next
 	}
 
-	return tokens, nil, nil
+	return root, nil
 }
 
-func parserRange(lexer *lexer, separators string) ([]token, parseFn, error) {
+func parserMain(tree *tree, lexer *lexer) (parseFn, error) {
+	for stop := false; !stop; {
+		item := lexer.nextItem()
+
+		switch item.t {
+		case item_eof:
+			stop = true
+			continue
+
+		case item_error:
+			return nil, errors.New(item.s)
+
+		case item_text:
+			tree.current.append(&nodeText{text: item.s})
+			return parserMain, nil
+
+		case item_any:
+			tree.current.append(&nodeAny{})
+			return parserMain, nil
+
+		case item_super:
+			tree.current.append(&nodeSuper{})
+			return parserMain, nil
+
+		case item_single:
+			tree.current.append(&nodeSingle{})
+			return parserMain, nil
+
+		case item_range_open:
+			return parserRange, nil
+
+		case item_terms_open:
+			tree.enter(&nodeAnyOf{})
+			tree.enter(&nodePattern{})
+			return parserMain, nil
+
+		case item_separator:
+			tree.leave()
+			tree.enter(&nodePattern{})
+			return parserMain, nil
+
+		case item_terms_close:
+			tree.leave()
+			tree.leave()
+			return parserMain, nil
+
+		default:
+			return nil, fmt.Errorf("unexpected token: %s", item)
+		}
+	}
+
+	return nil, nil
+}
+
+func parserRange(tree *tree, lexer *lexer) (parseFn, error) {
 	var (
 		not   bool
 		lo    rune
@@ -76,60 +158,67 @@ func parserRange(lexer *lexer, separators string) ([]token, parseFn, error) {
 		chars string
 	)
 
-	for item := lexer.nextItem(); ; {
+	for {
+		item := lexer.nextItem()
+
 		switch item.t {
 		case item_eof:
-			return nil, nil, errors.New("unexpected end")
+			return nil, errors.New("unexpected end")
 
 		case item_error:
-			return nil, nil, errors.New(item.s)
+			return nil, errors.New(item.s)
 
-		case item_range_not:
+		case item_not:
 			not = true
 
 		case item_range_lo:
 			r := []rune(item.s)
 			if len(r) != 1 {
-				return nil, nil, fmt.Errorf("unexpected length of lo character")
+				return nil, fmt.Errorf("unexpected length of lo character")
 			}
 
 			lo = r[0]
 
-		case item_range_minus:
+		case item_range_between:
 			//
 
 		case item_range_hi:
 			r := []rune(item.s)
 			if len(r) != 1 {
-				return nil, nil, fmt.Errorf("unexpected length of hi character")
-			}
-
-			if hi < lo {
-				return nil, nil, fmt.Errorf("hi character should be greater than lo")
+				return nil, fmt.Errorf("unexpected length of hi character")
 			}
 
 			hi = r[0]
 
-		case item_range_chars:
+			if hi < lo {
+				return nil, fmt.Errorf("hi character '%s' should be greater than lo '%s'", string(hi), string(lo))
+			}
+
+		case item_text:
 			chars = item.s
 
 		case item_range_close:
 			isRange := lo != 0 && hi != 0
-			isChars := chars == ""
+			isChars := chars != ""
 
-			if !(isChars != isRange) {
-				return nil, nil, fmt.Errorf("parse error: unexpected lo, hi, chars in range")
+			if isChars == isRange {
+				return nil, fmt.Errorf("could not parse range")
 			}
 
 			if isRange {
-				return []token{token{match.Between{lo, hi, not}, ""}}, parserMain, nil
+				tree.current.append(&nodeRange{
+					lo:  lo,
+					hi:  hi,
+					not: not,
+				})
 			} else {
-				if len(chars) == 0 {
-					return nil, nil, fmt.Errorf("chars range should not be empty")
-				}
-
-				return []token{token{match.RangeList{chars, not}, ""}}, parserMain, nil
+				tree.current.append(&nodeList{
+					chars: chars,
+					not:   not,
+				})
 			}
+
+			return parserMain, nil
 		}
 	}
 }

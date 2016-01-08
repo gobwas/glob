@@ -1,22 +1,47 @@
 package match
 
+import (
+	"fmt"
+	"strings"
+)
+
 type Kind int
-const(
+
+// todo use String for Kind, and self.Kind() in every matcher.String()
+const (
 	KindRaw Kind = iota
-	KindMultipleSeparated
-	KindMultipleSuper
+	KindEveryOf
+	KindAnyOf
+	KindAny
+	KindSuper
 	KindSingle
-	KindComposite
+	KindComposition
 	KindPrefix
 	KindSuffix
 	KindPrefixSuffix
-	KindRangeBetween
-	KindRangeList
+	KindRange
+	KindList
+	KindMin
+	KindMax
+	KindBTree
+	KindContains
 )
-
 
 type Matcher interface {
 	Match(string) bool
-	Search(string) (int, int, bool)
-	Kind() Kind
+}
+
+type Primitive interface {
+	Index(string) (int, int, int)
+}
+
+type Matchers []Matcher
+
+func (m Matchers) String() string {
+	var s []string
+	for _, matcher := range m {
+		s = append(s, fmt.Sprint(matcher))
+	}
+
+	return fmt.Sprintf("matchers[%s]", strings.Join(s, ","))
 }
