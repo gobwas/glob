@@ -124,7 +124,7 @@ func TestCompileMatchers(t *testing.T) {
 	}
 }
 
-func TestConvertMatchers2(t *testing.T) {
+func TestConvertMatchers(t *testing.T) {
 	for id, test := range []struct {
 		in, exp []match.Matcher
 	}{
@@ -325,6 +325,18 @@ func TestCompiler(t *testing.T) {
 				Right: match.Super{},
 			},
 		},
+		//		{
+		//			ast: pattern(
+		//				anyOf(&nodeText{text: "a"}, &nodeText{text: "b"}),
+		//				anyOf(&nodeText{text: "c"}, &nodeText{text: "d"}),
+		//			),
+		//			result: match.AnyOf{Matchers: match.Matchers{
+		//				match.Row{Matchers: match.Matchers{match.Raw{"a"}, match.Raw{"c"}}},
+		//				match.Row{Matchers: match.Matchers{match.Raw{"a"}, match.Raw{"d"}}},
+		//				match.Row{Matchers: match.Matchers{match.Raw{"b"}, match.Raw{"c"}}},
+		//				match.Row{Matchers: match.Matchers{match.Raw{"b"}, match.Raw{"d"}}},
+		//			}},
+		//		},
 	} {
 		prog, err := compile(test.ast, test.sep)
 		if err != nil {

@@ -42,7 +42,7 @@ func TestCompilePattern(t *testing.T) {
 		exp     match.Matcher
 	}{
 	//		{
-	//			pattern: "{http://*yandex.ru,b}",
+	//			pattern: "{abc,def}ghi",
 	//			exp:     match.Raw{"t"},
 	//		},
 	} {
@@ -147,6 +147,12 @@ func TestGlob(t *testing.T) {
 		glob(true, "?*?", "abc"),
 		glob(true, "?*?", "ac"),
 
+		glob(true, "{abc,def}ghi", "defghi"),
+		glob(true, "{abc,abcd}a", "abcda"),
+		glob(true, "{a,ab}{bc,f}", "abc"),
+		glob(true, "{*,**}{a,b}", "ab"),
+		glob(false, "{*,**}{a,b}", "ac"),
+
 		glob(true, pattern_all, fixture_all),
 		glob(true, pattern_plain, fixture_plain),
 		glob(true, pattern_multiple, fixture_multiple),
@@ -163,7 +169,7 @@ func TestGlob(t *testing.T) {
 
 		result := g.Match(test.match)
 		if result != test.should {
-			t.Errorf("pattern %q matching %q should be %v but got %v", test.pattern, test.match, test.should, result)
+			t.Errorf("pattern %q matching %q should be %v but got %v\n%s", test.pattern, test.match, test.should, result, g)
 		}
 	}
 }

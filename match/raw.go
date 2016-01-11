@@ -34,5 +34,5 @@ func (self Raw) Index(s string) (index int, segments []int) {
 }
 
 func (self Raw) String() string {
-	return fmt.Sprintf("[raw:%s]", self.Str)
+	return fmt.Sprintf("<raw:%s>", self.Str)
 }

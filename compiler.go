@@ -271,7 +271,7 @@ func compileMatchers(matchers []match.Matcher) (match.Matcher, error) {
 func do(node node, s string) (m match.Matcher, err error) {
 	switch n := node.(type) {
 
-	case *nodeAnyOf, *nodePattern:
+	case *nodePattern, *nodeAnyOf:
 		var matchers []match.Matcher
 		for _, desc := range node.children() {
 			m, err := do(desc, s)
@@ -315,7 +315,120 @@ func do(node node, s string) (m match.Matcher, err error) {
 	return optimize(m), nil
 }
 
+func do2(node node, s string) ([]match.Matcher, error) {
+	var result []match.Matcher
+
+	switch n := node.(type) {
+
+	case *nodePattern:
+		ways := [][]match.Matcher{[]match.Matcher{}}
+
+		for _, desc := range node.children() {
+			variants, err := do2(desc, s)
+			if err != nil {
+				return nil, err
+			}
+
+			fmt.Println("variants pat", variants)
+
+			for i, l := 0, len(ways); i < l; i++ {
+				for i := 0; i < len(variants); i++ {
+					o := optimize(variants[i])
+					if i == len(variants)-1 {
+						ways[i] = append(ways[i], o)
+					} else {
+						var w []match.Matcher
+						copy(w, ways[i])
+						ways = append(ways, append(w, o))
+					}
+				}
+			}
+
+			fmt.Println("ways pat", ways)
+		}
+
+		for _, matchers := range ways {
+			c, err := compileMatchers(convertMatchers(matchers, nil))
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, c)
+		}
+
+	case *nodeAnyOf:
+		ways := make([][]match.Matcher, len(node.children()))
+		for _, desc := range node.children() {
+			variants, err := do2(desc, s)
+			if err != nil {
+				return nil, err
+			}
+
+			fmt.Println("variants any", variants)
+
+			for x, l := 0, len(ways); x < l; x++ {
+				for i := 0; i < len(variants); i++ {
+					o := optimize(variants[i])
+					if i == len(variants)-1 {
+						ways[x] = append(ways[x], o)
+					} else {
+						var w []match.Matcher
+						copy(w, ways[x])
+						ways = append(ways, append(w, o))
+					}
+				}
+			}
+
+			fmt.Println("ways any", ways)
+		}
+
+		for _, matchers := range ways {
+			c, err := compileMatchers(convertMatchers(matchers, nil))
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, c)
+		}
+
+	case *nodeList:
+		result = append(result, match.List{n.chars, n.not})
+
+	case *nodeRange:
+		result = append(result, match.Range{n.lo, n.hi, n.not})
+
+	case *nodeAny:
+		result = append(result, match.Any{s})
+
+	case *nodeSuper:
+		result = append(result, match.Super{})
+
+	case *nodeSingle:
+		result = append(result, match.Single{s})
+
+	case *nodeText:
+		result = append(result, match.Raw{n.text})
+
+	default:
+		return nil, fmt.Errorf("could not compile tree: unknown node type")
+	}
+
+	for i, m := range result {
+		result[i] = optimize(m)
+	}
+
+	return result, nil
+}
+
 func compile(ast *nodePattern, s string) (Glob, error) {
+	//	ms, err := do2(ast, s)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	if len(ms) == 1 {
+	//		return ms[0], nil
+	//	} else {
+	//		return match.AnyOf{ms}, nil
+	//	}
+
 	g, err := do(ast, s)
 	if err != nil {
 		return nil, err

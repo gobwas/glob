@@ -23,8 +23,29 @@ func (self AnyOf) Match(s string) bool {
 	return false
 }
 
-func (self AnyOf) Len() int {
-	return -1
+//func (self AnyOf) Index(s string) (index int, segments []int) {
+//
+//}
+
+func (self AnyOf) Len() (l int) {
+	l = -1
+	for _, m := range self.Matchers {
+		ml := m.Len()
+		if ml == -1 {
+			return -1
+		}
+
+		if l == -1 {
+			l = ml
+			continue
+		}
+
+		if l != ml {
+			return -1
+		}
+	}
+
+	return
 }
 
 func (self AnyOf) Kind() Kind {
