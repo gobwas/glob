@@ -112,6 +112,23 @@ func (self BTree) Match(s string) bool {
 	return false
 }
 
+const tpl = `
+"%p"[label="%s"]
+"%p"[label="%s"]
+"%p"[label="%s"]
+"%p"->"%p"
+"%p"->"%p"
+`
+
 func (self BTree) String() string {
-	return fmt.Sprintf("[btree:%s<-%s->%s]", self.Left, self.Value, self.Right)
+	//	return fmt.Sprintf("[btree:%s<-%s->%s]", self.Left, self.Value, self.Right)
+
+	l, r := "nil", "nil"
+	if self.Left != nil {
+		l = self.Left.String()
+	}
+	if self.Right != nil {
+		r = self.Right.String()
+	}
+	return fmt.Sprintf(tpl, &self, self.Value, &l, l, &r, r, &self, &l, &self, &r)
 }

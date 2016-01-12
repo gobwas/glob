@@ -31,6 +31,7 @@ type Matcher interface {
 	Match(string) bool
 	Index(string) (int, []int)
 	Len() int
+	String() string
 }
 
 type Matchers []Matcher

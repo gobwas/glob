@@ -41,10 +41,10 @@ func TestCompilePattern(t *testing.T) {
 		sep     string
 		exp     match.Matcher
 	}{
-	//		{
-	//			pattern: "{*,def,abc[a-z]*}ghi",
-	//			exp:     match.Raw{"t"},
-	//		},
+		{
+			pattern: "a?*",
+			exp:     match.Raw{"t"},
+		},
 	} {
 		glob, err := Compile(test.pattern, test.sep)
 		if err != nil {
