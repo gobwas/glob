@@ -277,8 +277,7 @@ func TestCompiler(t *testing.T) {
 			result: match.Prefix{"abc"},
 		},
 		{
-			ast: pattern(&nodeText{text: "abc"}, &nodeAny{}, &nodeText{text: "def"}),
-			//			result: match.EveryOf{match.Matchers{match.Prefix{"abc"}, match.Suffix{"def"}}},
+			ast:    pattern(&nodeText{text: "abc"}, &nodeAny{}, &nodeText{text: "def"}),
 			result: match.PrefixSuffix{"abc", "def"},
 		},
 		{

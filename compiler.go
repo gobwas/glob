@@ -49,12 +49,10 @@ func optimize(matcher match.Matcher) match.Matcher {
 
 		if leftNil && rightSuffix {
 			return match.PrefixSuffix{Prefix: r.Str, Suffix: rs.Suffix}
-			//			return match.EveryOf{match.Matchers{match.Prefix{r.Str}, rs}}
 		}
 
 		if rightNil && leftPrefix {
 			return match.PrefixSuffix{Prefix: lp.Prefix, Suffix: r.Str}
-			//			return match.EveryOf{match.Matchers{lp, match.Suffix{r.Str}}}
 		}
 
 		return m
