@@ -23,9 +23,40 @@ func (self AnyOf) Match(s string) bool {
 	return false
 }
 
-//func (self AnyOf) Index(s string) (index int, segments []int) {
-//
-//}
+func (self AnyOf) Index(s string) (int, []int) {
+	if len(self.Matchers) == 0 {
+		return -1, nil
+	}
+
+	// segments to merge
+	var segments [][]int
+	index := -1
+
+	for _, m := range self.Matchers {
+		idx, seg := m.Index(s)
+		if idx == -1 {
+			continue
+		}
+
+		if index == -1 || idx < index {
+			index = idx
+			segments = [][]int{seg}
+			continue
+		}
+
+		if idx > index {
+			continue
+		}
+
+		segments = append(segments, seg)
+	}
+
+	if index == -1 {
+		return -1, nil
+	}
+
+	return index, mergeSegments(segments)
+}
 
 func (self AnyOf) Len() (l int) {
 	l = -1

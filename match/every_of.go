@@ -4,16 +4,16 @@ import (
 	"fmt"
 )
 
-type Every struct {
+type EveryOf struct {
 	Matchers Matchers
 }
 
-func (self *Every) Add(m Matcher) error {
+func (self *EveryOf) Add(m Matcher) error {
 	self.Matchers = append(self.Matchers, m)
 	return nil
 }
 
-func (self Every) Len() (l int) {
+func (self EveryOf) Len() (l int) {
 	for _, m := range self.Matchers {
 		if ml := m.Len(); l > 0 {
 			l += ml
@@ -25,7 +25,46 @@ func (self Every) Len() (l int) {
 	return
 }
 
-func (self Every) Match(s string) bool {
+func (self EveryOf) Index(s string) (int, []int) {
+	var index int
+	var offset int
+	var segments []int
+
+	sub := s
+	for _, m := range self.Matchers {
+		idx, seg := m.Index(sub)
+		if idx == -1 {
+			return -1, nil
+		}
+
+		var sum []int
+		if segments == nil {
+			sum = seg
+		} else {
+			delta := index - (idx + offset)
+			for _, ex := range segments {
+				for _, n := range seg {
+					if ex+delta == n {
+						sum = append(sum, n)
+					}
+				}
+			}
+		}
+
+		if len(sum) == 0 {
+			return -1, nil
+		}
+
+		segments = sum
+		index = idx + offset
+		sub = s[index:]
+		offset += idx
+	}
+
+	return index, segments
+}
+
+func (self EveryOf) Match(s string) bool {
 	for _, m := range self.Matchers {
 		if !m.Match(s) {
 			return false
@@ -35,10 +74,10 @@ func (self Every) Match(s string) bool {
 	return true
 }
 
-func (self Every) Kind() Kind {
+func (self EveryOf) Kind() Kind {
 	return KindEveryOf
 }
 
-func (self Every) String() string {
+func (self EveryOf) String() string {
 	return fmt.Sprintf("[every_of:%s]", self.Matchers)
 }

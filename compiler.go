@@ -48,11 +48,13 @@ func optimize(matcher match.Matcher) match.Matcher {
 		}
 
 		if leftNil && rightSuffix {
-			return match.Every{match.Matchers{match.Prefix{r.Str}, rs}}
+			return match.PrefixSuffix{Prefix: r.Str, Suffix: rs.Suffix}
+			//			return match.EveryOf{match.Matchers{match.Prefix{r.Str}, rs}}
 		}
 
 		if rightNil && leftPrefix {
-			return match.Every{match.Matchers{lp, match.Suffix{r.Str}}}
+			return match.PrefixSuffix{Prefix: lp.Prefix, Suffix: r.Str}
+			//			return match.EveryOf{match.Matchers{lp, match.Suffix{r.Str}}}
 		}
 
 		return m
@@ -176,7 +178,7 @@ func glueAsEvery(matchers []match.Matcher) match.Matcher {
 		return match.Min{min}
 	}
 
-	every := match.Every{}
+	every := match.EveryOf{}
 
 	if min > 0 {
 		every.Add(match.Min{min})
@@ -220,23 +222,21 @@ func compileMatchers(matchers []match.Matcher) (match.Matcher, error) {
 	}
 
 	var (
-		val match.Primitive
+		val match.Matcher
 		idx int
 	)
 	maxLen := -1
 	for i, matcher := range matchers {
-		if p, ok := matcher.(match.Primitive); ok {
-			l := p.Len()
-			if l >= maxLen {
-				maxLen = l
-				idx = i
-				val = p
-			}
+		l := matcher.Len()
+		if l >= maxLen {
+			maxLen = l
+			idx = i
+			val = matcher
 		}
 	}
 
 	if val == nil {
-		return nil, fmt.Errorf("could not convert matchers %s: need at least one primitive", match.Matchers(matchers))
+		return nil, fmt.Errorf("could not convert matchers %s: need at least one matcher", match.Matchers(matchers))
 	}
 
 	left := matchers[:idx]

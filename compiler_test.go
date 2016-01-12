@@ -25,7 +25,7 @@ func TestGlueMatchers(t *testing.T) {
 				match.Any{separators},
 				match.Single{separators},
 			},
-			match.Every{match.Matchers{
+			match.EveryOf{match.Matchers{
 				match.Min{1},
 				match.Contains{separators, true},
 			}},
@@ -36,7 +36,7 @@ func TestGlueMatchers(t *testing.T) {
 				match.Single{},
 				match.Single{},
 			},
-			match.Every{match.Matchers{
+			match.EveryOf{match.Matchers{
 				match.Min{3},
 				match.Max{3},
 			}},
@@ -46,7 +46,7 @@ func TestGlueMatchers(t *testing.T) {
 				match.List{"a", true},
 				match.Any{"a"},
 			},
-			match.Every{match.Matchers{
+			match.EveryOf{match.Matchers{
 				match.Min{1},
 				match.Contains{"a", true},
 			}},
@@ -236,7 +236,7 @@ func TestCompiler(t *testing.T) {
 		{
 			ast: pattern(&nodeAny{}, &nodeSingle{}, &nodeSingle{}, &nodeSingle{}),
 			sep: separators,
-			result: match.Every{Matchers: match.Matchers{
+			result: match.EveryOf{Matchers: match.Matchers{
 				match.Min{3},
 				match.Contains{separators, true},
 			}},
@@ -277,8 +277,9 @@ func TestCompiler(t *testing.T) {
 			result: match.Prefix{"abc"},
 		},
 		{
-			ast:    pattern(&nodeText{text: "abc"}, &nodeAny{}, &nodeText{text: "def"}),
-			result: match.Every{match.Matchers{match.Prefix{"abc"}, match.Suffix{"def"}}},
+			ast: pattern(&nodeText{text: "abc"}, &nodeAny{}, &nodeText{text: "def"}),
+			//			result: match.EveryOf{match.Matchers{match.Prefix{"abc"}, match.Suffix{"def"}}},
+			result: match.PrefixSuffix{"abc", "def"},
 		},
 		{
 			ast:    pattern(&nodeAny{}, &nodeAny{}, &nodeAny{}, &nodeText{text: "abc"}, &nodeAny{}, &nodeAny{}),

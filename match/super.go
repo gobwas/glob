@@ -16,7 +16,7 @@ func (self Super) Len() int {
 }
 
 func (self Super) Index(s string) (int, []int) {
-	segments := make([]int, utf8.RuneCountInString(s))
+	segments := make([]int, 0, utf8.RuneCountInString(s)+1)
 	for i := range s {
 		segments = append(segments, i)
 	}

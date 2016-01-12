@@ -6,8 +6,7 @@ import (
 )
 
 type BTree struct {
-	Value       Primitive
-	Left, Right Matcher
+	Value, Left, Right Matcher
 }
 
 func (self BTree) Kind() Kind {
@@ -37,6 +36,11 @@ func (self BTree) Len() int {
 	}
 
 	return -1
+}
+
+// todo
+func (self BTree) Index(s string) (int, []int) {
+	return -1, nil
 }
 
 func (self BTree) Match(s string) bool {

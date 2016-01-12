@@ -13,6 +13,25 @@ func (self Min) Match(s string) bool {
 	return utf8.RuneCountInString(s) >= self.Limit
 }
 
+func (self Min) Index(s string) (int, []int) {
+	var count int
+
+	c := utf8.RuneCountInString(s)
+	if c < self.Limit {
+		return -1, nil
+	}
+
+	segments := make([]int, 0, c-self.Limit+1)
+	for i, r := range s {
+		count++
+		if count >= self.Limit {
+			segments = append(segments, i+utf8.RuneLen(r))
+		}
+	}
+
+	return 0, segments
+}
+
 func (self Min) Len() int {
 	return -1
 }

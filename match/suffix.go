@@ -13,6 +13,15 @@ func (self Suffix) Kind() Kind {
 	return KindSuffix
 }
 
+func (self Suffix) Index(s string) (int, []int) {
+	idx := strings.Index(s, self.Suffix)
+	if idx == -1 {
+		return -1, nil
+	}
+
+	return 0, []int{idx + len(self.Suffix)}
+}
+
 func (self Suffix) Len() int {
 	return -1
 }

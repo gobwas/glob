@@ -42,7 +42,7 @@ func TestCompilePattern(t *testing.T) {
 		exp     match.Matcher
 	}{
 	//		{
-	//			pattern: "{abc,def}ghi",
+	//			pattern: "{*,def}ghi",
 	//			exp:     match.Raw{"t"},
 	//		},
 	} {

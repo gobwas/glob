@@ -3,6 +3,7 @@ package match
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 type Any struct {
@@ -13,20 +14,25 @@ func (self Any) Match(s string) bool {
 	return strings.IndexAny(s, self.Separators) == -1
 }
 
-func (self Any) Index(s string) (index int, segments []int) {
-	index = -1
-	for i, r := range s {
-		if strings.IndexRune(self.Separators, r) == -1 {
-			if index == -1 {
-				index = i
-			}
-			segments = append(segments, i-index)
-		} else if index != -1 {
-			break
-		}
+func (self Any) Index(s string) (int, []int) {
+	var sub string
+
+	found := strings.IndexAny(s, self.Separators)
+	switch found {
+	case -1:
+		sub = s
+	default:
+		sub = s[:found]
 	}
 
-	return
+	segments := make([]int, 0, utf8.RuneCountInString(sub)+1)
+	for i := range sub {
+		segments = append(segments, i)
+	}
+
+	segments = append(segments, len(sub))
+
+	return 0, segments
 }
 
 func (self Any) Len() int {
