@@ -1,7 +1,10 @@
 package glob
 
 import (
+	"bytes"
+	"fmt"
 	"github.com/gobwas/glob/match"
+	"math/rand"
 	"reflect"
 	"testing"
 )
@@ -35,6 +38,43 @@ func glob(s bool, p, m string, d ...string) test {
 	return test{p, m, s, d}
 }
 
+func draw(pattern string, m match.Matcher) string {
+	if tree, ok := m.(match.BTree); ok {
+		return fmt.Sprintf(`digraph G {graph[label="%s"];%s}`, pattern, graphviz(tree, fmt.Sprintf("%x", rand.Int63())))
+	}
+
+	return m.String()
+}
+
+func graphviz(tree match.BTree, id string) string {
+	buf := &bytes.Buffer{}
+
+	fmt.Fprintf(buf, `"%s"[label="%s"];`, id, tree.Value.String())
+	for _, m := range []match.Matcher{tree.Left, tree.Right} {
+		switch n := m.(type) {
+		case nil:
+			rnd := rand.Int63()
+			fmt.Fprintf(buf, `"%x"[label="<nil>"];`, rnd)
+			//			fmt.Fprintf(buf, `"%s"->"%x"[label="len = 0"];`, id, rnd)
+			fmt.Fprintf(buf, `"%s"->"%x";`, id, rnd)
+
+		case match.BTree:
+			sub := fmt.Sprintf("%x", rand.Int63())
+			//			fmt.Fprintf(buf, `"%s"->"%s"[label="len=%d"];`, id, sub, n.Len())
+			fmt.Fprintf(buf, `"%s"->"%s";`, id, sub)
+			fmt.Fprintf(buf, graphviz(n, sub))
+
+		default:
+			rnd := rand.Int63()
+			fmt.Fprintf(buf, `"%x"[label="%s"];`, rnd, m.String())
+			//			fmt.Fprintf(buf, `"%s"->"%x"[label="len = %d"];`, id, rnd, m.Len())
+			fmt.Fprintf(buf, `"%s"->"%x";`, id, rnd)
+		}
+	}
+
+	return buf.String()
+}
+
 func TestCompilePattern(t *testing.T) {
 	for id, test := range []struct {
 		pattern string
@@ -42,7 +82,11 @@ func TestCompilePattern(t *testing.T) {
 		exp     match.Matcher
 	}{
 		{
-			pattern: "a?*",
+			pattern: "left*??B*abcd*[!b]??*abc*right",
+			exp:     match.Raw{"t"},
+		},
+		{
+			pattern: "abc*??def",
 			exp:     match.Raw{"t"},
 		},
 	} {
@@ -53,9 +97,8 @@ func TestCompilePattern(t *testing.T) {
 		}
 
 		matcher := glob.(match.Matcher)
-
 		if !reflect.DeepEqual(test.exp, matcher) {
-			t.Errorf("#%d unexpected compilation:\nexp: %s\nact: %s", id, test.exp, matcher)
+			t.Errorf("#%d unexpected compilation:\nexp: %s\nact: %s", id, test.exp, draw(test.pattern, matcher))
 			continue
 		}
 	}

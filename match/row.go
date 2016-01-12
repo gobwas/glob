@@ -62,5 +62,5 @@ func (self Row) Kind() Kind {
 }
 
 func (self Row) String() string {
-	return fmt.Sprintf("[row:%s]", self.Matchers)
+	return fmt.Sprintf("<row:[%s]>", self.Matchers)
 }

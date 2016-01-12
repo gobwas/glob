@@ -60,5 +60,5 @@ func (self PrefixSuffix) Match(s string) bool {
 }
 
 func (self PrefixSuffix) String() string {
-	return fmt.Sprintf("[prefix_suffix:%s-%s]", self.Prefix, self.Suffix)
+	return fmt.Sprintf("<prefix_suffix:[%s,%s]>", self.Prefix, self.Suffix)
 }

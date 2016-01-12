@@ -215,6 +215,10 @@ func convertMatchers(matchers []match.Matcher, result []match.Matcher) []match.M
 }
 
 func compileMatchers(matchers []match.Matcher) (match.Matcher, error) {
+	if len(matchers) == 0 {
+		return nil, fmt.Errorf("compile error: need at least one matcher")
+	}
+
 	if m := glueMatchers(matchers); m != nil {
 		return m, nil
 	}
@@ -233,9 +237,8 @@ func compileMatchers(matchers []match.Matcher) (match.Matcher, error) {
 		}
 	}
 
-	if val == nil {
-		return nil, fmt.Errorf("could not convert matchers %s: need at least one matcher", match.Matchers(matchers))
-	}
+	//	_, ok := val.(match.BTree)
+	//	fmt.Println("a tree", ok)
 
 	left := matchers[:idx]
 	var right []match.Matcher

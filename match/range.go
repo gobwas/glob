@@ -40,5 +40,9 @@ func (self Range) Index(s string) (int, []int) {
 }
 
 func (self Range) String() string {
-	return fmt.Sprintf("[range:%s-%s(%t)]", string(self.Lo), string(self.Hi), self.Not)
+	var not string
+	if self.Not {
+		not = "!"
+	}
+	return fmt.Sprintf("<range:%s[%s,%s]>", not, string(self.Lo), string(self.Hi))
 }

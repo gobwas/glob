@@ -79,5 +79,5 @@ func (self EveryOf) Kind() Kind {
 }
 
 func (self EveryOf) String() string {
-	return fmt.Sprintf("[every_of:%s]", self.Matchers)
+	return fmt.Sprintf("<every_of:[%s]>", self.Matchers)
 }

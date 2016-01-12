@@ -40,5 +40,10 @@ func (self List) Index(s string) (int, []int) {
 }
 
 func (self List) String() string {
-	return fmt.Sprintf("[list:list=%s not=%t]", self.List, self.Not)
+	var not string
+	if self.Not {
+		not = "!"
+	}
+
+	return fmt.Sprintf("<list:%s[%s]>", not, self.List)
 }

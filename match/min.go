@@ -45,5 +45,5 @@ func (self Min) Kind() Kind {
 }
 
 func (self Min) String() string {
-	return fmt.Sprintf("[min:%d]", self.Limit)
+	return fmt.Sprintf("<min:%d>", self.Limit)
 }

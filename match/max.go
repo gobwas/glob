@@ -46,5 +46,5 @@ func (self Max) Kind() Kind {
 }
 
 func (self Max) String() string {
-	return fmt.Sprintf("[max:%d]", self.Limit)
+	return fmt.Sprintf("<max:%d>", self.Limit)
 }

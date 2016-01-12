@@ -42,7 +42,7 @@ func (m Matchers) String() string {
 		s = append(s, fmt.Sprint(matcher))
 	}
 
-	return fmt.Sprintf("matchers[%s]", strings.Join(s, ","))
+	return fmt.Sprintf("%s", strings.Join(s, ","))
 }
 
 func appendIfNotAsPrevious(target []int, val int) []int {

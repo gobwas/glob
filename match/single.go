@@ -34,5 +34,5 @@ func (self Single) Kind() Kind {
 }
 
 func (self Single) String() string {
-	return fmt.Sprintf("[single:%s]", self.Separators)
+	return fmt.Sprintf("<single:![%s]>", self.Separators)
 }

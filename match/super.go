@@ -31,5 +31,5 @@ func (self Super) Kind() Kind {
 }
 
 func (self Super) String() string {
-	return fmt.Sprintf("[super]")
+	return fmt.Sprintf("<super>")
 }

@@ -84,5 +84,5 @@ func (self AnyOf) Kind() Kind {
 }
 
 func (self AnyOf) String() string {
-	return fmt.Sprintf("[any_of:%s]", self.Matchers)
+	return fmt.Sprintf("<any_of:[%s]>", self.Matchers)
 }

@@ -54,5 +54,5 @@ func (self Prefix) Match(s string) bool {
 }
 
 func (self Prefix) String() string {
-	return fmt.Sprintf("[prefix:%s]", self.Prefix)
+	return fmt.Sprintf("<prefix:%s>", self.Prefix)
 }

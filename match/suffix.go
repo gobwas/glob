@@ -39,5 +39,5 @@ func (self Suffix) Match(s string) bool {
 }
 
 func (self Suffix) String() string {
-	return fmt.Sprintf("[suffix:%s]", self.Suffix)
+	return fmt.Sprintf("<suffix:%s>", self.Suffix)
 }

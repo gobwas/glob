@@ -61,5 +61,9 @@ func (self Contains) Kind() Kind {
 }
 
 func (self Contains) String() string {
-	return fmt.Sprintf("[contains:needle=%s not=%t]", self.Needle, self.Not)
+	var not string
+	if self.Not {
+		not = "!"
+	}
+	return fmt.Sprintf("<contains:%s[%s]>", not, self.Needle)
 }
