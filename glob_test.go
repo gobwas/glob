@@ -81,14 +81,14 @@ func TestCompilePattern(t *testing.T) {
 		sep     string
 		exp     match.Matcher
 	}{
-		{
-			pattern: "left*??B*abcd*[!b]??*abc*right",
-			exp:     match.Raw{"t"},
-		},
-		{
-			pattern: "abc*??def",
-			exp:     match.Raw{"t"},
-		},
+	//		{
+	//			pattern: "left*??B*abcd*[!b]??*abc*right",
+	//			exp:     match.Raw{"t"},
+	//		},
+	//		{
+	//			pattern: "abc*??def",
+	//			exp:     match.Raw{"t"},
+	//		},
 	} {
 		glob, err := Compile(test.pattern, test.sep)
 		if err != nil {
