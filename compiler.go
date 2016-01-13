@@ -89,11 +89,8 @@ func glueMatchers(matchers []match.Matcher) match.Matcher {
 }
 
 func glueAsRow(matchers []match.Matcher) match.Matcher {
-	switch len(matchers) {
-	case 0:
+	if len(matchers) <= 1 {
 		return nil
-	case 1:
-		return matchers[0]
 	}
 
 	row := match.Row{}
@@ -108,11 +105,8 @@ func glueAsRow(matchers []match.Matcher) match.Matcher {
 }
 
 func glueAsEvery(matchers []match.Matcher) match.Matcher {
-	switch len(matchers) {
-	case 0:
+	if len(matchers) <= 1 {
 		return nil
-	case 1:
-		return matchers[0]
 	}
 
 	var (
@@ -193,30 +187,46 @@ func glueAsEvery(matchers []match.Matcher) match.Matcher {
 	return every
 }
 
-func convertMatchers(matchers []match.Matcher, result []match.Matcher) []match.Matcher {
-	var (
-		buf  []match.Matcher
-		done match.Matcher
-	)
-	for idx, m := range matchers {
-		buf = append(buf, m)
-		if g := glueMatchers(buf); g != nil {
-			done = g
-		} else {
-			return convertMatchers(matchers[idx:], append(result, done))
+func convertMatchers(matchers []match.Matcher) []match.Matcher {
+	var done match.Matcher
+	var left, right, count int
+
+	for l := 0; l < len(matchers); l++ {
+		for r := len(matchers); r > l; r-- {
+			if glued := glueMatchers(matchers[l:r]); glued != nil {
+				if done == nil || count < r-l {
+					done = glued
+					left = l
+					right = r
+					count = r - l
+				}
+			}
 		}
 	}
 
-	if done != nil {
-		return append(result, done)
+	if done == nil {
+		return matchers
 	}
 
-	return result
+	next := append(append([]match.Matcher{}, matchers[:left]...), done)
+	if right < len(matchers) {
+		next = append(next, matchers[right:]...)
+	}
+
+	if len(next) == len(matchers) {
+		return next
+	}
+
+	return convertMatchers(next)
 }
 
 func compileMatchers(matchers []match.Matcher) (match.Matcher, error) {
 	if len(matchers) == 0 {
 		return nil, fmt.Errorf("compile error: need at least one matcher")
+	}
+
+	if len(matchers) == 1 {
+		return matchers[0], nil
 	}
 
 	if m := glueMatchers(matchers); m != nil {
@@ -285,7 +295,7 @@ func do(node node, s string) (m match.Matcher, err error) {
 		if _, ok := node.(*nodeAnyOf); ok {
 			m = match.AnyOf{matchers}
 		} else {
-			m, err = compileMatchers(convertMatchers(matchers, nil))
+			m, err = compileMatchers(convertMatchers(matchers))
 			if err != nil {
 				return nil, err
 			}
@@ -349,7 +359,7 @@ func do2(node node, s string) ([]match.Matcher, error) {
 		}
 
 		for _, matchers := range ways {
-			c, err := compileMatchers(convertMatchers(matchers, nil))
+			c, err := compileMatchers(convertMatchers(matchers))
 			if err != nil {
 				return nil, err
 			}
@@ -383,7 +393,7 @@ func do2(node node, s string) ([]match.Matcher, error) {
 		}
 
 		for _, matchers := range ways {
-			c, err := compileMatchers(convertMatchers(matchers, nil))
+			c, err := compileMatchers(convertMatchers(matchers))
 			if err != nil {
 				return nil, err
 			}

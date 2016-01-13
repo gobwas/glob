@@ -162,13 +162,12 @@ func TestConvertMatchers(t *testing.T) {
 					match.Range{'a', 'c', true},
 					match.List{"zte", false},
 					match.Raw{"c"},
-					match.Single{},
 				}},
-				match.Min{2},
+				match.Min{3},
 			},
 		},
 	} {
-		act := convertMatchers(test.in, nil)
+		act := convertMatchers(test.in)
 		if !reflect.DeepEqual(act, test.exp) {
 			t.Errorf("#%d unexpected convert matchers 2 result:\nact: %s;\nexp: %s", id, act, test.exp)
 			continue
