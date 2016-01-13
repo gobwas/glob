@@ -194,7 +194,18 @@ func convertMatchers(matchers []match.Matcher) []match.Matcher {
 	for l := 0; l < len(matchers); l++ {
 		for r := len(matchers); r > l; r-- {
 			if glued := glueMatchers(matchers[l:r]); glued != nil {
-				if done == nil || count < r-l {
+				var swap bool
+
+				if done == nil {
+					swap = true
+				} else {
+					cl, gl := done.Len(), glued.Len()
+					swap = cl > -1 && gl > -1 && gl > cl
+
+					swap = swap || count < r-l
+				}
+
+				if swap {
 					done = glued
 					left = l
 					right = r
