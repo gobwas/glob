@@ -12,7 +12,7 @@ func (self Super) Match(s string) bool {
 }
 
 func (self Super) Len() int {
-	return -1
+	return lenNo
 }
 
 func (self Super) Index(s string) (int, []int) {

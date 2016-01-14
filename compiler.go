@@ -26,7 +26,7 @@ func optimize(matcher match.Matcher) match.Matcher {
 		rightNil := m.Right == nil
 
 		if leftNil && rightNil {
-			return match.Raw{r.Str}
+			return match.NewRaw(r.Str)
 		}
 
 		_, leftSuper := m.Left.(match.Super)
@@ -93,15 +93,20 @@ func glueAsRow(matchers []match.Matcher) match.Matcher {
 		return nil
 	}
 
-	row := match.Row{}
+	var (
+		c []match.Matcher
+		l int
+	)
 	for _, matcher := range matchers {
-		err := row.Add(matcher)
-		if err != nil {
+		if ml := matcher.Len(); ml == -1 {
 			return nil
+		} else {
+			c = append(c, matcher)
+			l += ml
 		}
 	}
 
-	return row
+	return match.Row{c, l}
 }
 
 func glueAsEvery(matchers []match.Matcher) match.Matcher {
@@ -187,7 +192,7 @@ func glueAsEvery(matchers []match.Matcher) match.Matcher {
 	return every
 }
 
-func convertMatchers(matchers []match.Matcher) []match.Matcher {
+func minimizeMatchers(matchers []match.Matcher) []match.Matcher {
 	var done match.Matcher
 	var left, right, count int
 
@@ -201,7 +206,6 @@ func convertMatchers(matchers []match.Matcher) []match.Matcher {
 				} else {
 					cl, gl := done.Len(), glued.Len()
 					swap = cl > -1 && gl > -1 && gl > cl
-
 					swap = swap || count < r-l
 				}
 
@@ -228,7 +232,7 @@ func convertMatchers(matchers []match.Matcher) []match.Matcher {
 		return next
 	}
 
-	return convertMatchers(next)
+	return minimizeMatchers(next)
 }
 
 func compileMatchers(matchers []match.Matcher) (match.Matcher, error) {
@@ -258,36 +262,29 @@ func compileMatchers(matchers []match.Matcher) (match.Matcher, error) {
 		}
 	}
 
-	//	_, ok := val.(match.BTree)
-	//	fmt.Println("a tree", ok)
-
 	left := matchers[:idx]
 	var right []match.Matcher
 	if len(matchers) > idx+1 {
 		right = matchers[idx+1:]
 	}
 
-	tree := match.BTree{Value: val}
-
+	var l, r match.Matcher
+	var err error
 	if len(left) > 0 {
-		l, err := compileMatchers(left)
+		l, err = compileMatchers(left)
 		if err != nil {
 			return nil, err
 		}
-
-		tree.Left = l
 	}
 
 	if len(right) > 0 {
-		r, err := compileMatchers(right)
+		r, err = compileMatchers(right)
 		if err != nil {
 			return nil, err
 		}
-
-		tree.Right = r
 	}
 
-	return tree, nil
+	return match.NewBTree(val, l, r), nil
 }
 
 func do(node node, s string) (m match.Matcher, err error) {
@@ -306,7 +303,7 @@ func do(node node, s string) (m match.Matcher, err error) {
 		if _, ok := node.(*nodeAnyOf); ok {
 			m = match.AnyOf{matchers}
 		} else {
-			m, err = compileMatchers(convertMatchers(matchers))
+			m, err = compileMatchers(minimizeMatchers(matchers))
 			if err != nil {
 				return nil, err
 			}
@@ -328,7 +325,7 @@ func do(node node, s string) (m match.Matcher, err error) {
 		m = match.Single{s}
 
 	case *nodeText:
-		m = match.Raw{n.text}
+		m = match.NewRaw(n.text)
 
 	default:
 		return nil, fmt.Errorf("could not compile tree: unknown node type")
@@ -370,7 +367,7 @@ func do2(node node, s string) ([]match.Matcher, error) {
 		}
 
 		for _, matchers := range ways {
-			c, err := compileMatchers(convertMatchers(matchers))
+			c, err := compileMatchers(minimizeMatchers(matchers))
 			if err != nil {
 				return nil, err
 			}
@@ -404,7 +401,7 @@ func do2(node node, s string) ([]match.Matcher, error) {
 		}
 
 		for _, matchers := range ways {
-			c, err := compileMatchers(convertMatchers(matchers))
+			c, err := compileMatchers(minimizeMatchers(matchers))
 			if err != nil {
 				return nil, err
 			}
@@ -427,7 +424,7 @@ func do2(node node, s string) ([]match.Matcher, error) {
 		result = append(result, match.Single{s})
 
 	case *nodeText:
-		result = append(result, match.Raw{n.text})
+		result = append(result, match.NewRaw(n.text))
 
 	default:
 		return nil, fmt.Errorf("could not compile tree: unknown node type")

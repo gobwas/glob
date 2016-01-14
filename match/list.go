@@ -16,17 +16,12 @@ func (self List) Kind() Kind {
 }
 
 func (self List) Match(s string) bool {
-	if utf8.RuneCountInString(s) > 1 {
-		return false
-	}
-
 	inList := strings.Index(self.List, s) != -1
-
 	return inList == !self.Not
 }
 
 func (self List) Len() int {
-	return 1
+	return lenOne
 }
 
 func (self List) Index(s string) (int, []int) {

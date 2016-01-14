@@ -36,7 +36,7 @@ func (self Any) Index(s string) (int, []int) {
 }
 
 func (self Any) Len() int {
-	return -1
+	return lenNo
 }
 
 func (self Any) Kind() Kind {

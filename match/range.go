@@ -15,7 +15,7 @@ func (self Range) Kind() Kind {
 }
 
 func (self Range) Len() int {
-	return 1
+	return lenOne
 }
 
 func (self Range) Match(s string) bool {

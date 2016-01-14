@@ -53,7 +53,7 @@ func (self Contains) Index(s string) (int, []int) {
 }
 
 func (self Contains) Len() int {
-	return -1
+	return lenNo
 }
 
 func (self Contains) Kind() Kind {

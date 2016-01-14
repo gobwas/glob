@@ -23,7 +23,7 @@ func (self Suffix) Index(s string) (int, []int) {
 }
 
 func (self Suffix) Len() int {
-	return -1
+	return lenNo
 }
 
 func (self Suffix) Search(s string) (i int, l int, ok bool) {

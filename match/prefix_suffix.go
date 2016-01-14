@@ -44,7 +44,7 @@ func (self PrefixSuffix) Index(s string) (int, []int) {
 }
 
 func (self PrefixSuffix) Len() int {
-	return -1
+	return lenNo
 }
 
 func (self PrefixSuffix) Search(s string) (i int, l int, ok bool) {

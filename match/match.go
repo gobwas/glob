@@ -27,6 +27,9 @@ const (
 	KindContains
 )
 
+const lenOne = 1
+const lenNo = -1
+
 type Matcher interface {
 	Match(string) bool
 	Index(string) (int, []int)

@@ -7,38 +7,50 @@ import (
 
 type BTree struct {
 	Value, Left, Right Matcher
+	VLen, LLen, RLen   int
+	Length             int
+}
+
+func NewBTree(Value, Left, Right Matcher) (tree BTree) {
+	tree.Value = Value
+	tree.Left = Left
+	tree.Right = Right
+
+	lenOk := true
+	if tree.VLen = Value.Len(); tree.VLen == -1 {
+		lenOk = false
+	}
+
+	if Left != nil {
+		if tree.LLen = Left.Len(); tree.LLen == -1 {
+			lenOk = false
+		}
+	}
+
+	if Right != nil {
+		if tree.RLen = Right.Len(); tree.RLen == -1 {
+			lenOk = false
+		}
+	}
+
+	if lenOk {
+		tree.Length = tree.LLen + tree.VLen + tree.RLen
+	} else {
+		tree.Length = -1
+	}
+
+	return tree
 }
 
 func (self BTree) Kind() Kind {
 	return KindBTree
 }
 
-func (self BTree) len() (l, v, r int, ok bool) {
-	v = self.Value.Len()
-
-	if self.Left != nil {
-		l = self.Left.Len()
-	}
-
-	if self.Right != nil {
-		r = self.Right.Len()
-	}
-
-	ok = l > -1 && v > -1 && r > -1
-
-	return
-}
-
 func (self BTree) Len() int {
-	l, v, r, ok := self.len()
-	if ok {
-		return l + v + r
-	}
-
-	return -1
+	return self.Length
 }
 
-// todo
+// todo?
 func (self BTree) Index(s string) (int, []int) {
 	return -1, nil
 }
@@ -46,17 +58,16 @@ func (self BTree) Index(s string) (int, []int) {
 func (self BTree) Match(s string) bool {
 	inputLen := len(s)
 
-	lLen, vLen, rLen, ok := self.len()
-	if ok && lLen+vLen+rLen > inputLen {
+	if self.Length != -1 && self.Length > inputLen {
 		return false
 	}
 
 	var offset, limit int
-	if lLen >= 0 {
-		offset = lLen
+	if self.LLen >= 0 {
+		offset = self.LLen
 	}
-	if rLen >= 0 {
-		limit = inputLen - rLen
+	if self.RLen >= 0 {
+		limit = inputLen - self.RLen
 	} else {
 		limit = inputLen
 	}
@@ -79,7 +90,7 @@ func (self BTree) Match(s string) bool {
 			for i := len(segments) - 1; i >= 0; i-- {
 				length := segments[i]
 
-				if rLen >= 0 && inputLen-(offset+index+length) != rLen {
+				if self.RLen >= 0 && inputLen-(offset+index+length) != self.RLen {
 					continue
 				}
 

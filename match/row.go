@@ -2,27 +2,15 @@ package match
 
 import (
 	"fmt"
+	"unicode/utf8"
 )
 
 type Row struct {
 	Matchers Matchers
-	len      int
+	Length   int
 }
 
-func (self *Row) Add(m Matcher) error {
-	if l := m.Len(); l == -1 {
-		return fmt.Errorf("matcher should have fixed length")
-	}
-
-	self.Matchers = append(self.Matchers, m)
-	return nil
-}
-
-func (self Row) Match(s string) bool {
-	if len(s) < self.Len() {
-		return false
-	}
-
+func (self Row) matchAll(s string) bool {
 	var idx int
 	for _, m := range self.Matchers {
 		l := m.Len()
@@ -36,21 +24,33 @@ func (self Row) Match(s string) bool {
 	return true
 }
 
-func (self Row) Len() (l int) {
-	if self.len == 0 {
-		for _, m := range self.Matchers {
-			self.len += m.Len()
-		}
+func (self Row) Match(s string) bool {
+	if utf8.RuneCountInString(s) < self.Length {
+		return false
 	}
 
-	return self.len
+	return self.matchAll(s)
+}
+
+func (self Row) Len() (l int) {
+	return self.Length
 }
 
 func (self Row) Index(s string) (int, []int) {
+	l := utf8.RuneCountInString(s)
+	if l < self.Length {
+		return -1, nil
+	}
+
 	for i := range s {
 		sub := s[i:]
-		if self.Match(sub) {
-			return i, []int{self.Len()}
+		if self.matchAll(sub) {
+			return i, []int{self.Length}
+		}
+
+		l -= 1
+		if l < self.Length {
+			return -1, nil
 		}
 	}
 
@@ -62,5 +62,5 @@ func (self Row) Kind() Kind {
 }
 
 func (self Row) String() string {
-	return fmt.Sprintf("<row:[%s]>", self.Matchers)
+	return fmt.Sprintf("<row_%d:[%s]>", self.Length, self.Matchers)
 }

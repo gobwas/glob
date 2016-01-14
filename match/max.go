@@ -10,12 +10,19 @@ type Max struct {
 }
 
 func (self Max) Match(s string) bool {
-	return utf8.RuneCountInString(s) <= self.Limit
+	var l int
+	for range s {
+		l += 1
+		if l > self.Limit {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (self Max) Index(s string) (int, []int) {
-	c := utf8.RuneCountInString(s)
-	if c < self.Limit {
+	if !self.Match(s) {
 		return -1, nil
 	}
 
@@ -34,7 +41,7 @@ func (self Max) Index(s string) (int, []int) {
 }
 
 func (self Max) Len() int {
-	return -1
+	return lenNo
 }
 
 func (self Max) Search(s string) (int, int, bool) {

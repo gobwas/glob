@@ -38,7 +38,7 @@ func (self Prefix) Index(s string) (int, []int) {
 }
 
 func (self Prefix) Len() int {
-	return -1
+	return lenNo
 }
 
 func (self Prefix) Search(s string) (i int, l int, ok bool) {

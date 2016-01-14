@@ -10,7 +10,15 @@ type Min struct {
 }
 
 func (self Min) Match(s string) bool {
-	return utf8.RuneCountInString(s) >= self.Limit
+	var l int
+	for range s {
+		l += 1
+		if l >= self.Limit {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (self Min) Index(s string) (int, []int) {
@@ -33,7 +41,7 @@ func (self Min) Index(s string) (int, []int) {
 }
 
 func (self Min) Len() int {
-	return -1
+	return lenNo
 }
 
 func (self Min) Search(s string) (int, int, bool) {

@@ -74,41 +74,46 @@ func TestCompileMatchers(t *testing.T) {
 			[]match.Matcher{
 				match.Super{},
 				match.Single{separators},
-				match.Raw{"c"},
+				match.Raw{"c", 1},
 			},
-			match.BTree{
-				Left: match.BTree{
-					Left:  match.Super{},
-					Value: match.Single{separators},
+			match.NewBTree(
+				match.Raw{"c", 1},
+				match.NewBTree(
+					match.Single{separators},
+					match.Super{},
+					nil,
+				),
+				nil,
+			),
+		},
+		{
+			[]match.Matcher{
+				match.Any{},
+				match.Raw{"c", 1},
+				match.Any{},
+			},
+			match.NewBTree(
+				match.Raw{"c", 1},
+				match.Any{},
+				match.Any{},
+			),
+		},
+		{
+			[]match.Matcher{
+				match.Range{'a', 'c', true},
+				match.List{"zte", false},
+				match.Raw{"c", 1},
+				match.Single{},
+			},
+			match.Row{
+				Matchers: match.Matchers{
+					match.Range{'a', 'c', true},
+					match.List{"zte", false},
+					match.Raw{"c", 1},
+					match.Single{},
 				},
-				Value: match.Raw{"c"},
+				Length: 4,
 			},
-		},
-		{
-			[]match.Matcher{
-				match.Any{},
-				match.Raw{"c"},
-				match.Any{},
-			},
-			match.BTree{
-				Left:  match.Any{},
-				Value: match.Raw{"c"},
-				Right: match.Any{},
-			},
-		},
-		{
-			[]match.Matcher{
-				match.Range{'a', 'c', true},
-				match.List{"zte", false},
-				match.Raw{"c"},
-				match.Single{},
-			},
-			match.Row{Matchers: match.Matchers{
-				match.Range{'a', 'c', true},
-				match.List{"zte", false},
-				match.Raw{"c"},
-				match.Single{},
-			}},
 		},
 	} {
 		act, err := compileMatchers(test.in)
@@ -132,17 +137,20 @@ func TestConvertMatchers(t *testing.T) {
 			[]match.Matcher{
 				match.Range{'a', 'c', true},
 				match.List{"zte", false},
-				match.Raw{"c"},
+				match.Raw{"c", 1},
 				match.Single{},
 				match.Any{},
 			},
 			[]match.Matcher{
-				match.Row{Matchers: match.Matchers{
-					match.Range{'a', 'c', true},
-					match.List{"zte", false},
-					match.Raw{"c"},
-					match.Single{},
-				}},
+				match.Row{
+					Matchers: match.Matchers{
+						match.Range{'a', 'c', true},
+						match.List{"zte", false},
+						match.Raw{"c", 1},
+						match.Single{},
+					},
+					Length: 4,
+				},
 				match.Any{},
 			},
 		},
@@ -150,7 +158,7 @@ func TestConvertMatchers(t *testing.T) {
 			[]match.Matcher{
 				match.Range{'a', 'c', true},
 				match.List{"zte", false},
-				match.Raw{"c"},
+				match.Raw{"c", 1},
 				match.Single{},
 				match.Any{},
 				match.Single{},
@@ -158,16 +166,19 @@ func TestConvertMatchers(t *testing.T) {
 				match.Any{},
 			},
 			[]match.Matcher{
-				match.Row{Matchers: match.Matchers{
-					match.Range{'a', 'c', true},
-					match.List{"zte", false},
-					match.Raw{"c"},
-				}},
+				match.Row{
+					Matchers: match.Matchers{
+						match.Range{'a', 'c', true},
+						match.List{"zte", false},
+						match.Raw{"c", 1},
+					},
+					Length: 3,
+				},
 				match.Min{3},
 			},
 		},
 	} {
-		act := convertMatchers(test.in)
+		act := minimizeMatchers(test.in)
 		if !reflect.DeepEqual(act, test.exp) {
 			t.Errorf("#%d unexpected convert matchers 2 result:\nact: %s;\nexp: %s", id, act, test.exp)
 			continue
@@ -197,7 +208,7 @@ func TestCompiler(t *testing.T) {
 	}{
 		{
 			ast:    pattern(&nodeText{text: "abc"}),
-			result: match.Raw{"abc"},
+			result: match.Raw{"abc", 3},
 		},
 		{
 			ast:    pattern(&nodeAny{}),
@@ -247,25 +258,33 @@ func TestCompiler(t *testing.T) {
 		{
 			ast: pattern(&nodeAny{}, &nodeText{text: "abc"}, &nodeSingle{}),
 			sep: separators,
-			result: match.BTree{
-				Left: match.Any{separators},
-				Value: match.Row{Matchers: match.Matchers{
-					match.Raw{"abc"},
-					match.Single{separators},
-				}},
-			},
+			result: match.NewBTree(
+				match.Row{
+					Matchers: match.Matchers{
+						match.Raw{"abc", 3},
+						match.Single{separators},
+					},
+					Length: 4,
+				},
+				match.Any{separators},
+				nil,
+			),
 		},
 		{
 			ast: pattern(&nodeSuper{}, &nodeSingle{}, &nodeText{text: "abc"}, &nodeSingle{}),
 			sep: separators,
-			result: match.BTree{
-				Left: match.Super{},
-				Value: match.Row{Matchers: match.Matchers{
-					match.Single{separators},
-					match.Raw{"abc"},
-					match.Single{separators},
-				}},
-			},
+			result: match.NewBTree(
+				match.Row{
+					Matchers: match.Matchers{
+						match.Single{separators},
+						match.Raw{"abc", 3},
+						match.Single{separators},
+					},
+					Length: 5,
+				},
+				match.Super{},
+				nil,
+			),
 		},
 		{
 			ast:    pattern(&nodeAny{}, &nodeText{text: "abc"}),
@@ -284,29 +303,33 @@ func TestCompiler(t *testing.T) {
 			result: match.Contains{"abc", false},
 		},
 		{
-			ast:    pattern(&nodeAny{}, &nodeAny{}, &nodeAny{}, &nodeText{text: "abc"}, &nodeAny{}, &nodeAny{}),
-			sep:    separators,
-			result: match.BTree{Left: match.Any{separators}, Value: match.Raw{"abc"}, Right: match.Any{separators}},
+			ast: pattern(&nodeAny{}, &nodeAny{}, &nodeAny{}, &nodeText{text: "abc"}, &nodeAny{}, &nodeAny{}),
+			sep: separators,
+			result: match.NewBTree(
+				match.Raw{"abc", 3},
+				match.Any{separators},
+				match.Any{separators},
+			),
 		},
 		{
 			ast: pattern(&nodeSuper{}, &nodeSingle{}, &nodeText{text: "abc"}, &nodeSuper{}, &nodeSingle{}),
-			result: match.BTree{
-				Left:  match.Min{1},
-				Value: match.Raw{"abc"},
-				Right: match.Min{1},
-			},
+			result: match.NewBTree(
+				match.Raw{"abc", 3},
+				match.Min{1},
+				match.Min{1},
+			),
 		},
 		{
 			ast: pattern(anyOf(&nodeText{text: "abc"})),
 			result: match.AnyOf{match.Matchers{
-				match.Raw{"abc"},
+				match.Raw{"abc", 3},
 			}},
 		},
 		{
 			ast: pattern(anyOf(pattern(anyOf(pattern(&nodeText{text: "abc"}))))),
 			result: match.AnyOf{match.Matchers{
 				match.AnyOf{match.Matchers{
-					match.Raw{"abc"},
+					match.Raw{"abc", 3},
 				}},
 			}},
 		},
@@ -316,13 +339,17 @@ func TestCompiler(t *testing.T) {
 				&nodeRange{lo: 'a', hi: 'x', not: true},
 				&nodeAny{},
 			),
-			result: match.BTree{
-				Value: match.Row{Matchers: match.Matchers{
-					match.Range{Lo: 'a', Hi: 'z'},
-					match.Range{Lo: 'a', Hi: 'x', Not: true},
-				}},
-				Right: match.Super{},
-			},
+			result: match.NewBTree(
+				match.Row{
+					Matchers: match.Matchers{
+						match.Range{Lo: 'a', Hi: 'z'},
+						match.Range{Lo: 'a', Hi: 'x', Not: true},
+					},
+					Length: 2,
+				},
+				nil,
+				match.Super{},
+			),
 		},
 		//		{
 		//			ast: pattern(
@@ -330,9 +357,9 @@ func TestCompiler(t *testing.T) {
 		//				anyOf(&nodeText{text: "c"}, &nodeText{text: "d"}),
 		//			),
 		//			result: match.AnyOf{Matchers: match.Matchers{
-		//				match.Row{Matchers: match.Matchers{match.Raw{"a"}, match.Raw{"c"}}},
+		//				match.Row{Matchers: match.Matchers{match.Raw{"a"}, match.Raw{"c", 1}}},
 		//				match.Row{Matchers: match.Matchers{match.Raw{"a"}, match.Raw{"d"}}},
-		//				match.Row{Matchers: match.Matchers{match.Raw{"b"}, match.Raw{"c"}}},
+		//				match.Row{Matchers: match.Matchers{match.Raw{"b"}, match.Raw{"c", 1}}},
 		//				match.Row{Matchers: match.Matchers{match.Raw{"b"}, match.Raw{"d"}}},
 		//			}},
 		//		},

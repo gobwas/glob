@@ -3,11 +3,20 @@ package match
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 // raw represents raw string to match
 type Raw struct {
-	Str string
+	Str    string
+	Length int
+}
+
+func NewRaw(s string) Raw {
+	return Raw{
+		Str:    s,
+		Length: utf8.RuneCountInString(s),
+	}
 }
 
 func (self Raw) Match(s string) bool {
@@ -15,7 +24,7 @@ func (self Raw) Match(s string) bool {
 }
 
 func (self Raw) Len() int {
-	return len(self.Str)
+	return self.Length
 }
 
 func (self Raw) Kind() Kind {
@@ -28,7 +37,7 @@ func (self Raw) Index(s string) (index int, segments []int) {
 		return
 	}
 
-	segments = []int{len(self.Str)}
+	segments = []int{self.Length}
 
 	return
 }

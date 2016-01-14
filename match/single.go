@@ -12,11 +12,11 @@ type Single struct {
 }
 
 func (self Single) Match(s string) bool {
-	return utf8.RuneCountInString(s) == 1 && strings.IndexAny(s, self.Separators) == -1
+	return strings.IndexAny(s, self.Separators) == -1
 }
 
 func (self Single) Len() int {
-	return 1
+	return lenOne
 }
 
 func (self Single) Index(s string) (int, []int) {
