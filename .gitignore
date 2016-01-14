@@ -3,3 +3,6 @@ glob.iml
 *.cpu
 *.mem
 *.test
+*.dot
+*.png
+*.svg

@@ -19,7 +19,7 @@ const (
 	pattern_multiple = "https://*.google.*"
 	fixture_multiple = "https://account.google.com"
 
-	pattern_alternatives = "{https://*.google.*,*yahoo.*}"
+	pattern_alternatives = "{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}"
 	fixture_alternatives = "http://yahoo.com"
 
 	pattern_prefix        = "abc*"
@@ -81,14 +81,22 @@ func TestCompilePattern(t *testing.T) {
 		sep     string
 		exp     match.Matcher
 	}{
-	//			{
-	//				pattern: "left*??B*abcd*[!b]??*abc*right",
-	//				exp:     match.Raw{"t"},
-	//			},
-	//		{
-	//			pattern: "abc*??def",
-	//			exp:     match.Raw{"t"},
-	//		},
+		//			{
+		//				pattern: "left*??B*abcd*[!b]??*abc*right",
+		//				exp:     match.Raw{"t"},
+		//			},
+		//		{
+		//			pattern: "abc*??def",
+		//			exp:     match.Raw{"t"},
+		//		},
+		{
+			pattern: "{abc[abc]ghi,abc[def]ghi}",
+			exp: match.NewBTree(
+				match.AnyOf{match.Matchers{match.List{"abc", false}, match.List{"qwe", false}}},
+				match.NewText("abc"),
+				match.NewText("ghi"),
+			),
+		},
 	} {
 		glob, err := Compile(test.pattern, test.sep)
 		if err != nil {

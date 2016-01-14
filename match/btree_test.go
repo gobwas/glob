@@ -11,17 +11,17 @@ func TestBTree(t *testing.T) {
 		exp  bool
 	}{
 		{
-			BTree{Value: Raw{"abc"}, Left: Super{}, Right: Super{}},
+			BTree{Value: Text{"abc"}, Left: Super{}, Right: Super{}},
 			"abc",
 			true,
 		},
 		{
-			BTree{Value: Raw{"a"}, Left: Single{}, Right: Single{}},
+			BTree{Value: Text{"a"}, Left: Single{}, Right: Single{}},
 			"aaa",
 			true,
 		},
 		{
-			BTree{Value: Raw{"b"}, Left: Single{}},
+			BTree{Value: Text{"b"}, Left: Single{}},
 			"bbb",
 			false,
 		},
@@ -31,7 +31,7 @@ func TestBTree(t *testing.T) {
 					Left:  Super{},
 					Value: Single{},
 				},
-				Value: Raw{"c"},
+				Value: Text{"c"},
 			},
 			"abc",
 			true,

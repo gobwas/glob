@@ -17,7 +17,7 @@ func optimize(matcher match.Matcher) match.Matcher {
 		m.Left = optimize(m.Left)
 		m.Right = optimize(m.Right)
 
-		r, ok := m.Value.(match.Raw)
+		r, ok := m.Value.(match.Text)
 		if !ok {
 			return m
 		}
@@ -26,7 +26,7 @@ func optimize(matcher match.Matcher) match.Matcher {
 		rightNil := m.Right == nil
 
 		if leftNil && rightNil {
-			return match.NewRaw(r.Str)
+			return match.NewText(r.Str)
 		}
 
 		_, leftSuper := m.Left.(match.Super)
@@ -325,7 +325,7 @@ func do(node node, s string) (m match.Matcher, err error) {
 		m = match.Single{s}
 
 	case *nodeText:
-		m = match.NewRaw(n.text)
+		m = match.NewText(n.text)
 
 	default:
 		return nil, fmt.Errorf("could not compile tree: unknown node type")
@@ -424,7 +424,7 @@ func do2(node node, s string) ([]match.Matcher, error) {
 		result = append(result, match.Single{s})
 
 	case *nodeText:
-		result = append(result, match.NewRaw(n.text))
+		result = append(result, match.NewText(n.text))
 
 	default:
 		return nil, fmt.Errorf("could not compile tree: unknown node type")

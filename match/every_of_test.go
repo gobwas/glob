@@ -15,8 +15,8 @@ func TestEveryOfIndex(t *testing.T) {
 		{
 			Matchers{
 				Any{},
-				Raw{"b"},
-				Raw{"c"},
+				Text{"b"},
+				Text{"c"},
 			},
 			"abc",
 			-1,

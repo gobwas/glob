@@ -74,10 +74,10 @@ func TestCompileMatchers(t *testing.T) {
 			[]match.Matcher{
 				match.Super{},
 				match.Single{separators},
-				match.Raw{"c", 1},
+				match.NewText("c"),
 			},
 			match.NewBTree(
-				match.Raw{"c", 1},
+				match.NewText("c"),
 				match.NewBTree(
 					match.Single{separators},
 					match.Super{},
@@ -89,11 +89,11 @@ func TestCompileMatchers(t *testing.T) {
 		{
 			[]match.Matcher{
 				match.Any{},
-				match.Raw{"c", 1},
+				match.NewText("c"),
 				match.Any{},
 			},
 			match.NewBTree(
-				match.Raw{"c", 1},
+				match.NewText("c"),
 				match.Any{},
 				match.Any{},
 			),
@@ -102,17 +102,17 @@ func TestCompileMatchers(t *testing.T) {
 			[]match.Matcher{
 				match.Range{'a', 'c', true},
 				match.List{"zte", false},
-				match.Raw{"c", 1},
+				match.NewText("c"),
 				match.Single{},
 			},
 			match.Row{
 				Matchers: match.Matchers{
 					match.Range{'a', 'c', true},
 					match.List{"zte", false},
-					match.Raw{"c", 1},
+					match.NewText("c"),
 					match.Single{},
 				},
-				Length: 4,
+				RunesLength: 4,
 			},
 		},
 	} {
@@ -137,7 +137,7 @@ func TestConvertMatchers(t *testing.T) {
 			[]match.Matcher{
 				match.Range{'a', 'c', true},
 				match.List{"zte", false},
-				match.Raw{"c", 1},
+				match.NewText("c"),
 				match.Single{},
 				match.Any{},
 			},
@@ -146,10 +146,10 @@ func TestConvertMatchers(t *testing.T) {
 					Matchers: match.Matchers{
 						match.Range{'a', 'c', true},
 						match.List{"zte", false},
-						match.Raw{"c", 1},
+						match.NewText("c"),
 						match.Single{},
 					},
-					Length: 4,
+					RunesLength: 4,
 				},
 				match.Any{},
 			},
@@ -158,7 +158,7 @@ func TestConvertMatchers(t *testing.T) {
 			[]match.Matcher{
 				match.Range{'a', 'c', true},
 				match.List{"zte", false},
-				match.Raw{"c", 1},
+				match.NewText("c"),
 				match.Single{},
 				match.Any{},
 				match.Single{},
@@ -170,9 +170,9 @@ func TestConvertMatchers(t *testing.T) {
 					Matchers: match.Matchers{
 						match.Range{'a', 'c', true},
 						match.List{"zte", false},
-						match.Raw{"c", 1},
+						match.NewText("c"),
 					},
-					Length: 3,
+					RunesLength: 3,
 				},
 				match.Min{3},
 			},
@@ -208,7 +208,7 @@ func TestCompiler(t *testing.T) {
 	}{
 		{
 			ast:    pattern(&nodeText{text: "abc"}),
-			result: match.Raw{"abc", 3},
+			result: match.NewText("abc"),
 		},
 		{
 			ast:    pattern(&nodeAny{}),
@@ -261,10 +261,10 @@ func TestCompiler(t *testing.T) {
 			result: match.NewBTree(
 				match.Row{
 					Matchers: match.Matchers{
-						match.Raw{"abc", 3},
+						match.NewText("abc"),
 						match.Single{separators},
 					},
-					Length: 4,
+					RunesLength: 4,
 				},
 				match.Any{separators},
 				nil,
@@ -277,10 +277,10 @@ func TestCompiler(t *testing.T) {
 				match.Row{
 					Matchers: match.Matchers{
 						match.Single{separators},
-						match.Raw{"abc", 3},
+						match.NewText("abc"),
 						match.Single{separators},
 					},
-					Length: 5,
+					RunesLength: 5,
 				},
 				match.Super{},
 				nil,
@@ -306,7 +306,7 @@ func TestCompiler(t *testing.T) {
 			ast: pattern(&nodeAny{}, &nodeAny{}, &nodeAny{}, &nodeText{text: "abc"}, &nodeAny{}, &nodeAny{}),
 			sep: separators,
 			result: match.NewBTree(
-				match.Raw{"abc", 3},
+				match.NewText("abc"),
 				match.Any{separators},
 				match.Any{separators},
 			),
@@ -314,7 +314,7 @@ func TestCompiler(t *testing.T) {
 		{
 			ast: pattern(&nodeSuper{}, &nodeSingle{}, &nodeText{text: "abc"}, &nodeSuper{}, &nodeSingle{}),
 			result: match.NewBTree(
-				match.Raw{"abc", 3},
+				match.NewText("abc"),
 				match.Min{1},
 				match.Min{1},
 			),
@@ -322,14 +322,14 @@ func TestCompiler(t *testing.T) {
 		{
 			ast: pattern(anyOf(&nodeText{text: "abc"})),
 			result: match.AnyOf{match.Matchers{
-				match.Raw{"abc", 3},
+				match.NewText("abc"),
 			}},
 		},
 		{
 			ast: pattern(anyOf(pattern(anyOf(pattern(&nodeText{text: "abc"}))))),
 			result: match.AnyOf{match.Matchers{
 				match.AnyOf{match.Matchers{
-					match.Raw{"abc", 3},
+					match.NewText("abc"),
 				}},
 			}},
 		},
@@ -345,7 +345,7 @@ func TestCompiler(t *testing.T) {
 						match.Range{Lo: 'a', Hi: 'z'},
 						match.Range{Lo: 'a', Hi: 'x', Not: true},
 					},
-					Length: 2,
+					RunesLength: 2,
 				},
 				nil,
 				match.Super{},

@@ -12,6 +12,13 @@ type List struct {
 }
 
 func (self List) Match(s string) bool {
+	// if s 100% have two symbols
+	//	_, w := utf8.DecodeRuneInString(s)
+	//	if len(s) > w {
+	if len(s) > 4 {
+		return false
+	}
+
 	inList := strings.Index(self.List, s) != -1
 	return inList == !self.Not
 }

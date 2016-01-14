@@ -6,8 +6,8 @@ import (
 )
 
 type Row struct {
-	Matchers Matchers
-	Length   int
+	Matchers    Matchers
+	RunesLength int
 }
 
 func (self Row) matchAll(s string) bool {
@@ -25,7 +25,7 @@ func (self Row) matchAll(s string) bool {
 }
 
 func (self Row) Match(s string) bool {
-	if utf8.RuneCountInString(s) < self.Length {
+	if utf8.RuneCountInString(s) < self.RunesLength {
 		return false
 	}
 
@@ -33,23 +33,23 @@ func (self Row) Match(s string) bool {
 }
 
 func (self Row) Len() (l int) {
-	return self.Length
+	return self.RunesLength
 }
 
 func (self Row) Index(s string) (int, []int) {
 	l := utf8.RuneCountInString(s)
-	if l < self.Length {
+	if l < self.RunesLength {
 		return -1, nil
 	}
 
 	for i := range s {
 		sub := s[i:]
 		if self.matchAll(sub) {
-			return i, []int{self.Length}
+			return i, []int{self.RunesLength}
 		}
 
 		l -= 1
-		if l < self.Length {
+		if l < self.RunesLength {
 			return -1, nil
 		}
 	}
@@ -58,5 +58,5 @@ func (self Row) Index(s string) (int, []int) {
 }
 
 func (self Row) String() string {
-	return fmt.Sprintf("<row_%d:[%s]>", self.Length, self.Matchers)
+	return fmt.Sprintf("<row_%d:[%s]>", self.RunesLength, self.Matchers)
 }
