@@ -74,10 +74,6 @@ func (self EveryOf) Match(s string) bool {
 	return true
 }
 
-func (self EveryOf) Kind() Kind {
-	return KindEveryOf
-}
-
 func (self EveryOf) String() string {
 	return fmt.Sprintf("<every_of:[%s]>", self.Matchers)
 }

@@ -44,14 +44,6 @@ func (self Min) Len() int {
 	return lenNo
 }
 
-func (self Min) Search(s string) (int, int, bool) {
-	return 0, 0, false
-}
-
-func (self Min) Kind() Kind {
-	return KindMin
-}
-
 func (self Min) String() string {
 	return fmt.Sprintf("<min:%d>", self.Limit)
 }

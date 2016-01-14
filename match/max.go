@@ -44,14 +44,6 @@ func (self Max) Len() int {
 	return lenNo
 }
 
-func (self Max) Search(s string) (int, int, bool) {
-	return 0, 0, false
-}
-
-func (self Max) Kind() Kind {
-	return KindMax
-}
-
 func (self Max) String() string {
 	return fmt.Sprintf("<max:%d>", self.Limit)
 }

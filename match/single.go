@@ -29,10 +29,6 @@ func (self Single) Index(s string) (int, []int) {
 	return -1, nil
 }
 
-func (self Single) Kind() Kind {
-	return KindSingle
-}
-
 func (self Single) String() string {
 	return fmt.Sprintf("<single:![%s]>", self.Separators)
 }

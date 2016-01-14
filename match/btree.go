@@ -42,10 +42,6 @@ func NewBTree(Value, Left, Right Matcher) (tree BTree) {
 	return tree
 }
 
-func (self BTree) Kind() Kind {
-	return KindBTree
-}
-
 func (self BTree) Len() int {
 	return self.Length
 }

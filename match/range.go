@@ -10,10 +10,6 @@ type Range struct {
 	Not    bool
 }
 
-func (self Range) Kind() Kind {
-	return KindRange
-}
-
 func (self Range) Len() int {
 	return lenOne
 }

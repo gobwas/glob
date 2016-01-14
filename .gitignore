@@ -1,2 +1,5 @@
 glob.iml
 .idea
+*.cpu
+*.mem
+*.test

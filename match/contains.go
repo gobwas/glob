@@ -56,10 +56,6 @@ func (self Contains) Len() int {
 	return lenNo
 }
 
-func (self Contains) Kind() Kind {
-	return KindContains
-}
-
 func (self Contains) String() string {
 	var not string
 	if self.Not {

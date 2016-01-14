@@ -57,10 +57,6 @@ func (self Row) Index(s string) (int, []int) {
 	return -1, nil
 }
 
-func (self Row) Kind() Kind {
-	return KindMin
-}
-
 func (self Row) String() string {
 	return fmt.Sprintf("<row_%d:[%s]>", self.Length, self.Matchers)
 }

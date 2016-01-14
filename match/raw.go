@@ -27,10 +27,6 @@ func (self Raw) Len() int {
 	return self.Length
 }
 
-func (self Raw) Kind() Kind {
-	return KindRaw
-}
-
 func (self Raw) Index(s string) (index int, segments []int) {
 	index = strings.Index(s, self.Str)
 	if index == -1 {

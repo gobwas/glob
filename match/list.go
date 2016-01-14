@@ -11,10 +11,6 @@ type List struct {
 	Not  bool
 }
 
-func (self List) Kind() Kind {
-	return KindList
-}
-
 func (self List) Match(s string) bool {
 	inList := strings.Index(self.List, s) != -1
 	return inList == !self.Not

@@ -9,10 +9,6 @@ type PrefixSuffix struct {
 	Prefix, Suffix string
 }
 
-func (self PrefixSuffix) Kind() Kind {
-	return KindPrefixSuffix
-}
-
 func (self PrefixSuffix) Index(s string) (int, []int) {
 	prefixIdx := strings.Index(s, self.Prefix)
 	if prefixIdx == -1 {
@@ -45,14 +41,6 @@ func (self PrefixSuffix) Index(s string) (int, []int) {
 
 func (self PrefixSuffix) Len() int {
 	return lenNo
-}
-
-func (self PrefixSuffix) Search(s string) (i int, l int, ok bool) {
-	if self.Match(s) {
-		return 0, len(s), true
-	}
-
-	return
 }
 
 func (self PrefixSuffix) Match(s string) bool {

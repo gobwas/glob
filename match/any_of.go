@@ -79,10 +79,6 @@ func (self AnyOf) Len() (l int) {
 	return
 }
 
-func (self AnyOf) Kind() Kind {
-	return KindAnyOf
-}
-
 func (self AnyOf) String() string {
 	return fmt.Sprintf("<any_of:[%s]>", self.Matchers)
 }

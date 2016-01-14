@@ -39,10 +39,6 @@ func (self Any) Len() int {
 	return lenNo
 }
 
-func (self Any) Kind() Kind {
-	return KindAny
-}
-
 func (self Any) String() string {
 	return fmt.Sprintf("<any:![%s]>", self.Separators)
 }

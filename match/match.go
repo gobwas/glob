@@ -5,28 +5,6 @@ import (
 	"strings"
 )
 
-type Kind int
-
-// todo use String for Kind, and self.Kind() in every matcher.String()
-const (
-	KindRaw Kind = iota
-	KindEveryOf
-	KindAnyOf
-	KindAny
-	KindSuper
-	KindSingle
-	KindComposition
-	KindPrefix
-	KindSuffix
-	KindPrefixSuffix
-	KindRange
-	KindList
-	KindMin
-	KindMax
-	KindBTree
-	KindContains
-)
-
 const lenOne = 1
 const lenNo = -1
 

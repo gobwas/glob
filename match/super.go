@@ -26,10 +26,6 @@ func (self Super) Index(s string) (int, []int) {
 	return 0, segments
 }
 
-func (self Super) Kind() Kind {
-	return KindSuper
-}
-
 func (self Super) String() string {
 	return fmt.Sprintf("<super>")
 }
