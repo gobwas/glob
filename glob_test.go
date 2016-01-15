@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/gobwas/glob/match"
 	"math/rand"
-	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -22,10 +22,20 @@ const (
 	pattern_alternatives = "{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}"
 	fixture_alternatives = "http://yahoo.com"
 
+	pattern_alternatives_suffix        = "{https://*gobwas.com,http://exclude.gobwas.com}"
+	fixture_alternatives_suffix_first  = "https://safe.gobwas.com"
+	fixture_alternatives_suffix_second = "http://exclude.gobwas.com"
+
 	pattern_prefix        = "abc*"
 	pattern_suffix        = "*def"
 	pattern_prefix_suffix = "ab*ef"
 	fixture_prefix_suffix = "abcdef"
+
+	pattern_alternatives_combine_lite = "{abc*def,abc?def,abc[zte]def}"
+	fixture_alternatives_combine_lite = "abczdef"
+
+	pattern_alternatives_combine_hard = "{abc*[a-c]def,abc?[d-g]def,abc[zte]?def}"
+	fixture_alternatives_combine_hard = "abczqdef"
 )
 
 type test struct {
@@ -39,63 +49,66 @@ func glob(s bool, p, m string, d ...string) test {
 }
 
 func draw(pattern string, m match.Matcher) string {
-	if tree, ok := m.(match.BTree); ok {
-		return fmt.Sprintf(`digraph G {graph[label="%s"];%s}`, pattern, graphviz(tree, fmt.Sprintf("%x", rand.Int63())))
-	}
-
-	return m.String()
+	return fmt.Sprintf(`digraph G {graph[label="%s"];%s}`, pattern, graphviz(m, fmt.Sprintf("%x", rand.Int63())))
 }
 
-func graphviz(tree match.BTree, id string) string {
+func graphviz(m match.Matcher, id string) string {
 	buf := &bytes.Buffer{}
 
-	fmt.Fprintf(buf, `"%s"[label="%s"];`, id, tree.Value.String())
-	for _, m := range []match.Matcher{tree.Left, tree.Right} {
-		switch n := m.(type) {
-		case nil:
-			rnd := rand.Int63()
-			fmt.Fprintf(buf, `"%x"[label="<nil>"];`, rnd)
-			//			fmt.Fprintf(buf, `"%s"->"%x"[label="len = 0"];`, id, rnd)
-			fmt.Fprintf(buf, `"%s"->"%x";`, id, rnd)
+	switch matcher := m.(type) {
+	case match.BTree:
+		fmt.Fprintf(buf, `"%s"[label="%s"];`, id, matcher.Value.String())
+		for _, m := range []match.Matcher{matcher.Left, matcher.Right} {
+			switch n := m.(type) {
+			case nil:
+				rnd := rand.Int63()
+				fmt.Fprintf(buf, `"%x"[label="<nil>"];`, rnd)
+				fmt.Fprintf(buf, `"%s"->"%x";`, id, rnd)
 
-		case match.BTree:
-			sub := fmt.Sprintf("%x", rand.Int63())
-			//			fmt.Fprintf(buf, `"%s"->"%s"[label="len=%d"];`, id, sub, n.Len())
-			fmt.Fprintf(buf, `"%s"->"%s";`, id, sub)
-			fmt.Fprintf(buf, graphviz(n, sub))
+			default:
+				sub := fmt.Sprintf("%x", rand.Int63())
+				fmt.Fprintf(buf, `"%s"->"%s";`, id, sub)
+				fmt.Fprintf(buf, graphviz(n, sub))
+			}
+		}
 
-		default:
+	case match.AnyOf:
+		fmt.Fprintf(buf, `"%s"[label="AnyOf"];`, id)
+		for _, m := range matcher.Matchers {
 			rnd := rand.Int63()
-			fmt.Fprintf(buf, `"%x"[label="%s"];`, rnd, m.String())
-			//			fmt.Fprintf(buf, `"%s"->"%x"[label="len = %d"];`, id, rnd, m.Len())
+			fmt.Fprintf(buf, graphviz(m, fmt.Sprintf("%x", rnd)))
 			fmt.Fprintf(buf, `"%s"->"%x";`, id, rnd)
 		}
+
+	case match.EveryOf:
+		fmt.Fprintf(buf, `"%s"[label="EveryOf"];`, id)
+		for _, m := range matcher.Matchers {
+			rnd := rand.Int63()
+			fmt.Fprintf(buf, graphviz(m, fmt.Sprintf("%x", rnd)))
+			fmt.Fprintf(buf, `"%s"->"%x";`, id, rnd)
+		}
+
+	default:
+		fmt.Fprintf(buf, `"%s"[label="%s"];`, id, m.String())
 	}
 
 	return buf.String()
 }
 
-func TestCompilePattern(t *testing.T) {
+func DrawPatterns(t *testing.T) {
 	for id, test := range []struct {
 		pattern string
 		sep     string
-		exp     match.Matcher
 	}{
-		//			{
-		//				pattern: "left*??B*abcd*[!b]??*abc*right",
-		//				exp:     match.Raw{"t"},
-		//			},
-		//		{
-		//			pattern: "abc*??def",
-		//			exp:     match.Raw{"t"},
-		//		},
 		{
-			pattern: "{abc[abc]ghi,abc[def]ghi}",
-			exp: match.NewBTree(
-				match.AnyOf{match.Matchers{match.List{"abc", false}, match.List{"qwe", false}}},
-				match.NewText("abc"),
-				match.NewText("ghi"),
-			),
+			pattern: pattern_alternatives_suffix,
+			sep:     separators,
+		},
+		{
+			pattern: pattern_alternatives_combine_lite,
+		},
+		{
+			pattern: pattern_alternatives_combine_hard,
 		},
 	} {
 		glob, err := Compile(test.pattern, test.sep)
@@ -105,10 +118,12 @@ func TestCompilePattern(t *testing.T) {
 		}
 
 		matcher := glob.(match.Matcher)
-		if !reflect.DeepEqual(test.exp, matcher) {
-			t.Errorf("#%d unexpected compilation:\nexp: %s\nact: %s", id, test.exp, draw(test.pattern, matcher))
-			continue
-		}
+		fmt.Println(test.pattern)
+		fmt.Println(strings.Repeat("=", len(test.pattern)))
+		fmt.Println(draw(test.pattern, matcher))
+		fmt.Println()
+		fmt.Println(matcher.String())
+		fmt.Println()
 	}
 }
 
@@ -208,6 +223,10 @@ func TestGlob(t *testing.T) {
 		glob(true, pattern_plain, fixture_plain),
 		glob(true, pattern_multiple, fixture_multiple),
 		glob(true, pattern_alternatives, fixture_alternatives),
+		glob(true, pattern_alternatives_suffix, fixture_alternatives_suffix_first),
+		glob(true, pattern_alternatives_suffix, fixture_alternatives_suffix_second),
+		glob(true, pattern_alternatives_combine_hard, fixture_alternatives_combine_hard),
+		glob(true, pattern_alternatives_combine_lite, fixture_alternatives_combine_lite),
 		glob(true, pattern_prefix, fixture_prefix_suffix),
 		glob(true, pattern_suffix, fixture_prefix_suffix),
 		glob(true, pattern_prefix_suffix, fixture_prefix_suffix),
@@ -253,6 +272,34 @@ func BenchmarkAlternatives(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		_ = m.Match(fixture_alternatives)
+	}
+}
+func BenchmarkAlternativesSuffixFirst(b *testing.B) {
+	m, _ := Compile(pattern_alternatives_suffix)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(fixture_alternatives_suffix_first)
+	}
+}
+func BenchmarkAlternativesSuffixSecond(b *testing.B) {
+	m, _ := Compile(pattern_alternatives_suffix)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(fixture_alternatives_suffix_second)
+	}
+}
+func BenchmarkAlternativesCombineLite(b *testing.B) {
+	m, _ := Compile(pattern_alternatives_combine_lite)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(fixture_alternatives_combine_lite)
+	}
+}
+func BenchmarkAlternativesCombineHard(b *testing.B) {
+	m, _ := Compile(pattern_alternatives_combine_hard)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(fixture_alternatives_combine_hard)
 	}
 }
 func BenchmarkPlain(b *testing.B) {

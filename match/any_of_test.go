@@ -15,8 +15,8 @@ func TestAnyOfIndex(t *testing.T) {
 		{
 			Matchers{
 				Any{},
-				Text{"b"},
-				Text{"c"},
+				NewText("b"),
+				NewText("c"),
 			},
 			"abc",
 			0,

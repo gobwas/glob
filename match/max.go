@@ -21,12 +21,7 @@ func (self Max) Match(s string) bool {
 	return true
 }
 
-func (self Max) Index(s string) (int, []int) {
-	if !self.Match(s) {
-		return -1, nil
-	}
-
-	segments := make([]int, 0, self.Limit+1)
+func (self Max) Index(s string) (index int, segments []int) {
 	segments = append(segments, 0)
 	var count int
 	for i, r := range s {

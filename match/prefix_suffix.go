@@ -15,25 +15,32 @@ func (self PrefixSuffix) Index(s string) (int, []int) {
 		return -1, nil
 	}
 
-	var segments []int
-	for sub := s[prefixIdx:]; ; {
-		suffixIdx := strings.LastIndex(sub, self.Suffix)
-		if suffixIdx == -1 {
-			break
+	var resp []int
+	suffixLen := len(self.Suffix)
+
+	if suffixLen > 0 {
+		var segments []int
+		for sub := s[prefixIdx:]; ; {
+			suffixIdx := strings.LastIndex(sub, self.Suffix)
+			if suffixIdx == -1 {
+				break
+			}
+
+			segments = append(segments, suffixIdx+suffixLen)
+			sub = sub[:suffixIdx]
 		}
 
-		segments = append(segments, suffixIdx+len(self.Suffix))
-		sub = s[:suffixIdx]
-	}
+		segLen := len(segments)
+		if segLen == 0 {
+			return -1, nil
+		}
 
-	segLen := len(segments)
-	if segLen == 0 {
-		return -1, nil
-	}
-
-	resp := make([]int, segLen)
-	for i, s := range segments {
-		resp[segLen-i-1] = s
+		resp = make([]int, segLen)
+		for i, s := range segments {
+			resp[segLen-i-1] = s
+		}
+	} else {
+		resp = append(resp, len(s)-prefixIdx)
 	}
 
 	return prefixIdx, resp

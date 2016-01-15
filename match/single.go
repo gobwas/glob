@@ -12,7 +12,12 @@ type Single struct {
 }
 
 func (self Single) Match(s string) bool {
-	return strings.IndexAny(s, self.Separators) == -1
+	r, w := utf8.DecodeRuneInString(s)
+	if len(s) > w {
+		return false
+	}
+
+	return strings.IndexRune(self.Separators, r) == -1
 }
 
 func (self Single) Len() int {

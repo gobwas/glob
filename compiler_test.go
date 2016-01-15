@@ -320,18 +320,39 @@ func TestCompiler(t *testing.T) {
 			),
 		},
 		{
-			ast: pattern(anyOf(&nodeText{text: "abc"})),
-			result: match.AnyOf{match.Matchers{
-				match.NewText("abc"),
-			}},
+			ast:    pattern(anyOf(&nodeText{text: "abc"})),
+			result: match.NewText("abc"),
 		},
 		{
-			ast: pattern(anyOf(pattern(anyOf(pattern(&nodeText{text: "abc"}))))),
-			result: match.AnyOf{match.Matchers{
-				match.AnyOf{match.Matchers{
-					match.NewText("abc"),
+			ast:    pattern(anyOf(pattern(anyOf(pattern(&nodeText{text: "abc"}))))),
+			result: match.NewText("abc"),
+		},
+		{
+			ast: pattern(anyOf(
+				pattern(
+					&nodeText{text: "abc"},
+					&nodeSingle{},
+				),
+				pattern(
+					&nodeText{text: "abc"},
+					&nodeList{chars: "def"},
+				),
+				pattern(
+					&nodeText{text: "abc"},
+				),
+				pattern(
+					&nodeText{text: "abc"},
+				),
+			)),
+			result: match.NewBTree(
+				match.NewText("abc"),
+				nil,
+				match.AnyOf{Matchers: match.Matchers{
+					match.Single{},
+					match.List{List: "def"},
+					match.Nothing{},
 				}},
-			}},
+			),
 		},
 		{
 			ast: pattern(
@@ -351,7 +372,32 @@ func TestCompiler(t *testing.T) {
 				match.Super{},
 			),
 		},
-		//		{
+		{
+			ast: pattern(anyOf(
+				pattern(
+					&nodeText{text: "abc"},
+					&nodeList{chars: "abc"},
+					&nodeText{text: "ghi"},
+				),
+				pattern(
+					&nodeText{text: "abc"},
+					&nodeList{chars: "def"},
+					&nodeText{text: "ghi"},
+				),
+			)),
+			result: match.Row{
+				RunesLength: 7,
+				Matchers: match.Matchers{
+					match.NewText("abc"),
+					match.AnyOf{Matchers: match.Matchers{
+						match.List{List: "abc"},
+						match.List{List: "def"},
+					}},
+					match.NewText("ghi"),
+				},
+			},
+		},
+		//				{
 		//			ast: pattern(
 		//				anyOf(&nodeText{text: "a"}, &nodeText{text: "b"}),
 		//				anyOf(&nodeText{text: "c"}, &nodeText{text: "d"}),
@@ -376,3 +422,125 @@ func TestCompiler(t *testing.T) {
 		}
 	}
 }
+
+const complexityString = "abcd"
+
+//func BenchmarkComplexityAny(b *testing.B) {
+//	m := match.Any{}
+//	for i := 0; i < b.N; i++ {
+//		_ = m.Match(complexityString)
+//		_, _ = m.Index(complexityString)
+//	}
+//}
+//func BenchmarkComplexityContains(b *testing.B) {
+//	m := match.Contains{}
+//	for i := 0; i < b.N; i++ {
+//		_ = m.Match(complexityString)
+//		_, _ = m.Index(complexityString)
+//	}
+//}
+//func BenchmarkComplexityList(b *testing.B) {
+//	m := match.List{}
+//	for i := 0; i < b.N; i++ {
+//		_ = m.Match(complexityString)
+//		_, _ = m.Index(complexityString)
+//	}
+//}
+//func BenchmarkComplexityMax(b *testing.B) {
+//	m := match.Max{}
+//	for i := 0; i < b.N; i++ {
+//		_ = m.Match(complexityString)
+//		_, _ = m.Index(complexityString)
+//	}
+//}
+//func BenchmarkComplexityMin(b *testing.B) {
+//	m := match.Min{}
+//	for i := 0; i < b.N; i++ {
+//		_ = m.Match(complexityString)
+//		_, _ = m.Index(complexityString)
+//	}
+//}
+//func BenchmarkComplexityNothing(b *testing.B) {
+//	m := match.Nothing{}
+//	for i := 0; i < b.N; i++ {
+//		_ = m.Match(complexityString)
+//		_, _ = m.Index(complexityString)
+//	}
+//}
+//func BenchmarkComplexityPrefix(b *testing.B) {
+//	m := match.Prefix{}
+//	for i := 0; i < b.N; i++ {
+//		_ = m.Match(complexityString)
+//		_, _ = m.Index(complexityString)
+//	}
+//}
+//func BenchmarkComplexityPrefixSuffix(b *testing.B) {
+//	m := match.PrefixSuffix{}
+//	for i := 0; i < b.N; i++ {
+//		_ = m.Match(complexityString)
+//		_, _ = m.Index(complexityString)
+//	}
+//}
+//func BenchmarkComplexityRange(b *testing.B) {
+//	m := match.Range{}
+//	for i := 0; i < b.N; i++ {
+//		_ = m.Match(complexityString)
+//		_, _ = m.Index(complexityString)
+//	}
+//}
+//func BenchmarkComplexityRow(b *testing.B) {
+//	m := match.Row{}
+//	for i := 0; i < b.N; i++ {
+//		_ = m.Match(complexityString)
+//		_, _ = m.Index(complexityString)
+//	}
+//}
+//func BenchmarkComplexitySingle(b *testing.B) {
+//	m := match.Single{}
+//	for i := 0; i < b.N; i++ {
+//		_ = m.Match(complexityString)
+//		_, _ = m.Index(complexityString)
+//	}
+//}
+//func BenchmarkComplexitySuffix(b *testing.B) {
+//	m := match.Suffix{}
+//	for i := 0; i < b.N; i++ {
+//		_ = m.Match(complexityString)
+//		_, _ = m.Index(complexityString)
+//	}
+//}
+//func BenchmarkComplexitySuper(b *testing.B) {
+//	m := match.Super{}
+//	for i := 0; i < b.N; i++ {
+//		_ = m.Match(complexityString)
+//		_, _ = m.Index(complexityString)
+//	}
+//}
+//func BenchmarkComplexityText(b *testing.B) {
+//	m := match.Text{}
+//	for i := 0; i < b.N; i++ {
+//		_ = m.Match(complexityString)
+//		_, _ = m.Index(complexityString)
+//	}
+//}
+//func BenchmarkComplexityAnyOf(b *testing.B) {
+//	m := match.AnyOf{}
+//	for i := 0; i < b.N; i++ {
+//		_ = m.Match(complexityString)
+//		_, _ = m.Index(complexityString)
+//	}
+//}
+//func BenchmarkComplexityBTree(b *testing.B) {
+//	m := match.NewBTree(match.NewText("abc"), match.NewText("d"), match.NewText("e"))
+//	for i := 0; i < b.N; i++ {
+//		_ = m.Match(complexityString)
+//		_, _ = m.Index(complexityString)
+//	}
+//}
+//func BenchmarkComplexityEveryOf(b *testing.B) {
+//	m := match.EveryOf{}
+//	for i := 0; i < b.N; i++ {
+//		_ = m.Match(complexityString)
+//		_, _ = m.Index(complexityString)
+//	}
+//}

@@ -3,6 +3,7 @@ package glob
 import (
 	"fmt"
 	"github.com/gobwas/glob/match"
+	"reflect"
 )
 
 func optimize(matcher match.Matcher) match.Matcher {
@@ -12,6 +13,13 @@ func optimize(matcher match.Matcher) match.Matcher {
 		if m.Separators == "" {
 			return match.Super{}
 		}
+
+	case match.AnyOf:
+		if len(m.Matchers) == 1 {
+			return m.Matchers[0]
+		}
+
+		return m
 
 	case match.BTree:
 		m.Left = optimize(m.Left)
@@ -235,6 +243,124 @@ func minimizeMatchers(matchers []match.Matcher) []match.Matcher {
 	return minimizeMatchers(next)
 }
 
+func minimizeAnyOf(children []node) node {
+	var nodes [][]node
+	var min int
+	var idx int
+	for i, desc := range children {
+		pat, ok := desc.(*nodePattern)
+		if !ok {
+			return nil
+		}
+
+		n := pat.children()
+		ln := len(n)
+		if len(nodes) == 0 || (ln < min) {
+			min = ln
+			idx = i
+		}
+
+		nodes = append(nodes, pat.children())
+	}
+
+	minNodes := nodes[idx]
+	if idx+1 < len(nodes) {
+		nodes = append(nodes[:idx], nodes[idx+1:]...)
+	} else {
+		nodes = nodes[:idx]
+	}
+
+	var commonLeft []node
+	var commonLeftCount int
+	for i, n := range minNodes {
+		has := true
+		for _, t := range nodes {
+			if !reflect.DeepEqual(n, t[i]) {
+				has = false
+				break
+			}
+		}
+
+		if has {
+			commonLeft = append(commonLeft, n)
+			commonLeftCount++
+		} else {
+			break
+		}
+	}
+
+	var commonRight []node
+	var commonRightCount int
+	for i := min - 1; i > commonLeftCount-1; i-- {
+		n := minNodes[i]
+		has := true
+		for _, t := range nodes {
+			if !reflect.DeepEqual(n, t[len(t)-(min-i)]) {
+				has = false
+				break
+			}
+		}
+
+		if has {
+			commonRight = append(commonRight, n)
+			commonRightCount++
+		} else {
+			break
+		}
+	}
+
+	if commonLeftCount == 0 && commonRightCount == 0 {
+		return nil
+	}
+
+	nodes = append(nodes, minNodes)
+	nodes[len(nodes)-1], nodes[idx] = nodes[idx], nodes[len(nodes)-1]
+
+	var result []node
+	if commonLeftCount > 0 {
+		result = append(result, &nodePattern{nodeImpl: nodeImpl{desc: commonLeft}})
+	}
+
+	var anyOf []node
+	for _, n := range nodes {
+		if commonLeftCount+commonRightCount == len(n) {
+			anyOf = append(anyOf, nil)
+		} else {
+			anyOf = append(anyOf, &nodePattern{nodeImpl: nodeImpl{desc: n[commonLeftCount : len(n)-commonRightCount]}})
+		}
+	}
+
+	anyOf = uniqueNodes(anyOf)
+	if len(anyOf) == 1 {
+		if anyOf[0] != nil {
+			result = append(result, &nodePattern{nodeImpl: nodeImpl{desc: anyOf}})
+		}
+	} else {
+		result = append(result, &nodeAnyOf{nodeImpl: nodeImpl{desc: anyOf}})
+	}
+
+	if commonRightCount > 0 {
+		result = append(result, &nodePattern{nodeImpl: nodeImpl{desc: commonRight}})
+	}
+
+	return &nodePattern{nodeImpl: nodeImpl{desc: result}}
+}
+
+func uniqueNodes(nodes []node) (result []node) {
+head:
+	for _, n := range nodes {
+		for _, e := range result {
+			if reflect.DeepEqual(e, n) {
+				continue head
+			}
+		}
+
+		result = append(result, n)
+	}
+
+	return
+}
+
 func compileMatchers(matchers []match.Matcher) (match.Matcher, error) {
 	if len(matchers) == 0 {
 		return nil, fmt.Errorf("compile error: need at least one matcher")
@@ -287,12 +413,87 @@ func compileMatchers(matchers []match.Matcher) (match.Matcher, error) {
 	return match.NewBTree(val, l, r), nil
 }
 
-func do(node node, s string) (m match.Matcher, err error) {
-	switch n := node.(type) {
+//func complexity(m match.Matcher) int {
+//	var matchers []match.Matcher
+//	var k int
+//
+//	switch matcher := m.(type) {
+//
+//	case match.Nothing:
+//		return 0
+//
+//	case match.Max, match.Range, match.Suffix, match.Text:
+//		return 1
+//
+//	case match.PrefixSuffix, match.Single, match.Row:
+//		return 2
+//
+//	case match.Any, match.Contains, match.List, match.Min, match.Prefix, match.Super:
+//		return 4
+//
+//	case match.BTree:
+//		matchers = append(matchers, matcher.Value)
+//		if matcher.Left != nil {
+//			matchers = append(matchers, matcher.Left)
+//		}
+//		if matcher.Right != nil {
+//			matchers = append(matchers, matcher.Right)
+//		}
+//		k = 1
+//
+//	case match.AnyOf:
+//		matchers = matcher.Matchers
+//		k = 1
+//	case match.EveryOf:
+//		matchers = matcher.Matchers
+//		k = 1
+//
+//	default:
+//		return 0
+//	}
+//
+//	var sum int
+//	for _, m := range matchers {
+//		sum += complexity(m)
+//	}
+//
+//	return sum * k
+//}
 
-	case *nodePattern, *nodeAnyOf:
+func doAnyOf(n *nodeAnyOf, s string) (match.Matcher, error) {
+	var matchers []match.Matcher
+	for _, desc := range n.children() {
+		if desc == nil {
+			matchers = append(matchers, match.Nothing{})
+			continue
+		}
+
+		m, err := do(desc, s)
+		if err != nil {
+			return nil, err
+		}
+		matchers = append(matchers, optimize(m))
+	}
+
+	return match.AnyOf{matchers}, nil
+}
+
+func do(leaf node, s string) (m match.Matcher, err error) {
+	switch n := leaf.(type) {
+
+	case *nodeAnyOf:
+		// todo this could be faster on pattern_alternatives_combine_lite
+		if n := minimizeAnyOf(n.children()); n != nil {
+			return do(n, s)
+		}
+
 		var matchers []match.Matcher
-		for _, desc := range node.children() {
+		for _, desc := range n.children() {
+			if desc == nil {
+				matchers = append(matchers, match.Nothing{})
+				continue
+			}
+
 			m, err := do(desc, s)
 			if err != nil {
 				return nil, err
@@ -300,13 +501,26 @@ func do(node node, s string) (m match.Matcher, err error) {
 			matchers = append(matchers, optimize(m))
 		}
 
-		if _, ok := node.(*nodeAnyOf); ok {
-			m = match.AnyOf{matchers}
-		} else {
-			m, err = compileMatchers(minimizeMatchers(matchers))
+		return match.AnyOf{matchers}, nil
+
+	case *nodePattern:
+		nodes := leaf.children()
+		if len(nodes) == 0 {
+			return match.Nothing{}, nil
+		}
+
+		var matchers []match.Matcher
+		for _, desc := range nodes {
+			m, err := do(desc, s)
 			if err != nil {
 				return nil, err
 			}
+			matchers = append(matchers, optimize(m))
+		}
+
+		m, err = compileMatchers(minimizeMatchers(matchers))
+		if err != nil {
+			return nil, err
 		}
 
 	case *nodeList:
