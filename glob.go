@@ -7,7 +7,7 @@ type Glob interface {
 	Match(string) bool
 }
 
-// New creates Glob for given pattern and uses other given (if any) strings as separators.
+// Compile creates Glob for given pattern and strings (if any present after pattern) as separators.
 // The pattern syntax is:
 //
 //    pattern:
