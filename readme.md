@@ -106,7 +106,7 @@ Pattern | Fixture | Operations | Speed (ns/op)
 `{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://yahoo.com` | 10000000 | 167
 `{https://*gobwas.com,http://exclude.gobwas.com}` | `https://safe.gobwas.com` | 50000000 | 24.7 
 `abc*` | `abcdef` | 200000000 | 9.49
-`*def` | `abcdef` | 200000000 | 9.60 ns/op
+`*def` | `abcdef` | 200000000 | 9.60
 `ab*ef` | `abcdef` | 100000000 | 15.2
 
 [godoc-image]: https://godoc.org/github.com/gobwas/glob?status.svg
