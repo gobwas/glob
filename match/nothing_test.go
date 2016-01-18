@@ -5,27 +5,24 @@ import (
 	"testing"
 )
 
-func TestPrefixIndex(t *testing.T) {
+func TestNothingIndex(t *testing.T) {
 	for id, test := range []struct {
-		prefix   string
 		fixture  string
 		index    int
 		segments []int
 	}{
 		{
-			"ab",
 			"abc",
 			0,
-			[]int{2, 3},
+			[]int{0},
 		},
 		{
-			"ab",
-			"fffabfff",
-			3,
-			[]int{2, 3, 4, 5},
+			"",
+			0,
+			[]int{0},
 		},
 	} {
-		p := Prefix{test.prefix}
+		p := Nothing{}
 		index, segments := p.Index(test.fixture)
 		if index != test.index {
 			t.Errorf("#%d unexpected index: exp: %d, act: %d", id, test.index, index)
@@ -36,8 +33,8 @@ func TestPrefixIndex(t *testing.T) {
 	}
 }
 
-func BenchmarkIndexPrefix(b *testing.B) {
-	m := Prefix{"qew"}
+func BenchmarkIndexNothing(b *testing.B) {
+	m := Max{10}
 	for i := 0; i < b.N; i++ {
 		m.Index(bench_pattern)
 	}

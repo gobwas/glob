@@ -5,27 +5,41 @@ import (
 	"testing"
 )
 
-func TestPrefixIndex(t *testing.T) {
+func TestRowIndex(t *testing.T) {
 	for id, test := range []struct {
-		prefix   string
+		matchers Matchers
+		length   int
 		fixture  string
 		index    int
 		segments []int
 	}{
 		{
-			"ab",
-			"abc",
-			0,
-			[]int{2, 3},
+			Matchers{
+				NewText("abc"),
+				NewText("def"),
+				Single{},
+			},
+			7,
+			"qweabcdefghij",
+			3,
+			[]int{7},
 		},
 		{
-			"ab",
-			"fffabfff",
-			3,
-			[]int{2, 3, 4, 5},
+			Matchers{
+				NewText("abc"),
+				NewText("def"),
+				Single{},
+			},
+			7,
+			"abcd",
+			-1,
+			nil,
 		},
 	} {
-		p := Prefix{test.prefix}
+		p := Row{
+			Matchers:    test.matchers,
+			RunesLength: test.length,
+		}
 		index, segments := p.Index(test.fixture)
 		if index != test.index {
 			t.Errorf("#%d unexpected index: exp: %d, act: %d", id, test.index, index)
@@ -33,12 +47,5 @@ func TestPrefixIndex(t *testing.T) {
 		if !reflect.DeepEqual(segments, test.segments) {
 			t.Errorf("#%d unexpected segments: exp: %v, act: %v", id, test.segments, segments)
 		}
-	}
-}
-
-func BenchmarkIndexPrefix(b *testing.B) {
-	m := Prefix{"qew"}
-	for i := 0; i < b.N; i++ {
-		m.Index(bench_pattern)
 	}
 }

@@ -45,3 +45,10 @@ func TestPrefixSuffixIndex(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkIndexPrefixSuffix(b *testing.B) {
+	m := PrefixSuffix{"qew", "sqw"}
+	for i := 0; i < b.N; i++ {
+		m.Index(bench_pattern)
+	}
+}

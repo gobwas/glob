@@ -5,6 +5,9 @@ import (
 	"testing"
 )
 
+const bench_separators = "."
+const bench_pattern = "abcdefghijklmnopqrstuvwxyz0123456789"
+
 func TestMergeSegments(t *testing.T) {
 	for id, test := range []struct {
 		segments [][]int

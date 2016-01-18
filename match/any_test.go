@@ -35,3 +35,10 @@ func TestAnyIndex(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkIndexAny(b *testing.B) {
+	p := Any{bench_separators}
+	for i := 0; i < b.N; i++ {
+		p.Index(bench_pattern)
+	}
+}

@@ -35,3 +35,10 @@ func TestMaxIndex(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkIndexMax(b *testing.B) {
+	m := Max{10}
+	for i := 0; i < b.N; i++ {
+		m.Index(bench_pattern)
+	}
+}

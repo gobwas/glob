@@ -38,3 +38,10 @@ func TestListIndex(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkIndexList(b *testing.B) {
+	m := List{"def", false}
+	for i := 0; i < b.N; i++ {
+		m.Index(bench_pattern)
+	}
+}

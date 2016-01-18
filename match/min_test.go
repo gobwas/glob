@@ -35,3 +35,10 @@ func TestMinIndex(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkIndexMin(b *testing.B) {
+	m := Min{10}
+	for i := 0; i < b.N; i++ {
+		m.Index(bench_pattern)
+	}
+}

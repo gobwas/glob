@@ -21,6 +21,8 @@ func (self Any) Index(s string) (int, []int) {
 	switch found {
 	case -1:
 		sub = s
+	case 0:
+		return 0, []int{0}
 	default:
 		sub = s[:found]
 	}

@@ -35,3 +35,10 @@ func TestSuffixIndex(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkIndexSuffix(b *testing.B) {
+	m := Suffix{"qwe"}
+	for i := 0; i < b.N; i++ {
+		m.Index(bench_pattern)
+	}
+}
