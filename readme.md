@@ -2,7 +2,7 @@
 
 [![GoDoc][godoc-image]][godoc-url] [![Build Status][travis-image]][travis-url]
 
-> Simple globbing library.
+> Go Globbing Library.
 
 ## Install
 
@@ -22,55 +22,92 @@ func main() {
     var g glob.Glob
     
     // create simple glob
-    g = glob.New("*.github.com")
+    g = glob.MustCompile("*.github.com")
     g.Match("api.github.com") // true
     
     // create new glob with set of delimiters as ["."]
-    g = glob.New("api.*.com", ".")
+    g = glob.MustCompile("api.*.com", ".")
     g.Match("api.github.com") // true
     g.Match("api.gi.hub.com") // false
     
     // create new glob with set of delimiters as ["."]
     // but now with super wildcard
-    g = glob.New("api.**.com", ".")
+    g = glob.MustCompile("api.**.com", ".")
     g.Match("api.github.com") // true
     g.Match("api.gi.hub.com") // true
         
     // create glob with single symbol wildcard
-    g = glob.New("?at")
+    g = glob.MustCompile("?at")
     g.Match("cat") // true
     g.Match("fat") // true
     g.Match("at") // false
     
     // create glob with single symbol wildcard and delimiters ["f"]
-    g = glob.New("?at", "f")
+    g = glob.MustCompile("?at", "f")
     g.Match("cat") // true
     g.Match("fat") // false
     g.Match("at") // false 
+    
+    // create glob with character-list matchers 
+    g = glob.MustCompile("[abc]at")
+    g.Match("cat") // true
+    g.Match("bat") // true
+    g.Match("fat") // false
+    g.Match("at") // false
+    
+    // create glob with character-list matchers 
+    g = glob.MustCompile("[!abc]at")
+    g.Match("cat") // false
+    g.Match("bat") // false
+    g.Match("fat") // true
+    g.Match("at") // false 
+    
+    // create glob with character-range matchers 
+    g = glob.MustCompile("[a-c]at")
+    g.Match("cat") // true
+    g.Match("bat") // true
+    g.Match("fat") // false
+    g.Match("at") // false
+    
+    // create glob with character-range matchers 
+    g = glob.MustCompile("[!a-c]at")
+    g.Match("cat") // false
+    g.Match("bat") // false
+    g.Match("fat") // true
+    g.Match("at") // false 
+    
+    
+    // create glob with pattern-alternatives list 
+    g = glob.MustCompile("{cat,bat,[fr]at}")
+    g.Match("cat") // true
+    g.Match("bat") // true
+    g.Match("fat") // true
+    g.Match("rat") // true
+    g.Match("at") // false 
+    g.Match("zat") // false 
 }
 
 ```
 
 ## Performance
 
-In comparison with [go-glob](https://github.com/ryanuber/go-glob), it is ~2.5x faster (on my Mac),
-because my impl compiles patterns for future usage. If you will not use compiled `glob.Glob` object,
-and do `g := glob.New(pattern); g.Match(...)` every time, then your code will be about ~3x slower.
+This library is created for compile-once patterns. This means, that compilation could take time, but 
+strings matching is done faster, than in case when always parsing template.
 
-Run `go test bench=.` from source root to see the benchmarks:
+If you will not use compiled `glob.Glob` object, and do `g := glob.MustCompile(pattern); g.Match(...)` every time, then your code will be much more slower.
 
-Test | Operations | Speed
------|------------|------
-github.com/gobwas/glob | 20000000 | 150 ns/op
-github.com/ryanuber/go-glob | 10000000 | 375 ns/op
+Run `go test -bench=.` from source root to see the benchmarks:
 
-Also, there are few simple optimizations, that help to test much faster patterns like `*abc`, `abc*` or `a*c`:
-
-Test | Operations | Speed
------|------------|------
-prefix | 200000000 | 8.78 ns/op
-suffix | 200000000 | 9.46 ns/op
-prefix-suffix | 100000000 | 16.3 ns/op
+Pattern | Fixture | Operations | Speed (ns/op)
+--------|---------|------------|--------------
+`[a-z][!a-x]*cat*[h][!b]*eyes*` | | 50000 | 26497
+`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my cat has very bright eyes` | 2000000 | 615
+`https://*.google.*` | `https://account.google.com` | 10000000 | 121
+`{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://yahoo.com` | 10000000 | 167
+`{https://*gobwas.com,http://exclude.gobwas.com}` | `https://safe.gobwas.com` | 50000000 | 24.7 
+`abc*` | `abcdef` | 200000000 | 9.49
+`*def` | `abcdef` | 200000000 | 9.60 ns/op
+`ab*ef` | `abcdef` | 100000000 | 15.2
 
 [godoc-image]: https://godoc.org/github.com/gobwas/glob?status.svg
 [godoc-url]: https://godoc.org/github.com/gobwas/glob
