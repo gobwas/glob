@@ -100,14 +100,25 @@ Run `go test -bench=.` from source root to see the benchmarks:
 
 Pattern | Fixture | Operations | Speed (ns/op)
 --------|---------|------------|--------------
-`[a-z][!a-x]*cat*[h][!b]*eyes*` | - (parsing) | 50000 | 26497
-`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my cat has very bright eyes` | 2000000 | 615
+`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my cat has very bright eyes` | 2000000 | 549
 `https://*.google.*` | `https://account.google.com` | 10000000 | 121
 `{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://yahoo.com` | 10000000 | 167
 `{https://*gobwas.com,http://exclude.gobwas.com}` | `https://safe.gobwas.com` | 50000000 | 24.7 
 `abc*` | `abcdef` | 200000000 | 9.49
 `*def` | `abcdef` | 200000000 | 9.60
 `ab*ef` | `abcdef` | 100000000 | 15.2
+
+The same things with `regexp` package:
+
+Pattern | Fixture | Operations | Speed (ns/op)
+--------|---------|------------|--------------
+`[a-z][^a-x].*cat.*[h][^b].*eyes.*` | `my cat has very bright eyes` | 500000 | 2762
+`https:\/\/.*\.google\..*` | `https://account.google.com` | 1000000 | 1191
+`(https:\/\/.*\.google\..*|.*yandex\..*|.*yahoo\..*|.*mail\.ru)` | `http://yahoo.com` | 1000000 | 1444
+`(https:\/\/.*gobwas\.com|http://exclude.gobwas.com)` | `https://safe.gobwas.com` | 1000000 | 1037
+`abc.*` | `abcdef` | 3000000 | 414
+`.*def` | `abcdef` | 5000000 | 276
+`ab.*ef` | `abcdef` | 5000000 | 352
 
 [godoc-image]: https://godoc.org/github.com/gobwas/glob?status.svg
 [godoc-url]: https://godoc.org/github.com/gobwas/glob

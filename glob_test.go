@@ -5,36 +5,47 @@ import (
 	"fmt"
 	"github.com/gobwas/glob/match"
 	"math/rand"
+	"regexp"
 	"strings"
 	"testing"
 )
 
 const (
 	pattern_all = "[a-z][!a-x]*cat*[h][!b]*eyes*"
+	regexp_all  = `[a-z][^a-x].*cat.*[h][^b].*eyes.*`
 	fixture_all = "my cat has very bright eyes"
 
 	pattern_plain = "google.com"
+	regexp_plain  = `google\.com`
 	fixture_plain = "google.com"
 
 	pattern_multiple = "https://*.google.*"
+	regexp_multiple  = `https:\/\/.*\.google\..*`
 	fixture_multiple = "https://account.google.com"
 
 	pattern_alternatives = "{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}"
+	regexp_alternatives  = `(https:\/\/.*\.google\..*|.*yandex\..*|.*yahoo\..*|.*mail\.ru)`
 	fixture_alternatives = "http://yahoo.com"
 
 	pattern_alternatives_suffix        = "{https://*gobwas.com,http://exclude.gobwas.com}"
+	regexp_alternatives_suffix         = `(https:\/\/.*gobwas\.com|http://exclude.gobwas.com)`
 	fixture_alternatives_suffix_first  = "https://safe.gobwas.com"
 	fixture_alternatives_suffix_second = "http://exclude.gobwas.com"
 
 	pattern_prefix        = "abc*"
+	regexp_prefix         = `abc.*`
 	pattern_suffix        = "*def"
+	regexp_suffix         = `.*def`
 	pattern_prefix_suffix = "ab*ef"
+	regexp_prefix_suffix  = `ab.*ef`
 	fixture_prefix_suffix = "abcdef"
 
 	pattern_alternatives_combine_lite = "{abc*def,abc?def,abc[zte]def}"
+	regexp_alternatives_combine_lite  = `(abc.*def|abc.def|abc[zte]def)`
 	fixture_alternatives_combine_lite = "abczdef"
 
 	pattern_alternatives_combine_hard = "{abc*[a-c]def,abc?[d-g]def,abc[zte]?def}"
+	regexp_alternatives_combine_hard  = `(abc.*[a-c]def|abc.[d-g]def|abc[zte].def)`
 	fixture_alternatives_combine_hard = "abczqdef"
 )
 
@@ -101,6 +112,9 @@ func DrawPatterns(t *testing.T) {
 		sep     string
 	}{
 		{
+			pattern: pattern_all,
+		},
+		{
 			pattern: pattern_alternatives_suffix,
 			sep:     separators,
 		},
@@ -109,6 +123,9 @@ func DrawPatterns(t *testing.T) {
 		},
 		{
 			pattern: pattern_alternatives_combine_hard,
+		},
+		{
+			pattern: "{https://*.mail.ru,*my.mail.ru,*my.myalpha*.i.mail.ru}",
 		},
 	} {
 		glob, err := Compile(test.pattern, test.sep)
@@ -249,14 +266,25 @@ func BenchmarkParse(b *testing.B) {
 		Compile(pattern_all)
 	}
 }
+func BenchmarkParseRegexp(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		regexp.MustCompile(regexp_all)
+	}
+}
 
 func BenchmarkAll(b *testing.B) {
 	m, _ := Compile(pattern_all)
-	//	fmt.Println("tree all:")
-	//	fmt.Println(m)
 
 	for i := 0; i < b.N; i++ {
 		_ = m.Match(fixture_all)
+	}
+}
+func BenchmarkAllRegexp(b *testing.B) {
+	m := regexp.MustCompile(regexp_all)
+	f := []byte(fixture_all)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(f)
 	}
 }
 
@@ -267,6 +295,15 @@ func BenchmarkMultiple(b *testing.B) {
 		_ = m.Match(fixture_multiple)
 	}
 }
+func BenchmarkMultipleRegexp(b *testing.B) {
+	m := regexp.MustCompile(regexp_multiple)
+	f := []byte(fixture_multiple)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(f)
+	}
+}
+
 func BenchmarkAlternatives(b *testing.B) {
 	m, _ := Compile(pattern_alternatives)
 
@@ -302,6 +339,47 @@ func BenchmarkAlternativesCombineHard(b *testing.B) {
 		_ = m.Match(fixture_alternatives_combine_hard)
 	}
 }
+func BenchmarkAlternativesRegexp(b *testing.B) {
+	m := regexp.MustCompile(regexp_alternatives)
+	f := []byte(fixture_alternatives)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(f)
+	}
+}
+func BenchmarkAlternativesSuffixFirstRegexp(b *testing.B) {
+	m := regexp.MustCompile(regexp_alternatives_suffix)
+	f := []byte(fixture_alternatives_suffix_first)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(f)
+	}
+}
+func BenchmarkAlternativesSuffixSecondRegexp(b *testing.B) {
+	m := regexp.MustCompile(regexp_alternatives_suffix)
+	f := []byte(fixture_alternatives_suffix_second)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(f)
+	}
+}
+func BenchmarkAlternativesCombineLiteRegexp(b *testing.B) {
+	m := regexp.MustCompile(regexp_alternatives_combine_lite)
+	f := []byte(fixture_alternatives_combine_lite)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(f)
+	}
+}
+func BenchmarkAlternativesCombineHardRegexp(b *testing.B) {
+	m := regexp.MustCompile(regexp_alternatives_combine_hard)
+	f := []byte(fixture_alternatives_combine_hard)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(f)
+	}
+}
+
 func BenchmarkPlain(b *testing.B) {
 	m, _ := Compile(pattern_plain)
 
@@ -309,6 +387,15 @@ func BenchmarkPlain(b *testing.B) {
 		_ = m.Match(fixture_plain)
 	}
 }
+func BenchmarkPlainRegexp(b *testing.B) {
+	m := regexp.MustCompile(regexp_plain)
+	f := []byte(fixture_plain)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(f)
+	}
+}
+
 func BenchmarkPrefix(b *testing.B) {
 	m, _ := Compile(pattern_prefix)
 
@@ -316,6 +403,15 @@ func BenchmarkPrefix(b *testing.B) {
 		_ = m.Match(fixture_prefix_suffix)
 	}
 }
+func BenchmarkPrefixRegexp(b *testing.B) {
+	m := regexp.MustCompile(regexp_prefix)
+	f := []byte(fixture_prefix_suffix)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(f)
+	}
+}
+
 func BenchmarkSuffix(b *testing.B) {
 	m, _ := Compile(pattern_suffix)
 
@@ -323,11 +419,28 @@ func BenchmarkSuffix(b *testing.B) {
 		_ = m.Match(fixture_prefix_suffix)
 	}
 }
+func BenchmarkSuffixRegexp(b *testing.B) {
+	m := regexp.MustCompile(regexp_suffix)
+	f := []byte(fixture_prefix_suffix)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(f)
+	}
+}
+
 func BenchmarkPrefixSuffix(b *testing.B) {
 	m, _ := Compile(pattern_prefix_suffix)
 
 	for i := 0; i < b.N; i++ {
 		_ = m.Match(fixture_prefix_suffix)
+	}
+}
+func BenchmarkPrefixSuffixRegexp(b *testing.B) {
+	m := regexp.MustCompile(regexp_prefix_suffix)
+	f := []byte(fixture_prefix_suffix)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.Match(f)
 	}
 }
 
