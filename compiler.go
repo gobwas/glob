@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gobwas/glob/match"
 	"reflect"
+	"unicode/utf8"
 )
 
 func optimize(matcher match.Matcher) match.Matcher {
@@ -17,6 +18,13 @@ func optimize(matcher match.Matcher) match.Matcher {
 	case match.AnyOf:
 		if len(m.Matchers) == 1 {
 			return m.Matchers[0]
+		}
+
+		return m
+
+	case match.List:
+		if m.Not == false && utf8.RuneCountInString(m.List) == 1 {
+			return match.NewText(m.List)
 		}
 
 		return m
