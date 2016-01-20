@@ -124,3 +124,8 @@ Pattern | Fixture | Operations | Speed (ns/op)
 [godoc-url]: https://godoc.org/github.com/gobwas/glob
 [travis-image]: https://travis-ci.org/gobwas/glob.svg?branch=master
 [travis-url]: https://travis-ci.org/gobwas/glob
+
+## Syntax
+
+Syntax is inspired by [standard wildcards](http://tldp.org/LDP/GNU-Linux-Tools-Summary/html/x11655.htm),
+except that `**` is aka super-asterisk, that do not sensitive for separators.
