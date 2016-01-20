@@ -98,41 +98,41 @@ If you will not use compiled `glob.Glob` object, and do `g := glob.MustCompile(p
 
 Run `go test -bench=.` from source root to see the benchmarks:
 
-Pattern | Fixture | Operations | Speed (ns/op)
---------|---------|------------|--------------
-`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my cat has very bright eyes` | ✔ | 2000000 | 527
-`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my dog has very bright eyes` | ✗ | 10000000 | 229
-`https://*.google.*` | `https://account.google.com` | ✔ | 10000000 | 121
-`https://*.google.*` | `https://google.com` | ✗ | 20000000 | 68.6
-`{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://yahoo.com` | ✔ | 10000000 | 167
-`{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://google.com` | ✗ | 10000000 | 198
-`{https://*gobwas.com,http://exclude.gobwas.com}` | `https://safe.gobwas.com` | ✔ | 100000000 | 23.9 
-`{https://*gobwas.com,http://exclude.gobwas.com}` | `http://safe.gobwas.com` | ✗ | 50000000 | 24.7 
-`abc*` | `abcdef` | ✔ | 200000000 | 8.86
-`abc*` | `af` | ✗ | 300000000 | 4.99
-`*def` | `abcdef` | ✔ | 200000000 | 9.23
-`*def` | `af` | ✗ | 300000000 | 5.44
-`ab*ef` | `abcdef` | ✔ | 100000000 | 15.2
-`ab*ef` | `af` | ✗ | 100000000 | 10.4
+Pattern | Fixture | Match | Operations | Speed (ns/op)
+--------|---------|-------|------------|--------------
+`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my cat has very bright eyes` | `true` | 2000000 | 527
+`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my dog has very bright eyes` | `false` | 10000000 | 229
+`https://*.google.*` | `https://account.google.com` | `true` | 10000000 | 121
+`https://*.google.*` | `https://google.com` | `false` | 20000000 | 68.6
+`{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://yahoo.com` | `true` | 10000000 | 167
+`{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://google.com` | `false` | 10000000 | 198
+`{https://*gobwas.com,http://exclude.gobwas.com}` | `https://safe.gobwas.com` | `true` | 100000000 | 23.9 
+`{https://*gobwas.com,http://exclude.gobwas.com}` | `http://safe.gobwas.com` | `false` | 50000000 | 24.7 
+`abc*` | `abcdef` | `true` | 200000000 | 8.86
+`abc*` | `af` | `false` | 300000000 | 4.99
+`*def` | `abcdef` | `true` | 200000000 | 9.23
+`*def` | `af` | `false` | 300000000 | 5.44
+`ab*ef` | `abcdef` | `true` | 100000000 | 15.2
+`ab*ef` | `af` | `false` | 100000000 | 10.4
 
 The same things with `regexp` package:
 
-Pattern | Fixture | Operations | Speed (ns/op)
---------|---------|------------|--------------
-`^[a-z][^a-x].*cat.*[h][^b].*eyes.*$` | `my cat has very bright eyes` | ✔ | 500000 | 2553
-`^[a-z][^a-x].*cat.*[h][^b].*eyes.*$` | `my dog has very bright eyes` | ✗ | 1000000 | 1383
-`^https:\/\/.*\.google\..*$` | `https://account.google.com` | ✔ | 1000000 | 1205
-`^https:\/\/.*\.google\..*$` | `https://google.com` | ✗ | 2000000 | 767
-`^(https:\/\/.*\.google\..*|.*yandex\..*|.*yahoo\..*|.*mail\.ru)$` | `http://yahoo.com` | ✔ | 1000000 | 1435
-`^(https:\/\/.*\.google\..*|.*yandex\..*|.*yahoo\..*|.*mail\.ru)$` | `http://google.com` | ✗ | 1000000 | 1674
-`^(https:\/\/.*gobwas\.com|http://exclude.gobwas.com)$` | `https://safe.gobwas.com` | ✔ | 1000000 | 1039
-`^(https:\/\/.*gobwas\.com|http://exclude.gobwas.com)$` | `http://safe.gobwas.com` | ✗ | 5000000 | 272
-`^abc.*$` | `abcdef` | ✔ | 5000000 | 237
-`^abc.*$` | `af` | ✗ | 20000000 | 100
-`^.*def$` | `abcdef` | ✔ | 5000000 | 464
-`^.*def$` | `af` | ✗ | 5000000 | 265
-`^ab.*ef$` | `abcdef` | ✔ | 5000000 | 375
-`^ab.*ef$` | `af` | ✗ | 10000000 | 145
+Pattern | Fixture | Match | Operations | Speed (ns/op)
+--------|---------|-------|------------|--------------
+`^[a-z][^a-x].*cat.*[h][^b].*eyes.*$` | `my cat has very bright eyes` | `true` | 500000 | 2553
+`^[a-z][^a-x].*cat.*[h][^b].*eyes.*$` | `my dog has very bright eyes` | `false` | 1000000 | 1383
+`^https:\/\/.*\.google\..*$` | `https://account.google.com` | `true` | 1000000 | 1205
+`^https:\/\/.*\.google\..*$` | `https://google.com` | `false` | 2000000 | 767
+`^(https:\/\/.*\.google\..*|.*yandex\..*|.*yahoo\..*|.*mail\.ru)$` | `http://yahoo.com` | `true` | 1000000 | 1435
+`^(https:\/\/.*\.google\..*|.*yandex\..*|.*yahoo\..*|.*mail\.ru)$` | `http://google.com` | `false` | 1000000 | 1674
+`^(https:\/\/.*gobwas\.com|http://exclude.gobwas.com)$` | `https://safe.gobwas.com` | `true` | 1000000 | 1039
+`^(https:\/\/.*gobwas\.com|http://exclude.gobwas.com)$` | `http://safe.gobwas.com` | `false` | 5000000 | 272
+`^abc.*$` | `abcdef` | `true` | 5000000 | 237
+`^abc.*$` | `af` | `false` | 20000000 | 100
+`^.*def$` | `abcdef` | `true` | 5000000 | 464
+`^.*def$` | `af` | `false` | 5000000 | 265
+`^ab.*ef$` | `abcdef` | `true` | 5000000 | 375
+`^ab.*ef$` | `af` | `false` | 10000000 | 145
 
 [godoc-image]: https://godoc.org/github.com/gobwas/glob?status.svg
 [godoc-url]: https://godoc.org/github.com/gobwas/glob
