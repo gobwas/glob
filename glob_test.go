@@ -12,40 +12,40 @@ import (
 
 const (
 	pattern_all = "[a-z][!a-x]*cat*[h][!b]*eyes*"
-	regexp_all  = `[a-z][^a-x].*cat.*[h][^b].*eyes.*`
+	regexp_all  = `^[a-z][^a-x].*cat.*[h][^b].*eyes.*$`
 	fixture_all = "my cat has very bright eyes"
 
 	pattern_plain = "google.com"
-	regexp_plain  = `google\.com`
+	regexp_plain  = `^google\.com$`
 	fixture_plain = "google.com"
 
 	pattern_multiple = "https://*.google.*"
-	regexp_multiple  = `https:\/\/.*\.google\..*`
+	regexp_multiple  = `^https:\/\/.*\.google\..*$`
 	fixture_multiple = "https://account.google.com"
 
 	pattern_alternatives = "{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}"
-	regexp_alternatives  = `(https:\/\/.*\.google\..*|.*yandex\..*|.*yahoo\..*|.*mail\.ru)`
+	regexp_alternatives  = `^(https:\/\/.*\.google\..*|.*yandex\..*|.*yahoo\..*|.*mail\.ru)$`
 	fixture_alternatives = "http://yahoo.com"
 
 	pattern_alternatives_suffix        = "{https://*gobwas.com,http://exclude.gobwas.com}"
-	regexp_alternatives_suffix         = `(https:\/\/.*gobwas\.com|http://exclude.gobwas.com)`
+	regexp_alternatives_suffix         = `^(https:\/\/.*gobwas\.com|http://exclude.gobwas.com)$`
 	fixture_alternatives_suffix_first  = "https://safe.gobwas.com"
 	fixture_alternatives_suffix_second = "http://exclude.gobwas.com"
 
 	pattern_prefix        = "abc*"
-	regexp_prefix         = `abc.*`
+	regexp_prefix         = `^abc.*$`
 	pattern_suffix        = "*def"
-	regexp_suffix         = `.*def`
+	regexp_suffix         = `^.*def$`
 	pattern_prefix_suffix = "ab*ef"
-	regexp_prefix_suffix  = `ab.*ef`
+	regexp_prefix_suffix  = `^ab.*ef$`
 	fixture_prefix_suffix = "abcdef"
 
 	pattern_alternatives_combine_lite = "{abc*def,abc?def,abc[zte]def}"
-	regexp_alternatives_combine_lite  = `(abc.*def|abc.def|abc[zte]def)`
+	regexp_alternatives_combine_lite  = `^(abc.*def|abc.def|abc[zte]def)$`
 	fixture_alternatives_combine_lite = "abczdef"
 
 	pattern_alternatives_combine_hard = "{abc*[a-c]def,abc?[d-g]def,abc[zte]?def}"
-	regexp_alternatives_combine_hard  = `(abc.*[a-c]def|abc.[d-g]def|abc[zte].def)`
+	regexp_alternatives_combine_hard  = `^(abc.*[a-c]def|abc.[d-g]def|abc[zte].def)$`
 	fixture_alternatives_combine_hard = "abczqdef"
 )
 

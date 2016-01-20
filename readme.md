@@ -112,13 +112,13 @@ The same things with `regexp` package:
 
 Pattern | Fixture | Operations | Speed (ns/op)
 --------|---------|------------|--------------
-`[a-z][^a-x].*cat.*[h][^b].*eyes.*` | `my cat has very bright eyes` | 500000 | 2762
-`https:\/\/.*\.google\..*` | `https://account.google.com` | 1000000 | 1191
-`(https:\/\/.*\.google\..*|.*yandex\..*|.*yahoo\..*|.*mail\.ru)` | `http://yahoo.com` | 1000000 | 1444
-`(https:\/\/.*gobwas\.com|http://exclude.gobwas.com)` | `https://safe.gobwas.com` | 1000000 | 1037
-`abc.*` | `abcdef` | 3000000 | 414
-`.*def` | `abcdef` | 5000000 | 276
-`ab.*ef` | `abcdef` | 5000000 | 352
+`^[a-z][^a-x].*cat.*[h][^b].*eyes.*$` | `my cat has very bright eyes` | 500000 | 2553
+`^https:\/\/.*\.google\..*$` | `https://account.google.com` | 1000000 | 1205
+`^(https:\/\/.*\.google\..*|.*yandex\..*|.*yahoo\..*|.*mail\.ru)$` | `http://yahoo.com` | 1000000 | 1435
+`^(https:\/\/.*gobwas\.com|http://exclude.gobwas.com)$` | `https://safe.gobwas.com` | 1000000 | 1039
+`^abc.*$` | `abcdef` | 3000000 | 275
+`^.*def$` | `abcdef` | 5000000 | 464
+`^ab.*ef$` | `abcdef` | 5000000 | 395
 
 [godoc-image]: https://godoc.org/github.com/gobwas/glob?status.svg
 [godoc-url]: https://godoc.org/github.com/gobwas/glob
