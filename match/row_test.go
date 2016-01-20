@@ -5,6 +5,20 @@ import (
 	"testing"
 )
 
+func BenchmarkRowIndex(b *testing.B) {
+	m := Row{
+		Matchers: Matchers{
+			NewText("abc"),
+			NewText("def"),
+			Single{},
+		},
+		RunesLength: 7,
+	}
+	for i := 0; i < b.N; i++ {
+		m.Index("abcdefghijk")
+	}
+}
+
 func TestRowIndex(t *testing.T) {
 	for id, test := range []struct {
 		matchers Matchers

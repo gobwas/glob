@@ -100,7 +100,7 @@ Run `go test -bench=.` from source root to see the benchmarks:
 
 Pattern | Fixture | Operations | Speed (ns/op)
 --------|---------|------------|--------------
-`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my cat has very bright eyes` | 2000000 | 549
+`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my cat has very bright eyes` | 2000000 | 527
 `https://*.google.*` | `https://account.google.com` | 10000000 | 121
 `{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://yahoo.com` | 10000000 | 167
 `{https://*gobwas.com,http://exclude.gobwas.com}` | `https://safe.gobwas.com` | 50000000 | 24.7 

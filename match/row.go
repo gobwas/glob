@@ -2,7 +2,6 @@ package match
 
 import (
 	"fmt"
-	"unicode/utf8"
 )
 
 type Row struct {
@@ -13,23 +12,40 @@ type Row struct {
 func (self Row) matchAll(s string) bool {
 	var idx int
 	for _, m := range self.Matchers {
-		l := m.Len()
-		if !m.Match(s[idx : idx+l]) {
+		length := m.Len()
+
+		var next, i int
+		for next = range s[idx:] {
+			i++
+			if i == length {
+				break
+			}
+		}
+
+		if i < length || !m.Match(s[idx:idx+next+1]) {
 			return false
 		}
 
-		idx += l
+		idx += next + 1
 	}
 
 	return true
 }
 
-func (self Row) Match(s string) bool {
-	if utf8.RuneCountInString(s) < self.RunesLength {
-		return false
+func (self Row) lenOk(s string) bool {
+	var i int
+	for range s {
+		i++
+		if i >= self.RunesLength {
+			return true
+		}
 	}
 
-	return self.matchAll(s)
+	return false
+}
+
+func (self Row) Match(s string) bool {
+	return self.lenOk(s) && self.matchAll(s)
 }
 
 func (self Row) Len() (l int) {
@@ -37,20 +53,20 @@ func (self Row) Len() (l int) {
 }
 
 func (self Row) Index(s string) (int, []int) {
-	l := utf8.RuneCountInString(s)
-	if l < self.RunesLength {
+	if !self.lenOk(s) {
 		return -1, nil
 	}
 
 	for i := range s {
-		sub := s[i:]
-		if self.matchAll(sub) {
-			return i, []int{self.RunesLength}
+		// this is not strict check but useful
+		// when glob will be refactored for usage with []rune
+		// it will be better
+		if len(s[i:]) < self.RunesLength {
+			break
 		}
 
-		l -= 1
-		if l < self.RunesLength {
-			return -1, nil
+		if self.matchAll(s[i:]) {
+			return i, []int{self.RunesLength}
 		}
 	}
 
