@@ -1,12 +1,7 @@
 package glob
 
 import (
-	"bytes"
-	"fmt"
-	"github.com/gobwas/glob/match"
-	"math/rand"
 	"regexp"
-	"strings"
 	"testing"
 )
 
@@ -63,138 +58,6 @@ type test struct {
 
 func glob(s bool, p, m string, d ...string) test {
 	return test{p, m, s, d}
-}
-
-func draw(pattern string, m match.Matcher) string {
-	return fmt.Sprintf(`digraph G {graph[label="%s"];%s}`, pattern, graphviz(m, fmt.Sprintf("%x", rand.Int63())))
-}
-
-func graphviz(m match.Matcher, id string) string {
-	buf := &bytes.Buffer{}
-
-	switch matcher := m.(type) {
-	case match.BTree:
-		fmt.Fprintf(buf, `"%s"[label="%s"];`, id, matcher.Value.String())
-		for _, m := range []match.Matcher{matcher.Left, matcher.Right} {
-			switch n := m.(type) {
-			case nil:
-				rnd := rand.Int63()
-				fmt.Fprintf(buf, `"%x"[label="<nil>"];`, rnd)
-				fmt.Fprintf(buf, `"%s"->"%x";`, id, rnd)
-
-			default:
-				sub := fmt.Sprintf("%x", rand.Int63())
-				fmt.Fprintf(buf, `"%s"->"%s";`, id, sub)
-				fmt.Fprintf(buf, graphviz(n, sub))
-			}
-		}
-
-	case match.AnyOf:
-		fmt.Fprintf(buf, `"%s"[label="AnyOf"];`, id)
-		for _, m := range matcher.Matchers {
-			rnd := rand.Int63()
-			fmt.Fprintf(buf, graphviz(m, fmt.Sprintf("%x", rnd)))
-			fmt.Fprintf(buf, `"%s"->"%x";`, id, rnd)
-		}
-
-	case match.EveryOf:
-		fmt.Fprintf(buf, `"%s"[label="EveryOf"];`, id)
-		for _, m := range matcher.Matchers {
-			rnd := rand.Int63()
-			fmt.Fprintf(buf, graphviz(m, fmt.Sprintf("%x", rnd)))
-			fmt.Fprintf(buf, `"%s"->"%x";`, id, rnd)
-		}
-
-	default:
-		fmt.Fprintf(buf, `"%s"[label="%s"];`, id, m.String())
-	}
-
-	return buf.String()
-}
-
-func DrawPatterns(t *testing.T) {
-	for id, test := range []struct {
-		pattern string
-		sep     string
-	}{
-		//		{
-		//			pattern: pattern_all,
-		//		},
-		//		{
-		//			pattern: pattern_alternatives_suffix,
-		//			sep:     separators,
-		//		},
-		//		{
-		//			pattern: pattern_alternatives_combine_lite,
-		//		},
-		//		{
-		//			pattern: pattern_alternatives_combine_hard,
-		//		},
-		{
-			pattern: pattern_alternatives_suffix,
-		},
-		//		{
-		//			pattern: "{https://*.mail.ru,*my.mail.ru,*my.myalpha*.i.mail.ru}",
-		//		},
-	} {
-		glob, err := Compile(test.pattern, test.sep)
-		if err != nil {
-			t.Errorf("#%d compile pattern error: %s", id, err)
-			continue
-		}
-
-		matcher := glob.(match.Matcher)
-		fmt.Println(test.pattern)
-		fmt.Println(strings.Repeat("=", len(test.pattern)))
-		fmt.Println(draw(test.pattern, matcher))
-		fmt.Println()
-		fmt.Println(matcher.String())
-		fmt.Println()
-	}
-}
-
-func TestIndexByteNonEscaped(t *testing.T) {
-	for _, test := range []struct {
-		s    string
-		n, e byte
-		i    int
-	}{
-		{
-			"\\n_n",
-			'n',
-			'\\',
-			3,
-		},
-		{
-			"ab",
-			'a',
-			'\\',
-			0,
-		},
-		{
-			"ab",
-			'b',
-			'\\',
-			1,
-		},
-		{
-			"",
-			'b',
-			'\\',
-			-1,
-		},
-		{
-			"\\b",
-			'b',
-			'\\',
-			-1,
-		},
-	} {
-		i := indexByteNonEscaped(test.s, test.n, test.e, 0)
-		if i != test.i {
-			t.Errorf("unexpeted index: expected %v, got %v", test.i, i)
-		}
-	}
 }
 
 func TestGlob(t *testing.T) {
@@ -284,17 +147,6 @@ func TestGlob(t *testing.T) {
 		if result != test.should {
 			t.Errorf("pattern %q matching %q should be %v but got %v\n%s", test.pattern, test.match, test.should, result, g)
 		}
-
-		//		if len(test.delimiters) == 0 || (len(test.delimiters) == 1 && test.delimiters[0] == string(filepath.Separator)) {
-		//			result, err = filepath.Match(test.pattern, test.match)
-		//			if err != nil {
-		//				t.Errorf("[filepath] error matching pattern %q: %s", test.pattern, err)
-		//				continue
-		//			}
-		//			if result != test.should {
-		//				t.Errorf("[filepath] pattern %q matching %q should be %v but got %v\n%s", test.pattern, test.match, test.should, result, g)
-		//			}
-		//		}
 	}
 }
 
