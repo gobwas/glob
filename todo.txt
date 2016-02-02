@@ -1,32 +1,26 @@
-benchmark                                      | old ns/op |  new ns/op  |   delta
------------------------------------------------|-----------|-------------|-----------
-BenchmarkAllGlobMatch-4                          512           711           +38.87%
-BenchmarkMultipleGlobMatch-4                     121           417           +244.63%
-BenchmarkAlternativesGlobMatch-4                 166           300           +80.72%
-BenchmarkAlternativesSuffixFirstGlobMatch-4      23.5          292           +1142.55%
-BenchmarkAlternativesSuffixSecondGlobMatch-4     29.8          355           +1091.28%
-BenchmarkAlternativesCombineLiteGlobMatch-4      161           250           +55.28%
-BenchmarkAlternativesCombineHardGlobMatch-4      325           334           +2.77%
-BenchmarkPlainGlobMatch-4                        7.20          154           +2038.89%
-BenchmarkPrefixGlobMatch-4                       8.75          113           +1191.43%
-BenchmarkSuffixGlobMatch-4                       9.07          115           +1167.92%
-BenchmarkPrefixSuffixGlobMatch-4                 15.1          125           +727.81%
+benchmark                                        old ns/op     new ns/op     delta
 
-
-
-
-
-BenchmarkIndexPrefix-4                           85.1          55.9          -34.31%
-BenchmarkIndexRange-4                            170(143)      60.6          -64.35%
-BenchmarkRowIndex-4                              172(128)      94.0          -45.35%
-BenchmarkIndexSingle-4                           61.0(16)      35.8          -41.31%
-BenchmarkIndexSuffix-4                           84.8          55.7          -34.32%
-BenchmarkIndexSuper-4                            461(180)      192           -58.35%
-BenchmarkIndexText-4                             84.6          54.4          -35.70%
-BenchmarkIndexPrefixSuffix-4                     84.3          57.2          -32.15%
-BenchmarkIndexNothing-4                          452(3.31)     92.8          -79.47% XXX
-BenchmarkIndexMin-4                              516(274)      161           -68.80%
-BenchmarkIndexMax-4                              442(88)       92.4          -79.10%
-BenchmarkIndexList-4                             151(41)       51.1          -66.16%
-BenchmarkIndexContains-4                         492(220)      247           -49.80%
-BenchmarkIndexAny-4                              887(222)      255           -71.25%
+BenchmarkAllGlobMatch-4                          519           1024          +97.30%
+BenchmarkMultipleGlobMatch-4                     123           218           +77.24%
+BenchmarkAlternativesGlobMatch-4                 164           283           +72.56%
+BenchmarkAlternativesSuffixFirstGlobMatch-4      23.6          23.5          -0.42%
+BenchmarkAlternativesSuffixSecondGlobMatch-4     29.7          30.1          +1.35%
+BenchmarkAlternativesCombineLiteGlobMatch-4      161           352           +118.63%
+BenchmarkAlternativesCombineHardGlobMatch-4      321           649           +102.18%
+BenchmarkPlainGlobMatch-4                        7.17          7.09          -1.12%
+BenchmarkPrefixGlobMatch-4                       8.74          8.64          -1.14%
+BenchmarkSuffixGlobMatch-4                       10.3          9.06          -12.04%
+BenchmarkPrefixSuffixGlobMatch-4                 31.0          15.1          -51.29%
+BenchmarkIndexAny-4                              1414          232           -83.59%
+BenchmarkIndexContains-4                         557           250           -55.12%
+BenchmarkIndexList-4                             207           42.6          -79.42%
+BenchmarkIndexMax-4                              630           111           -82.38%
+BenchmarkIndexMin-4                              515           328           -36.31%
+BenchmarkIndexPrefixSuffix-4                     97.9          86.2          -11.95%
+BenchmarkIndexPrefix-4                           86.1          84.0          -2.44%
+BenchmarkIndexRange-4                            181           144           -20.44%
+BenchmarkRowIndex-4                              185           127           -31.35%
+BenchmarkIndexSingle-4                           82.6          16.0          -80.63%
+BenchmarkIndexSuffix-4                           85.5          84.9          -0.70%
+BenchmarkIndexSuper-4                            450           196           -56.44%
+BenchmarkIndexText-4                             85.3          85.9          +0.70%

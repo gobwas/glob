@@ -168,6 +168,15 @@ func BenchmarkAllGlobMatch(b *testing.B) {
 		_ = m.Match(fixture_all_match)
 	}
 }
+func BenchmarkAllGlobMatchParallel(b *testing.B) {
+	m, _ := Compile(pattern_all)
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = m.Match(fixture_all_match)
+		}
+	})
+}
 func BenchmarkAllRegexpMatch(b *testing.B) {
 	m := regexp.MustCompile(regexp_all)
 	f := []byte(fixture_all_match)
