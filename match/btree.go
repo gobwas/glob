@@ -77,10 +77,12 @@ func (self BTree) Match(s string) bool {
 		limit = inputLen
 	}
 
+	fmt.Println("ACQUIRE")
+	in := acquireSegments(inputLen)
+
 	for offset < limit {
 		// search for matching part in substring
-		in := acquireSegments(limit - offset)
-		index, segments := self.Value.Index(s[offset:limit], in)
+		index, segments := self.Value.Index(s[offset:limit], in[:0])
 		if index == -1 {
 			releaseSegments(in)
 			return false
@@ -120,11 +122,11 @@ func (self BTree) Match(s string) bool {
 			}
 		}
 
-		releaseSegments(in)
-
 		_, step := utf8.DecodeRuneInString(s[offset+index:])
 		offset += index + step
 	}
+
+	releaseSegments(in)
 
 	return false
 }

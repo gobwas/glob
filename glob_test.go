@@ -1,6 +1,8 @@
 package glob
 
 import (
+	"fmt"
+	"github.com/gobwas/glob/match"
 	"regexp"
 	"testing"
 )
@@ -148,6 +150,13 @@ func TestGlob(t *testing.T) {
 			t.Errorf("pattern %q matching %q should be %v but got %v\n%s", test.pattern, test.match, test.should, result, g)
 		}
 	}
+}
+
+func TestAllGlobMatch(t *testing.T) {
+
+	m, _ := Compile(pattern_all)
+	fmt.Println("HI", m.(match.Matcher).String())
+	m.Match(fixture_all_match)
 }
 
 func BenchmarkParseGlob(b *testing.B) {

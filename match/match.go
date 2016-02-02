@@ -54,6 +54,7 @@ func init() {
 		func(i int) {
 			segmentsPools[i-1] = sync.Pool{
 				New: func() interface{} {
+					fmt.Println("NEW", i)
 					return make([]int, 0, i)
 				},
 			}
@@ -74,12 +75,12 @@ func getIdx(c int) int {
 }
 
 func acquireSegments(c int) []int {
-	//	fmt.Println("GET", getIdx(c))
+	fmt.Println("GET", getIdx(c))
 	return segmentsPools[getIdx(c)].Get().([]int)[:0]
 }
 
 func releaseSegments(s []int) {
-	//	fmt.Println("PUT", getIdx(cap(s)))
+	fmt.Println("PUT", getIdx(cap(s)))
 	segmentsPools[getIdx(cap(s))].Put(s)
 }
 
