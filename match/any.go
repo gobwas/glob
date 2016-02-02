@@ -7,7 +7,7 @@ import (
 )
 
 type Any struct {
-	Separators string
+	Separators []rune
 }
 
 func (self Any) Match(s string) bool {

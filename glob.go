@@ -33,13 +33,13 @@ type Glob interface {
 //        pattern { `,` pattern }
 //                    comma-separated (without spaces) patterns
 //
-func Compile(pattern string, separators ...string) (Glob, error) {
+func Compile(pattern string, separators ...rune) (Glob, error) {
 	ast, err := parse(newLexer(pattern))
 	if err != nil {
 		return nil, err
 	}
 
-	matcher, err := compile(ast, strings.Join(separators, ""))
+	matcher, err := compile(ast, separators)
 	if err != nil {
 		return nil, err
 	}

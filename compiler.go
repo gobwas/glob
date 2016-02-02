@@ -11,7 +11,7 @@ func optimize(matcher match.Matcher) match.Matcher {
 	switch m := matcher.(type) {
 
 	case match.Any:
-		if m.Separators == "" {
+		if len(m.Separators) == 0 {
 			return match.Super{}
 		}
 
@@ -135,15 +135,15 @@ func glueAsEvery(matchers []match.Matcher) match.Matcher {
 		hasSuper  bool
 		hasSingle bool
 		min       int
-		separator string
+		separator []rune
 	)
 
 	for i, matcher := range matchers {
-		var sep string
-		switch m := matcher.(type) {
+		var sep []rune
 
+		switch m := matcher.(type) {
 		case match.Super:
-			sep = ""
+			sep = []rune{}
 			hasSuper = true
 
 		case match.Any:
@@ -486,7 +486,7 @@ func doAnyOf(n *nodeAnyOf, s string) (match.Matcher, error) {
 	return match.AnyOf{matchers}, nil
 }
 
-func do(leaf node, s string) (m match.Matcher, err error) {
+func do(leaf node, s []rune) (m match.Matcher, err error) {
 	switch n := leaf.(type) {
 
 	case *nodeAnyOf:
@@ -659,7 +659,7 @@ func do2(node node, s string) ([]match.Matcher, error) {
 	return result, nil
 }
 
-func compile(ast *nodePattern, s string) (Glob, error) {
+func compile(ast *nodePattern, s []rune) (Glob, error) {
 	//	ms, err := do2(ast, s)
 	//	if err != nil {
 	//		return nil, err

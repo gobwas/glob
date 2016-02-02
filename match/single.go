@@ -8,7 +8,7 @@ import (
 
 // single represents ?
 type Single struct {
-	Separators string
+	Separators []rune
 }
 
 func (self Single) Match(s string) bool {
