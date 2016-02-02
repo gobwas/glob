@@ -9,13 +9,13 @@ type Suffix struct {
 	Suffix string
 }
 
-func (self Suffix) Index(s string) (int, []int) {
+func (self Suffix) Index(s string, segments []int) (int, []int) {
 	idx := strings.Index(s, self.Suffix)
 	if idx == -1 {
 		return -1, nil
 	}
 
-	return 0, []int{idx + len(self.Suffix)}
+	return 0, append(segments, idx+len(self.Suffix))
 }
 
 func (self Suffix) Len() int {

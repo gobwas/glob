@@ -2,8 +2,7 @@ package match
 
 import (
 	"fmt"
-	"strings"
-	"unicode/utf8"
+	"github.com/gobwas/glob/strings"
 )
 
 type Any struct {
@@ -11,28 +10,25 @@ type Any struct {
 }
 
 func (self Any) Match(s string) bool {
-	return strings.IndexAny(s, self.Separators) == -1
+	return strings.IndexAnyRunes(s, self.Separators) == -1
 }
 
-func (self Any) Index(s string) (int, []int) {
-	var sub string
-
-	found := strings.IndexAny(s, self.Separators)
+func (self Any) Index(s string, segments []int) (int, []int) {
+	found := strings.IndexAnyRunes(s, self.Separators)
 	switch found {
 	case -1:
-		sub = s
 	case 0:
-		return 0, []int{0}
+		segments = append(segments)
+		return 0, segments
 	default:
-		sub = s[:found]
+		s = s[:found]
 	}
 
-	segments := make([]int, 0, utf8.RuneCountInString(sub)+1)
-	for i := range sub {
+	for i := range s {
 		segments = append(segments, i)
 	}
 
-	segments = append(segments, len(sub))
+	segments = append(segments, len(s))
 
 	return 0, segments
 }

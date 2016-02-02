@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"os"
 	"strings"
+	"unicode/utf8"
 )
 
 func draw(pattern string, m match.Matcher) string {
@@ -60,7 +61,7 @@ func graphviz(m match.Matcher, id string) string {
 
 func main() {
 	pattern := flag.String("p", "", "pattern to draw")
-	sep := flag.String("s", "", "comma separated list of separators")
+	sep := flag.String("s", "", "comma separated list of separators characters")
 	flag.Parse()
 
 	if *pattern == "" {
@@ -68,7 +69,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	glob, err := glob.Compile(*pattern, strings.Split(*sep, ",")...)
+	var separators []rune
+	for _, c := range strings.Split(*sep, ",") {
+		if r, w := utf8.DecodeRuneInString(c); len(c) > w {
+			fmt.Println("only single charactered separators are allowed")
+			os.Exit(1)
+		} else {
+			separators = append(separators, r)
+		}
+	}
+
+	glob, err := glob.Compile(*pattern, separators...)
 	if err != nil {
 		fmt.Println("could not compile pattern:", err)
 		os.Exit(1)

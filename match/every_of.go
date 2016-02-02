@@ -25,43 +25,66 @@ func (self EveryOf) Len() (l int) {
 	return
 }
 
-func (self EveryOf) Index(s string) (int, []int) {
+func max(a, b int) int {
+	if a >= b {
+		return a
+	}
+
+	return b
+}
+
+func (self EveryOf) Index(s string, out []int) (int, []int) {
 	var index int
 	var offset int
-	var segments []int
+	var current []int
 
 	sub := s
-	for _, m := range self.Matchers {
-		idx, seg := m.Index(sub)
+	for i, m := range self.Matchers {
+		in := acquireSegments(len(sub))
+		idx, seg := m.Index(sub, in)
 		if idx == -1 {
+			releaseSegments(in)
+			if cap(current) > 0 {
+				releaseSegments(current)
+			}
 			return -1, nil
 		}
 
-		var sum []int
-		if segments == nil {
-			sum = seg
+		next := acquireSegments(max(len(seg), len(current)))
+		if i == 0 {
+			next = append(next, seg...)
 		} else {
 			delta := index - (idx + offset)
-			for _, ex := range segments {
+			for _, ex := range current {
 				for _, n := range seg {
 					if ex+delta == n {
-						sum = append(sum, n)
+						next = append(next, n)
 					}
 				}
 			}
 		}
 
-		if len(sum) == 0 {
+		if cap(current) > 0 {
+			releaseSegments(current)
+		}
+		releaseSegments(in)
+
+		if len(next) == 0 {
+			releaseSegments(next)
 			return -1, nil
 		}
 
-		segments = sum
+		current = next
+
 		index = idx + offset
 		sub = s[index:]
 		offset += idx
 	}
 
-	return index, segments
+	out = append(out, current...)
+	releaseSegments(current)
+
+	return index, out
 }
 
 func (self EveryOf) Match(s string) bool {

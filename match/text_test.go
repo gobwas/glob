@@ -26,7 +26,7 @@ func TestTextIndex(t *testing.T) {
 		},
 	} {
 		m := NewText(test.text)
-		index, segments := m.Index(test.fixture)
+		index, segments := m.Index(test.fixture, []int{})
 		if index != test.index {
 			t.Errorf("#%d unexpected index: exp: %d, act: %d", id, test.index, index)
 		}
@@ -38,7 +38,20 @@ func TestTextIndex(t *testing.T) {
 
 func BenchmarkIndexText(b *testing.B) {
 	m := NewText("foo")
+	in := acquireSegments(len(bench_pattern))
+
 	for i := 0; i < b.N; i++ {
-		m.Index(bench_pattern)
+		m.Index(bench_pattern, in[:0])
 	}
+}
+
+func BenchmarkIndexTextParallel(b *testing.B) {
+	m := NewText("foo")
+	in := acquireSegments(len(bench_pattern))
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			m.Index(bench_pattern, in[:0])
+		}
+	})
 }

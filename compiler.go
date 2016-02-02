@@ -3,8 +3,8 @@ package glob
 import (
 	"fmt"
 	"github.com/gobwas/glob/match"
+	"github.com/gobwas/glob/runes"
 	"reflect"
-	"unicode/utf8"
 )
 
 func optimize(matcher match.Matcher) match.Matcher {
@@ -23,8 +23,8 @@ func optimize(matcher match.Matcher) match.Matcher {
 		return m
 
 	case match.List:
-		if m.Not == false && utf8.RuneCountInString(m.List) == 1 {
-			return match.NewText(m.List)
+		if m.Not == false && len(m.List) == 1 {
+			return match.NewText(string(m.List))
 		}
 
 		return m
@@ -172,7 +172,7 @@ func glueAsEvery(matchers []match.Matcher) match.Matcher {
 			separator = sep
 		}
 
-		if sep == separator {
+		if runes.Equal(sep, separator) {
 			continue
 		}
 
@@ -187,7 +187,7 @@ func glueAsEvery(matchers []match.Matcher) match.Matcher {
 		return match.Any{separator}
 	}
 
-	if (hasAny || hasSuper) && min > 0 && separator == "" {
+	if (hasAny || hasSuper) && min > 0 && len(separator) == 0 {
 		return match.Min{min}
 	}
 
@@ -201,8 +201,8 @@ func glueAsEvery(matchers []match.Matcher) match.Matcher {
 		}
 	}
 
-	if separator != "" {
-		every.Add(match.Contains{separator, true})
+	if len(separator) > 0 {
+		every.Add(match.Contains{string(separator), true})
 	}
 
 	return every
@@ -468,7 +468,7 @@ func compileMatchers(matchers []match.Matcher) (match.Matcher, error) {
 //	return sum * k
 //}
 
-func doAnyOf(n *nodeAnyOf, s string) (match.Matcher, error) {
+func doAnyOf(n *nodeAnyOf, s []rune) (match.Matcher, error) {
 	var matchers []match.Matcher
 	for _, desc := range n.children() {
 		if desc == nil {
@@ -532,7 +532,7 @@ func do(leaf node, s []rune) (m match.Matcher, err error) {
 		}
 
 	case *nodeList:
-		m = match.List{n.chars, n.not}
+		m = match.List{[]rune(n.chars), n.not}
 
 	case *nodeRange:
 		m = match.Range{n.lo, n.hi, n.not}
@@ -556,7 +556,7 @@ func do(leaf node, s []rune) (m match.Matcher, err error) {
 	return optimize(m), nil
 }
 
-func do2(node node, s string) ([]match.Matcher, error) {
+func do2(node node, s []rune) ([]match.Matcher, error) {
 	var result []match.Matcher
 
 	switch n := node.(type) {
@@ -631,7 +631,7 @@ func do2(node node, s string) ([]match.Matcher, error) {
 		}
 
 	case *nodeList:
-		result = append(result, match.List{n.chars, n.not})
+		result = append(result, match.List{[]rune(n.chars), n.not})
 
 	case *nodeRange:
 		result = append(result, match.Range{n.lo, n.hi, n.not})

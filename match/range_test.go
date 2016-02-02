@@ -36,7 +36,7 @@ func TestRangeIndex(t *testing.T) {
 		},
 	} {
 		m := Range{test.lo, test.hi, test.not}
-		index, segments := m.Index(test.fixture)
+		index, segments := m.Index(test.fixture, []int{})
 		if index != test.index {
 			t.Errorf("#%d unexpected index: exp: %d, act: %d", id, test.index, index)
 		}
@@ -48,7 +48,20 @@ func TestRangeIndex(t *testing.T) {
 
 func BenchmarkIndexRange(b *testing.B) {
 	m := Range{'0', '9', false}
+	in := acquireSegments(len(bench_pattern))
+
 	for i := 0; i < b.N; i++ {
-		m.Index(bench_pattern)
+		m.Index(bench_pattern, in[:0])
 	}
+}
+
+func BenchmarkIndexRangeParallel(b *testing.B) {
+	m := Range{'0', '9', false}
+	in := acquireSegments(len(bench_pattern))
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			m.Index(bench_pattern, in[:0])
+		}
+	})
 }

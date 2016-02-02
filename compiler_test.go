@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-const separators = "."
+var separators = []rune{'.'}
 
 func TestGlueMatchers(t *testing.T) {
 	for id, test := range []struct {
@@ -27,7 +27,7 @@ func TestGlueMatchers(t *testing.T) {
 			},
 			match.EveryOf{match.Matchers{
 				match.Min{1},
-				match.Contains{separators, true},
+				match.Contains{string(separators), true},
 			}},
 		},
 		{
@@ -43,8 +43,8 @@ func TestGlueMatchers(t *testing.T) {
 		},
 		{
 			[]match.Matcher{
-				match.List{"a", true},
-				match.Any{"a"},
+				match.List{[]rune{'a'}, true},
+				match.Any{[]rune{'a'}},
 			},
 			match.EveryOf{match.Matchers{
 				match.Min{1},
@@ -101,14 +101,14 @@ func TestCompileMatchers(t *testing.T) {
 		{
 			[]match.Matcher{
 				match.Range{'a', 'c', true},
-				match.List{"zte", false},
+				match.List{[]rune{'z', 't', 'e'}, false},
 				match.NewText("c"),
 				match.Single{},
 			},
 			match.Row{
 				Matchers: match.Matchers{
 					match.Range{'a', 'c', true},
-					match.List{"zte", false},
+					match.List{[]rune{'z', 't', 'e'}, false},
 					match.NewText("c"),
 					match.Single{},
 				},
@@ -136,7 +136,7 @@ func TestConvertMatchers(t *testing.T) {
 		{
 			[]match.Matcher{
 				match.Range{'a', 'c', true},
-				match.List{"zte", false},
+				match.List{[]rune{'z', 't', 'e'}, false},
 				match.NewText("c"),
 				match.Single{},
 				match.Any{},
@@ -145,7 +145,7 @@ func TestConvertMatchers(t *testing.T) {
 				match.Row{
 					Matchers: match.Matchers{
 						match.Range{'a', 'c', true},
-						match.List{"zte", false},
+						match.List{[]rune{'z', 't', 'e'}, false},
 						match.NewText("c"),
 						match.Single{},
 					},
@@ -157,7 +157,7 @@ func TestConvertMatchers(t *testing.T) {
 		{
 			[]match.Matcher{
 				match.Range{'a', 'c', true},
-				match.List{"zte", false},
+				match.List{[]rune{'z', 't', 'e'}, false},
 				match.NewText("c"),
 				match.Single{},
 				match.Any{},
@@ -169,7 +169,7 @@ func TestConvertMatchers(t *testing.T) {
 				match.Row{
 					Matchers: match.Matchers{
 						match.Range{'a', 'c', true},
-						match.List{"zte", false},
+						match.List{[]rune{'z', 't', 'e'}, false},
 						match.NewText("c"),
 					},
 					RunesLength: 3,
@@ -204,7 +204,7 @@ func TestCompiler(t *testing.T) {
 	for id, test := range []struct {
 		ast    *nodePattern
 		result Glob
-		sep    string
+		sep    []rune
 	}{
 		{
 			ast:    pattern(&nodeText{text: "abc"}),
@@ -241,14 +241,14 @@ func TestCompiler(t *testing.T) {
 				chars: "abc",
 				not:   true,
 			}),
-			result: match.List{"abc", true},
+			result: match.List{[]rune{'a', 'b', 'c'}, true},
 		},
 		{
 			ast: pattern(&nodeAny{}, &nodeSingle{}, &nodeSingle{}, &nodeSingle{}),
 			sep: separators,
 			result: match.EveryOf{Matchers: match.Matchers{
 				match.Min{3},
-				match.Contains{separators, true},
+				match.Contains{string(separators), true},
 			}},
 		},
 		{
@@ -349,7 +349,7 @@ func TestCompiler(t *testing.T) {
 				nil,
 				match.AnyOf{Matchers: match.Matchers{
 					match.Single{},
-					match.List{List: "def"},
+					match.List{List: []rune{'d', 'e', 'f'}},
 					match.Nothing{},
 				}},
 			),
@@ -390,8 +390,8 @@ func TestCompiler(t *testing.T) {
 				Matchers: match.Matchers{
 					match.NewText("abc"),
 					match.AnyOf{Matchers: match.Matchers{
-						match.List{List: "abc"},
-						match.List{List: "def"},
+						match.List{List: []rune{'a', 'b', 'c'}},
+						match.List{List: []rune{'d', 'e', 'f'}},
 					}},
 					match.NewText("ghi"),
 				},

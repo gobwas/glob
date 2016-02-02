@@ -5,36 +5,60 @@ import (
 	"testing"
 )
 
-const bench_separators = "."
+var bench_separators = []rune{'.'}
+
 const bench_pattern = "abcdefghijklmnopqrstuvwxyz0123456789"
 
-func TestMergeSegments(t *testing.T) {
+func TestAppendMerge(t *testing.T) {
 	for id, test := range []struct {
-		segments [][]int
+		segments [2][]int
 		exp      []int
 	}{
 		{
-			[][]int{
+			[2][]int{
 				[]int{0, 6, 7},
 				[]int{0, 1, 3},
-				[]int{2, 4},
 			},
-			[]int{0, 1, 2, 3, 4, 6, 7},
+			[]int{0, 1, 3, 6, 7},
 		},
 		{
-			[][]int{
+			[2][]int{
 				[]int{0, 1, 3, 6, 7},
-				[]int{0, 1, 3},
-				[]int{2, 4},
-				[]int{1},
+				[]int{0, 1, 10},
 			},
-			[]int{0, 1, 2, 3, 4, 6, 7},
+			[]int{0, 1, 3, 6, 7, 10},
 		},
 	} {
-		act := mergeSegments(test.segments)
+		act := appendMerge(test.segments[0], test.segments[1])
 		if !reflect.DeepEqual(act, test.exp) {
 			t.Errorf("#%d merge sort segments unexpected:\nact: %v\nexp:%v", id, act, test.exp)
 			continue
 		}
+	}
+}
+
+func BenchmarkAppendMerge(b *testing.B) {
+	s1 := []int{0, 1, 3, 6, 7}
+	s2 := []int{0, 1, 3}
+
+	for i := 0; i < b.N; i++ {
+		appendMerge(s1, s2)
+	}
+}
+
+func BenchmarkAppendMergeParallel(b *testing.B) {
+	s1 := []int{0, 1, 3, 6, 7}
+	s2 := []int{0, 1, 3}
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			appendMerge(s1, s2)
+		}
+	})
+}
+
+func BenchmarkReverse(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		reverseSegments([]int{1, 2, 3, 4})
 	}
 }

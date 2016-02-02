@@ -2,7 +2,7 @@ package match
 
 import (
 	"fmt"
-	"strings"
+	"github.com/gobwas/glob/runes"
 	"unicode/utf8"
 )
 
@@ -17,17 +17,17 @@ func (self Single) Match(s string) bool {
 		return false
 	}
 
-	return strings.IndexRune(self.Separators, r) == -1
+	return runes.IndexRune(self.Separators, r) == -1
 }
 
 func (self Single) Len() int {
 	return lenOne
 }
 
-func (self Single) Index(s string) (int, []int) {
+func (self Single) Index(s string, segments []int) (int, []int) {
 	for i, r := range s {
-		if strings.IndexRune(self.Separators, r) == -1 {
-			return i, []int{utf8.RuneLen(r)}
+		if runes.IndexRune(self.Separators, r) == -1 {
+			return i, append(segments, utf8.RuneLen(r))
 		}
 	}
 

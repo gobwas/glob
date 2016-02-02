@@ -52,7 +52,7 @@ func (self Row) Len() (l int) {
 	return self.RunesLength
 }
 
-func (self Row) Index(s string) (int, []int) {
+func (self Row) Index(s string, segments []int) (int, []int) {
 	if !self.lenOk(s) {
 		return -1, nil
 	}
@@ -66,7 +66,7 @@ func (self Row) Index(s string) (int, []int) {
 		}
 
 		if self.matchAll(s[i:]) {
-			return i, []int{self.RunesLength}
+			return i, append(segments, self.RunesLength)
 		}
 	}
 
