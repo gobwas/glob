@@ -18,7 +18,7 @@ func TestEveryOfIndex(t *testing.T) {
 				NewText("b"),
 				NewText("c"),
 			},
-			"abc",
+			"dbc",
 			-1,
 			nil,
 		},

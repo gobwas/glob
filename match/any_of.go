@@ -25,29 +25,28 @@ func (self AnyOf) Match(s string) bool {
 
 func (self AnyOf) Index(s string, segments []int) (int, []int) {
 	index := -1
+
+	// create reusable segments
+	in := make([]int, 0, len(s))
+
 	for _, m := range self.Matchers {
-		in := acquireSegments(len(s))
-		idx, seg := m.Index(s, in)
+		idx, seg := m.Index(s, in[:0])
 		if idx == -1 {
-			releaseSegments(in)
 			continue
 		}
 
 		if index == -1 || idx < index {
 			index = idx
 			segments = append(segments[:0], seg...)
-			releaseSegments(in)
 			continue
 		}
 
 		if idx > index {
-			releaseSegments(in)
 			continue
 		}
 
 		// here idx == index
 		segments = appendMerge(segments, seg)
-		releaseSegments(in)
 	}
 
 	if index == -1 {

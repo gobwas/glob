@@ -77,13 +77,14 @@ func (self BTree) Match(s string) bool {
 		limit = inputLen
 	}
 
-	in := acquireSegments(inputLen)
+	// reusable segments list
+	// inputLen is the maximum size of output segments values
+	in := make([]int, 0, inputLen)
 
 	for offset < limit {
 		// search for matching part in substring
 		index, segments := self.Value.Index(s[offset:limit], in[:0])
 		if index == -1 {
-			releaseSegments(in)
 			return false
 		}
 
@@ -115,7 +116,6 @@ func (self BTree) Match(s string) bool {
 				}
 
 				if right {
-					releaseSegments(in)
 					return true
 				}
 			}
@@ -124,8 +124,6 @@ func (self BTree) Match(s string) bool {
 		_, step := utf8.DecodeRuneInString(s[offset+index:])
 		offset += index + step
 	}
-
-	releaseSegments(in)
 
 	return false
 }
