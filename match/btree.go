@@ -77,7 +77,6 @@ func (self BTree) Match(s string) bool {
 		limit = inputLen
 	}
 
-	fmt.Println("ACQUIRE")
 	in := acquireSegments(inputLen)
 
 	for offset < limit {
