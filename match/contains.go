@@ -14,7 +14,7 @@ func (self Contains) Match(s string) bool {
 	return strings.Contains(s, self.Needle) != self.Not
 }
 
-func (self Contains) Index(s string, segments []int) (int, []int) {
+func (self Contains) Index(s string) (int, []int) {
 	var offset int
 
 	idx := strings.Index(s, self.Needle)
@@ -26,13 +26,14 @@ func (self Contains) Index(s string, segments []int) (int, []int) {
 
 		offset = idx + len(self.Needle)
 		if len(s) <= offset {
-			return 0, append(segments, offset)
+			return 0, []int{offset}
 		}
 		s = s[offset:]
 	} else if idx != -1 {
 		s = s[:idx]
 	}
 
+	segments := make([]int, 0, len(s)+1)
 	for i, _ := range s {
 		segments = append(segments, offset+i)
 	}

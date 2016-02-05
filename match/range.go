@@ -28,10 +28,10 @@ func (self Range) Match(s string) bool {
 	return inRange == !self.Not
 }
 
-func (self Range) Index(s string, segments []int) (int, []int) {
+func (self Range) Index(s string) (int, []int) {
 	for i, r := range s {
 		if self.Not != (r >= self.Lo && r <= self.Hi) {
-			return i, append(segments, utf8.RuneLen(r))
+			return i, []int{utf8.RuneLen(r)}
 		}
 	}
 

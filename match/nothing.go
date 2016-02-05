@@ -10,8 +10,8 @@ func (self Nothing) Match(s string) bool {
 	return len(s) == 0
 }
 
-func (self Nothing) Index(s string, segments []int) (int, []int) {
-	return 0, append(segments, 0)
+func (self Nothing) Index(s string) (int, []int) {
+	return 0, []int{0}
 }
 
 func (self Nothing) Len() int {

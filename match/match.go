@@ -11,7 +11,7 @@ const lenNo = -1
 
 type Matcher interface {
 	Match(string) bool
-	Index(string, []int) (int, []int)
+	Index(string) (int, []int)
 	Len() int
 	String() string
 }

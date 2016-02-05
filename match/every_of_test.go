@@ -34,7 +34,7 @@ func TestEveryOfIndex(t *testing.T) {
 		},
 	} {
 		everyOf := EveryOf{test.matchers}
-		index, segments := everyOf.Index(test.fixture, []int{})
+		index, segments := everyOf.Index(test.fixture)
 		if index != test.index {
 			t.Errorf("#%d unexpected index: exp: %d, act: %d", id, test.index, index)
 		}

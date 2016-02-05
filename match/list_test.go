@@ -29,7 +29,7 @@ func TestListIndex(t *testing.T) {
 		},
 	} {
 		p := List{test.list, test.not}
-		index, segments := p.Index(test.fixture, []int{})
+		index, segments := p.Index(test.fixture)
 		if index != test.index {
 			t.Errorf("#%d unexpected index: exp: %d, act: %d", id, test.index, index)
 		}
@@ -41,20 +41,18 @@ func TestListIndex(t *testing.T) {
 
 func BenchmarkIndexList(b *testing.B) {
 	m := List{[]rune("def"), false}
-	in := make([]int, 0, len(bench_pattern))
 
 	for i := 0; i < b.N; i++ {
-		m.Index(bench_pattern, in[:0])
+		m.Index(bench_pattern)
 	}
 }
 
 func BenchmarkIndexListParallel(b *testing.B) {
 	m := List{[]rune("def"), false}
-	in := make([]int, 0, len(bench_pattern))
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			m.Index(bench_pattern, in[:0])
+			m.Index(bench_pattern)
 		}
 	})
 }

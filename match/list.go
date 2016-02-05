@@ -25,10 +25,10 @@ func (self List) Len() int {
 	return lenOne
 }
 
-func (self List) Index(s string, segments []int) (int, []int) {
+func (self List) Index(s string) (int, []int) {
 	for i, r := range s {
 		if self.Not == (runes.IndexRune(self.List, r) == -1) {
-			return i, append(segments, utf8.RuneLen(r))
+			return i, []int{utf8.RuneLen(r)}
 		}
 	}
 

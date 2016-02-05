@@ -21,19 +21,18 @@ func (self Min) Match(s string) bool {
 	return false
 }
 
-func (self Min) Index(s string, segments []int) (int, []int) {
+func (self Min) Index(s string) (int, []int) {
 	var count int
-	var found bool
 
+	segments := make([]int, 0, len(s)-self.Limit+1)
 	for i, r := range s {
 		count++
 		if count >= self.Limit {
-			found = true
 			segments = append(segments, i+utf8.RuneLen(r))
 		}
 	}
 
-	if !found {
+	if len(segments) == 0 {
 		return -1, nil
 	}
 

@@ -29,13 +29,13 @@ func (self Text) Len() int {
 	return self.RunesLength
 }
 
-func (self Text) Index(s string, segments []int) (int, []int) {
+func (self Text) Index(s string) (int, []int) {
 	index := strings.Index(s, self.Str)
 	if index == -1 {
 		return -1, nil
 	}
 
-	return index, append(segments, self.BytesLength)
+	return index, []int{self.BytesLength}
 }
 
 func (self Text) String() string {

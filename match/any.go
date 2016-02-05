@@ -13,17 +13,17 @@ func (self Any) Match(s string) bool {
 	return strings.IndexAnyRunes(s, self.Separators) == -1
 }
 
-func (self Any) Index(s string, segments []int) (int, []int) {
+func (self Any) Index(s string) (int, []int) {
 	found := strings.IndexAnyRunes(s, self.Separators)
 	switch found {
 	case -1:
 	case 0:
-		segments = append(segments)
-		return 0, segments
+		return 0, []int{0}
 	default:
 		s = s[:found]
 	}
 
+	segments := make([]int, 0, len(s))
 	for i := range s {
 		segments = append(segments, i)
 	}

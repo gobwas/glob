@@ -51,7 +51,7 @@ func (self BTree) Len() int {
 }
 
 // todo?
-func (self BTree) Index(s string, segments []int) (int, []int) {
+func (self BTree) Index(s string) (int, []int) {
 	return -1, nil
 }
 
@@ -65,8 +65,8 @@ func (self BTree) Match(s string) bool {
 		return false
 	}
 
-	//	 try to cut unnecessary parts
-	//	 by knowledge of length of right and left part
+	// try to cut unnecessary parts
+	// by knowledge of length of right and left part
 	var offset, limit int
 	if self.LeftLengthRunes >= 0 {
 		offset = self.LeftLengthRunes
@@ -77,13 +77,9 @@ func (self BTree) Match(s string) bool {
 		limit = inputLen
 	}
 
-	// reusable segments list
-	// inputLen is the maximum size of output segments values
-	in := make([]int, 0, inputLen)
-
 	for offset < limit {
 		// search for matching part in substring
-		index, segments := self.Value.Index(s[offset:limit], in[:0])
+		index, segments := self.Value.Index(s[offset:limit])
 		if index == -1 {
 			return false
 		}

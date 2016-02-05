@@ -25,19 +25,18 @@ func (self EveryOf) Len() (l int) {
 	return
 }
 
-func (self EveryOf) Index(s string, out []int) (int, []int) {
+func (self EveryOf) Index(s string) (int, []int) {
 	var index int
 	var offset int
 
 	// make `in` with cap as len(s),
 	// cause it is the maximum size of output segments values
-	in := make([]int, 0, len(s))
 	next := make([]int, 0, len(s))
 	current := make([]int, 0, len(s))
 
 	sub := s
 	for i, m := range self.Matchers {
-		idx, seg := m.Index(sub, in[:0])
+		idx, seg := m.Index(sub)
 		if idx == -1 {
 			return -1, nil
 		}
@@ -72,11 +71,7 @@ func (self EveryOf) Index(s string, out []int) (int, []int) {
 		offset += idx
 	}
 
-	// copy result in `out` to prevent
-	// allocation `current` on heap
-	out = append(out, current...)
-
-	return index, out
+	return index, current
 }
 
 func (self EveryOf) Match(s string) bool {

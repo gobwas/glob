@@ -14,7 +14,8 @@ func (self Super) Len() int {
 	return lenNo
 }
 
-func (self Super) Index(s string, segments []int) (int, []int) {
+func (self Super) Index(s string) (int, []int) {
+	segments := make([]int, 0, len(s)+1)
 	for i := range s {
 		segments = append(segments, i)
 	}

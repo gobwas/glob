@@ -9,7 +9,7 @@ type PrefixSuffix struct {
 	Prefix, Suffix string
 }
 
-func (self PrefixSuffix) Index(s string, segments []int) (int, []int) {
+func (self PrefixSuffix) Index(s string) (int, []int) {
 	prefixIdx := strings.Index(s, self.Prefix)
 	if prefixIdx == -1 {
 		return -1, nil
@@ -17,25 +17,26 @@ func (self PrefixSuffix) Index(s string, segments []int) (int, []int) {
 
 	suffixLen := len(self.Suffix)
 
-	if suffixLen > 0 {
-		for sub := s[prefixIdx:]; ; {
-			suffixIdx := strings.LastIndex(sub, self.Suffix)
-			if suffixIdx == -1 {
-				break
-			}
-
-			segments = append(segments, suffixIdx+suffixLen)
-			sub = sub[:suffixIdx]
-		}
-
-		if len(segments) == 0 {
-			return -1, nil
-		}
-
-		reverseSegments(segments)
-	} else {
-		segments = append(segments, len(s)-prefixIdx)
+	if suffixLen <= 0 {
+		return prefixIdx, []int{len(s) - prefixIdx}
 	}
+
+	segments := make([]int, 0, len(s)-prefixIdx)
+	for sub := s[prefixIdx:]; ; {
+		suffixIdx := strings.LastIndex(sub, self.Suffix)
+		if suffixIdx == -1 {
+			break
+		}
+
+		segments = append(segments, suffixIdx+suffixLen)
+		sub = sub[:suffixIdx]
+	}
+
+	if len(segments) == 0 {
+		return -1, nil
+	}
+
+	reverseSegments(segments)
 
 	return prefixIdx, segments
 }

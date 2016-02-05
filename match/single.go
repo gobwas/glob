@@ -24,10 +24,10 @@ func (self Single) Len() int {
 	return lenOne
 }
 
-func (self Single) Index(s string, segments []int) (int, []int) {
+func (self Single) Index(s string) (int, []int) {
 	for i, r := range s {
 		if runes.IndexRune(self.Separators, r) == -1 {
-			return i, append(segments, utf8.RuneLen(r))
+			return i, []int{utf8.RuneLen(r)}
 		}
 	}
 
