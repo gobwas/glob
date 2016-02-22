@@ -55,8 +55,15 @@ type fakeMatcher struct {
 func (f *fakeMatcher) Match(string) bool {
 	return true
 }
+
+var i = 3
+
 func (f *fakeMatcher) Index(s string) (int, []int) {
-	return 0, []int{1}
+	seg := make([]int, 0, i)
+	for x := 0; x < i; x++ {
+		seg = append(seg, x)
+	}
+	return 0, seg
 }
 func (f *fakeMatcher) Len() int {
 	return f.len
