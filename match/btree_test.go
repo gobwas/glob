@@ -47,13 +47,6 @@ func TestBTree(t *testing.T) {
 	}
 }
 
-//type Matcher interface {
-//	Match(string) bool
-//	Index(string, []int) (int, []int)
-//	Len() int
-//	String() string
-//}
-
 type fakeMatcher struct {
 	len  int
 	name string

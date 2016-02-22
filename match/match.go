@@ -3,7 +3,6 @@ package match
 import (
 	"fmt"
 	"strings"
-	"sync"
 )
 
 const lenOne = 1
@@ -26,72 +25,6 @@ func (m Matchers) String() string {
 	}
 
 	return fmt.Sprintf("%s", strings.Join(s, ","))
-}
-
-var segmentsPools [1024]sync.Pool
-
-func toPowerOfTwo(v int) int {
-	v--
-	v |= v >> 1
-	v |= v >> 2
-	v |= v >> 4
-	v |= v >> 8
-	v |= v >> 16
-	v++
-
-	return v
-}
-
-const (
-	minSegment         = 32
-	minSegmentMinusOne = 31
-	maxSegment         = 1024
-	maxSegmentMinusOne = 1023
-)
-
-func init() {
-	for i := maxSegment; i >= minSegment; i >>= 1 {
-		func(i int) {
-			pool := sync.Pool{
-				New: func() interface{} {
-					//					fmt.Printf("N%d;", i)
-					return make([]int, 0, i)
-				},
-			}
-
-			//			for n := 0; n < 4; n++ {
-			//				pool.Put(make([]int, 0, i))
-			//			}
-
-			segmentsPools[i-1] = pool
-		}(i)
-	}
-}
-
-func getIdx(c int) int {
-	p := toPowerOfTwo(c)
-	switch {
-	case p >= maxSegment:
-		return maxSegmentMinusOne
-	case p <= minSegment:
-		return minSegmentMinusOne
-	default:
-		return p - 1
-	}
-}
-
-//var p = make([]int, 0, 128)
-
-func acquireSegments(c int) []int {
-	//	return p
-	//	fmt.Printf("a%d;", getIdx(c))
-	return segmentsPools[getIdx(c)].Get().([]int)[:0]
-}
-
-func releaseSegments(s []int) {
-	//	p = s
-	//		fmt.Printf("r%d;", getIdx(cap(s)))
-	segmentsPools[getIdx(cap(s))].Put(s)
 }
 
 // appendMerge merges and sorts given already SORTED and UNIQUE segments.
