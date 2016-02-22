@@ -1,65 +1,83 @@
 package match
 
 import (
+	"sync"
 	"testing"
 )
 
-func BenchmarkPerfPoolSequenced(b *testing.B) {
-	pool := NewPoolSequenced(512, func() []int {
-		return make([]int, 0, 16)
-	})
+func benchPool(i int, b *testing.B) {
+	pool := sync.Pool{New: func() interface{} {
+		return make([]int, 0, i)
+	}}
 
-	b.SetParallelism(32)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			s := pool.Get()
+			s := pool.Get().([]int)[:0]
 			pool.Put(s)
 		}
 	})
 }
 
-func BenchmarkPerfPoolSynced(b *testing.B) {
-	pool := NewPoolSynced(32)
-
-	b.SetParallelism(32)
+func benchMake(i int, b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			s := pool.Get()
-			pool.Put(s)
+			_ = make([]int, 0, i)
 		}
 	})
 }
 
-func BenchmarkPerfPoolNative(b *testing.B) {
-	pool := NewPoolNative(func() []int {
-		return make([]int, 0, 16)
-	})
-
-	b.SetParallelism(32)
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			s := pool.Get()
-			pool.Put(s)
-		}
-	})
+func BenchmarkSegmentsPool_1(b *testing.B) {
+	benchPool(1, b)
+}
+func BenchmarkSegmentsPool_2(b *testing.B) {
+	benchPool(2, b)
+}
+func BenchmarkSegmentsPool_4(b *testing.B) {
+	benchPool(4, b)
+}
+func BenchmarkSegmentsPool_8(b *testing.B) {
+	benchPool(8, b)
+}
+func BenchmarkSegmentsPool_16(b *testing.B) {
+	benchPool(16, b)
+}
+func BenchmarkSegmentsPool_32(b *testing.B) {
+	benchPool(32, b)
+}
+func BenchmarkSegmentsPool_64(b *testing.B) {
+	benchPool(64, b)
+}
+func BenchmarkSegmentsPool_128(b *testing.B) {
+	benchPool(128, b)
+}
+func BenchmarkSegmentsPool_256(b *testing.B) {
+	benchPool(256, b)
 }
 
-func BenchmarkPerfPoolStatic(b *testing.B) {
-	pool := NewPoolStatic(32, func() []int {
-		return make([]int, 0, 16)
-	})
-
-	b.SetParallelism(32)
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			i, v := pool.Get()
-			pool.Put(i, v)
-		}
-	})
+func BenchmarkSegmentsMake_1(b *testing.B) {
+	benchMake(1, b)
 }
-
-func BenchmarkPerfMake(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_ = make([]int, 0, 32)
-	}
+func BenchmarkSegmentsMake_2(b *testing.B) {
+	benchMake(2, b)
+}
+func BenchmarkSegmentsMake_4(b *testing.B) {
+	benchMake(4, b)
+}
+func BenchmarkSegmentsMake_8(b *testing.B) {
+	benchMake(8, b)
+}
+func BenchmarkSegmentsMake_16(b *testing.B) {
+	benchMake(16, b)
+}
+func BenchmarkSegmentsMake_32(b *testing.B) {
+	benchMake(32, b)
+}
+func BenchmarkSegmentsMake_64(b *testing.B) {
+	benchMake(64, b)
+}
+func BenchmarkSegmentsMake_128(b *testing.B) {
+	benchMake(128, b)
+}
+func BenchmarkSegmentsMake_256(b *testing.B) {
+	benchMake(256, b)
 }

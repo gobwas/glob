@@ -33,7 +33,7 @@ func (self Contains) Index(s string) (int, []int) {
 		s = s[:idx]
 	}
 
-	segments := make([]int, 0, len(s)+1)
+	segments := acquireSegments(len(s) + 1)
 	for i, _ := range s {
 		segments = append(segments, offset+i)
 	}

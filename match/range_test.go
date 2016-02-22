@@ -50,7 +50,8 @@ func BenchmarkIndexRange(b *testing.B) {
 	m := Range{'0', '9', false}
 
 	for i := 0; i < b.N; i++ {
-		m.Index(bench_pattern)
+		_, s := m.Index(bench_pattern)
+		releaseSegments(s)
 	}
 }
 
@@ -59,7 +60,8 @@ func BenchmarkIndexRangeParallel(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			m.Index(bench_pattern)
+			_, s := m.Index(bench_pattern)
+			releaseSegments(s)
 		}
 	})
 }

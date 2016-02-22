@@ -81,6 +81,7 @@ func (self BTree) Match(s string) bool {
 		// search for matching part in substring
 		index, segments := self.Value.Index(s[offset:limit])
 		if index == -1 {
+			releaseSegments(segments)
 			return false
 		}
 
@@ -112,6 +113,7 @@ func (self BTree) Match(s string) bool {
 				}
 
 				if right {
+					releaseSegments(segments)
 					return true
 				}
 			}
@@ -119,6 +121,8 @@ func (self BTree) Match(s string) bool {
 
 		_, step := utf8.DecodeRuneInString(s[offset+index:])
 		offset += index + step
+
+		releaseSegments(segments)
 	}
 
 	return false

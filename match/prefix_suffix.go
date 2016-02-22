@@ -21,7 +21,7 @@ func (self PrefixSuffix) Index(s string) (int, []int) {
 		return prefixIdx, []int{len(s) - prefixIdx}
 	}
 
-	segments := make([]int, 0, len(s)-prefixIdx)
+	segments := acquireSegments(len(s) - prefixIdx)
 	for sub := s[prefixIdx:]; ; {
 		suffixIdx := strings.LastIndex(sub, self.Suffix)
 		if suffixIdx == -1 {
@@ -33,7 +33,7 @@ func (self PrefixSuffix) Index(s string) (int, []int) {
 	}
 
 	if len(segments) == 0 {
-		return -1, nil
+		return -1, segments
 	}
 
 	reverseSegments(segments)

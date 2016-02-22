@@ -26,7 +26,7 @@ func (self AnyOf) Match(s string) bool {
 func (self AnyOf) Index(s string) (int, []int) {
 	index := -1
 
-	segments := make([]int, 0, len(s))
+	segments := acquireSegments(len(s))
 
 	for _, m := range self.Matchers {
 		idx, seg := m.Index(s)
@@ -49,6 +49,7 @@ func (self AnyOf) Index(s string) (int, []int) {
 	}
 
 	if index == -1 {
+		releaseSegments(segments)
 		return -1, nil
 	}
 

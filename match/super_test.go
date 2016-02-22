@@ -37,7 +37,8 @@ func BenchmarkIndexSuper(b *testing.B) {
 	m := Super{}
 
 	for i := 0; i < b.N; i++ {
-		m.Index(bench_pattern)
+		_, s := m.Index(bench_pattern)
+		releaseSegments(s)
 	}
 }
 
@@ -46,7 +47,8 @@ func BenchmarkIndexSuperParallel(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			m.Index(bench_pattern)
+			_, s := m.Index(bench_pattern)
+			releaseSegments(s)
 		}
 	})
 }

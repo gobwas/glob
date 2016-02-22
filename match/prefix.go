@@ -24,7 +24,7 @@ func (self Prefix) Index(s string) (int, []int) {
 		sub = ""
 	}
 
-	segments := make([]int, 0, len(sub)+1)
+	segments := acquireSegments(len(sub) + 1)
 	segments = append(segments, length)
 	for i, r := range sub {
 		segments = append(segments, length+i+utf8.RuneLen(r))

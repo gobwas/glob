@@ -50,7 +50,8 @@ func BenchmarkIndexAnyParallel(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			m.Index(bench_pattern)
+			_, s := m.Index(bench_pattern)
+			releaseSegments(s)
 		}
 	})
 }

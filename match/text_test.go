@@ -40,7 +40,8 @@ func BenchmarkIndexText(b *testing.B) {
 	m := NewText("foo")
 
 	for i := 0; i < b.N; i++ {
-		m.Index(bench_pattern)
+		_, s := m.Index(bench_pattern)
+		releaseSegments(s)
 	}
 }
 
@@ -49,7 +50,8 @@ func BenchmarkIndexTextParallel(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			m.Index(bench_pattern)
+			_, s := m.Index(bench_pattern)
+			releaseSegments(s)
 		}
 	})
 }
