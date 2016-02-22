@@ -1,8 +1,11 @@
 package match
 
-import "sync"
+import (
+	"sync"
+	"sync/atomic"
+)
 
-var segmentsPools [1024]*PoolSequenced
+var segmentsPools [1024]*PoolNative
 
 func toPowerOfTwo(v int) int {
 	v--
@@ -26,18 +29,9 @@ const (
 func init() {
 	for i := maxSegment; i >= minSegment; i >>= 1 {
 		func(i int) {
-			//			pool := sync.Pool{
-			//				New: func() interface{} {
-			//					//					fmt.Printf("N%d;", i)
-			//					return make([]int, 0, i)
-			//				},
-			//			}
-
-			pool := NewPoolSequenced(64, func() []int {
+			segmentsPools[i-1] = NewPoolNative(func() []int {
 				return make([]int, 0, i)
 			})
-
-			segmentsPools[i-1] = pool
 		}(i)
 	}
 }
@@ -54,17 +48,11 @@ func getIdx(c int) int {
 	}
 }
 
-//var p = make([]int, 0, 128)
-
 func acquireSegments(c int) []int {
-	//	return p
-	//	fmt.Printf("a%d;", getIdx(c))
 	return segmentsPools[getIdx(c)].Get()
 }
 
 func releaseSegments(s []int) {
-	//	p = s
-	//		fmt.Printf("r%d;", getIdx(cap(s)))
 	segmentsPools[getIdx(cap(s))].Put(s)
 }
 
@@ -141,25 +129,65 @@ func (p *PoolSynced) Put(s []int) {
 }
 
 type PoolNative struct {
-	size int
-	pool sync.Pool
+	pool *sync.Pool
 }
 
-func NewPoolNative(size int) *PoolNative {
+func NewPoolNative(f newSegmentsFunc) *PoolNative {
 	return &PoolNative{
-		size: size,
+		pool: &sync.Pool{New: func() interface{} {
+			return f()
+		}},
 	}
 }
 
 func (p *PoolNative) Get() []int {
-	s := p.pool.Get()
-	if s == nil {
-		return make([]int, 0, p.size)
-	}
-
-	return s.([]int)
+	return p.pool.Get().([]int)[:0]
 }
 
 func (p *PoolNative) Put(s []int) {
 	p.pool.Put(s)
+}
+
+type segments struct {
+	data   []int
+	locked int32
+}
+
+type PoolStatic struct {
+	f    newSegmentsFunc
+	pool []*segments
+}
+
+func NewPoolStatic(size int, f newSegmentsFunc) *PoolStatic {
+	p := &PoolStatic{
+		f:    f,
+		pool: make([]*segments, 0, size),
+	}
+
+	for i := 0; i < size; i++ {
+		p.pool = append(p.pool, &segments{
+			data: f(),
+		})
+	}
+
+	return p
+}
+
+func (p *PoolStatic) Get() (int, []int) {
+	for i, s := range p.pool {
+		if atomic.CompareAndSwapInt32(&s.locked, 0, 1) {
+			return i, s.data
+		}
+	}
+
+	return -1, p.f()
+}
+
+func (p *PoolStatic) Put(i int, s []int) {
+	if i < 0 {
+		return
+	}
+
+	p.pool[i].data = s
+	atomic.CompareAndSwapInt32(&(p.pool[i].locked), 1, 0)
 }

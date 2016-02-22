@@ -75,8 +75,9 @@ func BenchmarkMatchBTree(b *testing.B) {
 
 	bt := NewBTree(v, l, r)
 
-	b.SetParallelism(1)
-	for i := 0; i < b.N; i++ {
-		bt.Match(fixture)
-	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			bt.Match(fixture)
+		}
+	})
 }
