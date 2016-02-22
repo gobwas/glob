@@ -31,19 +31,24 @@ func (self EveryOf) Index(s string, out []int) (int, []int) {
 
 	// make `in` with cap as len(s),
 	// cause it is the maximum size of output segments values
-	seg := acquireSegments(len(s))
-	next := acquireSegments(len(s))
-	current := acquireSegments(len(s))
-
-	defer func() {
-		releaseSegments(seg)
-		releaseSegments(next)
-		releaseSegments(current)
-	}()
+	//	seg := acquireSegments(len(s))
+	//	next := acquireSegments(len(s))
+	//	current := acquireSegments(len(s))
+	//	defer func() {
+	//		releaseSegments(seg)
+	//		releaseSegments(next)
+	//		releaseSegments(current)
+	//	}()
+	var (
+		seg     []int
+		next    []int
+		current []int
+	)
 
 	sub := s
 	for i, m := range self.Matchers {
-		idx, seg := m.Index(sub, seg[:0])
+		var idx int
+		idx, seg = m.Index(sub, seg[:0])
 		if idx == -1 {
 			return -1, nil
 		}

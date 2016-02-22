@@ -54,7 +54,7 @@ func init() {
 		func(i int) {
 			segmentsPools[i-1] = sync.Pool{
 				New: func() interface{} {
-					fmt.Println("new", i)
+					//					fmt.Println("new", i)
 					return make([]int, 0, i)
 				},
 			}
