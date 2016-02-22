@@ -83,11 +83,12 @@ func (self BTree) Match(s string) bool {
 
 	// reusable segments list
 	// inputLen is the maximum size of output segments values
-	//	segments := acquireSegments(inputLen)
-	//	defer func() {
-	//		releaseSegments(segments)
-	//	}()
-	var segments []int
+	segments := acquireSegments(inputLen)
+	defer func() {
+		releaseSegments(segments)
+	}()
+	//		var segments []int
+	//	segments := make([]int, 0, inputLen)
 
 	for offset < limit {
 		// search for matching part in substring
