@@ -35,7 +35,7 @@ func (self Range) Index(s string, segments []int) (int, []int) {
 		}
 	}
 
-	return -1, nil
+	return -1, segments
 }
 
 func (self Range) String() string {

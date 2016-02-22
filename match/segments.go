@@ -20,8 +20,8 @@ func toPowerOfTwo(v int) int {
 }
 
 const (
-	minSegment         = 32
-	minSegmentMinusOne = 31
+	minSegment         = 4
+	minSegmentMinusOne = 3
 	maxSegment         = 1024
 	maxSegmentMinusOne = 1023
 )

@@ -54,7 +54,7 @@ func (self Row) Len() (l int) {
 
 func (self Row) Index(s string, segments []int) (int, []int) {
 	if !self.lenOk(s) {
-		return -1, nil
+		return -1, segments
 	}
 
 	for i := range s {
@@ -70,7 +70,7 @@ func (self Row) Index(s string, segments []int) (int, []int) {
 		}
 	}
 
-	return -1, nil
+	return -1, segments
 }
 
 func (self Row) String() string {
