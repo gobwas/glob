@@ -87,11 +87,11 @@ func (self BTree) Match(s string) bool {
 	//	defer func() {
 	//		releaseSegments(segments)
 	//	}()
-	var segments []int
+	//	var segments []int
 
 	for offset < limit {
 		// search for matching part in substring
-		index, segments := self.Value.Index(s[offset:limit], segments[:0])
+		index, segments := self.Value.Index(s[offset:limit], nil)
 		if index == -1 {
 			return false
 		}
