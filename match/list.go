@@ -41,5 +41,10 @@ func (self List) String() string {
 		not = "!"
 	}
 
-	return fmt.Sprintf("<list:%s[%s]>", not, self.List)
+	//	var list []string
+	//	for _, r := range self.List {
+	//		list = append(list, string(r))
+	//	}
+
+	return fmt.Sprintf("<list:%s[%s]>", not, string(self.List))
 }

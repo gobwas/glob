@@ -43,5 +43,5 @@ func (self Range) String() string {
 	if self.Not {
 		not = "!"
 	}
-	return fmt.Sprintf("<range:%s[%s,%s]>", not, string(self.Lo), string(self.Hi))
+	return fmt.Sprintf("<range:%s[%s-%s]>", not, string(self.Lo), string(self.Hi))
 }
