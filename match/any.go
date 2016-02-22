@@ -23,7 +23,7 @@ func (self Any) Index(s string) (int, []int) {
 		s = s[:found]
 	}
 
-	segments := make([]int, 0, len(s))
+	segments := acquireSegments(len(s))
 	for i := range s {
 		segments = append(segments, i)
 	}

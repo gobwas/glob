@@ -40,7 +40,8 @@ func BenchmarkIndexAny(b *testing.B) {
 	m := Any{bench_separators}
 
 	for i := 0; i < b.N; i++ {
-		m.Index(bench_pattern)
+		_, s := m.Index(bench_pattern)
+		releaseSegments(s)
 	}
 }
 
