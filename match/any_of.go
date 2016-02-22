@@ -34,8 +34,7 @@ func (self AnyOf) Index(s string, segments []int) (int, []int) {
 	var seg []int
 
 	for _, m := range self.Matchers {
-		var idx int
-		idx, seg = m.Index(s, seg[:0])
+		idx, seg := m.Index(s, seg[:0])
 		if idx == -1 {
 			continue
 		}
