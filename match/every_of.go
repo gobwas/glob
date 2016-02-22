@@ -31,9 +31,15 @@ func (self EveryOf) Index(s string, out []int) (int, []int) {
 
 	// make `in` with cap as len(s),
 	// cause it is the maximum size of output segments values
-	seg := make([]int, 0, len(s))
-	next := make([]int, 0, len(s))
-	current := make([]int, 0, len(s))
+	seg := acquireSegments(len(s))
+	next := acquireSegments(len(s))
+	current := acquireSegments(len(s))
+
+	defer func() {
+		releaseSegments(seg)
+		releaseSegments(next)
+		releaseSegments(current)
+	}()
 
 	sub := s
 	for i, m := range self.Matchers {

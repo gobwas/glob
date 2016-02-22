@@ -41,7 +41,7 @@ func BenchmarkIndexText(b *testing.B) {
 	in := make([]int, 0, len(bench_pattern))
 
 	for i := 0; i < b.N; i++ {
-		m.Index(bench_pattern, in[:0])
+		_, in = m.Index(bench_pattern, in[:0])
 	}
 }
 
@@ -51,7 +51,7 @@ func BenchmarkIndexTextParallel(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			m.Index(bench_pattern, in[:0])
+			_, in = m.Index(bench_pattern, in[:0])
 		}
 	})
 }

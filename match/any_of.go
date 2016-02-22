@@ -27,7 +27,7 @@ func (self AnyOf) Index(s string, segments []int) (int, []int) {
 	index := -1
 
 	// create reusable segments
-	seg := make([]int, 0, len(s))
+	seg := acquireSegments(len(s))
 
 	for _, m := range self.Matchers {
 		idx, seg := m.Index(s, seg[:0])
@@ -48,6 +48,8 @@ func (self AnyOf) Index(s string, segments []int) (int, []int) {
 		// here idx == index
 		segments = appendMerge(segments, seg)
 	}
+
+	releaseSegments(seg)
 
 	if index == -1 {
 		return -1, nil

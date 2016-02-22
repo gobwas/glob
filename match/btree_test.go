@@ -46,3 +46,44 @@ func TestBTree(t *testing.T) {
 		}
 	}
 }
+
+//type Matcher interface {
+//	Match(string) bool
+//	Index(string, []int) (int, []int)
+//	Len() int
+//	String() string
+//}
+
+type fakeMatcher struct {
+	len  int
+	name string
+}
+
+func (f *fakeMatcher) Match(string) bool {
+	return true
+}
+func (f *fakeMatcher) Index(s string, seg []int) (int, []int) {
+	return 0, seg
+}
+func (f *fakeMatcher) Len() int {
+	return f.len
+}
+func (f *fakeMatcher) String() string {
+	return f.name
+}
+
+func BenchmarkMatchBTree(b *testing.B) {
+	l := &fakeMatcher{4, "left_fake"}
+	r := &fakeMatcher{4, "right_fake"}
+	v := &fakeMatcher{2, "value_fake"}
+
+	// must be <= len(l + r + v)
+	fixture := "abcdefghij"
+
+	bt := NewBTree(v, l, r)
+
+	b.SetParallelism(1)
+	for i := 0; i < b.N; i++ {
+		bt.Match(fixture)
+	}
+}

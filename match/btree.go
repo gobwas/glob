@@ -77,9 +77,16 @@ func (self BTree) Match(s string) bool {
 		limit = inputLen
 	}
 
+	if offset >= limit {
+		return false
+	}
+
 	// reusable segments list
 	// inputLen is the maximum size of output segments values
-	segments := make([]int, 0, inputLen)
+	segments := acquireSegments(inputLen)
+	defer func() {
+		releaseSegments(segments)
+	}()
 
 	for offset < limit {
 		// search for matching part in substring
