@@ -27,10 +27,10 @@ func (self AnyOf) Index(s string, segments []int) (int, []int) {
 	index := -1
 
 	// create reusable segments
-	in := make([]int, 0, len(s))
+	seg := make([]int, 0, len(s))
 
 	for _, m := range self.Matchers {
-		idx, seg := m.Index(s, in[:0])
+		idx, seg := m.Index(s, seg[:0])
 		if idx == -1 {
 			continue
 		}

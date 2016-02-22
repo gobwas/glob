@@ -18,7 +18,6 @@ func (self Any) Index(s string, segments []int) (int, []int) {
 	switch found {
 	case -1:
 	case 0:
-		segments = append(segments)
 		return 0, segments
 	default:
 		s = s[:found]
@@ -27,7 +26,6 @@ func (self Any) Index(s string, segments []int) (int, []int) {
 	for i := range s {
 		segments = append(segments, i)
 	}
-
 	segments = append(segments, len(s))
 
 	return 0, segments
