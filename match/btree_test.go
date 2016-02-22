@@ -63,7 +63,7 @@ func (f *fakeMatcher) Match(string) bool {
 	return true
 }
 func (f *fakeMatcher) Index(s string, seg []int) (int, []int) {
-	return 0, seg
+	return 0, append(seg, 1)
 }
 func (f *fakeMatcher) Len() int {
 	return f.len
@@ -78,7 +78,7 @@ func BenchmarkMatchBTree(b *testing.B) {
 	v := &fakeMatcher{2, "value_fake"}
 
 	// must be <= len(l + r + v)
-	fixture := "abcdefghij"
+	fixture := "abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij"
 
 	bt := NewBTree(v, l, r)
 

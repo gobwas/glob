@@ -52,12 +52,18 @@ const (
 func init() {
 	for i := maxSegment; i >= minSegment; i >>= 1 {
 		func(i int) {
-			segmentsPools[i-1] = sync.Pool{
+			pool := sync.Pool{
 				New: func() interface{} {
-					//					fmt.Println("new", i)
+					//					fmt.Printf("N%d;", i)
 					return make([]int, 0, i)
 				},
 			}
+
+			//			for n := 0; n < 4; n++ {
+			//				pool.Put(make([]int, 0, i))
+			//			}
+
+			segmentsPools[i-1] = pool
 		}(i)
 	}
 }
@@ -74,13 +80,17 @@ func getIdx(c int) int {
 	}
 }
 
+//var p = make([]int, 0, 128)
+
 func acquireSegments(c int) []int {
-	//	fmt.Println("acquire", c)
+	//	return p
+	//	fmt.Printf("a%d;", getIdx(c))
 	return segmentsPools[getIdx(c)].Get().([]int)[:0]
 }
 
 func releaseSegments(s []int) {
-	//	fmt.Println("release", len(s))
+	//	p = s
+	//		fmt.Printf("r%d;", getIdx(cap(s)))
 	segmentsPools[getIdx(cap(s))].Put(s)
 }
 
