@@ -1,5 +1,7 @@
 package glob
 
+// TODO use constructor with all matchers, and to their structs private
+
 import (
 	"fmt"
 	"github.com/gobwas/glob/match"
@@ -122,7 +124,7 @@ func glueAsRow(matchers []match.Matcher) match.Matcher {
 		}
 	}
 
-	return match.Row{c, l}
+	return match.NewRow(c, l)
 }
 
 func glueAsEvery(matchers []match.Matcher) match.Matcher {
