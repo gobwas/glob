@@ -84,6 +84,32 @@ func Contains(s, needle []rune) bool {
 	return Index(s, needle) >= 0
 }
 
+func Max(s []rune) (max rune) {
+	for _, r := range s {
+		if r > max {
+			max = r
+		}
+	}
+
+	return
+}
+
+func Min(s []rune) rune {
+	min := rune(-1)
+	for _, r := range s {
+		if min == -1 {
+			min = r
+			continue
+		}
+
+		if r < min {
+			min = r
+		}
+	}
+
+	return min
+}
+
 func IndexRune(s []rune, r rune) int {
 	for i, c := range s {
 		if c == r {

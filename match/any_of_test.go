@@ -33,8 +33,8 @@ func TestAnyOfIndex(t *testing.T) {
 		},
 		{
 			Matchers{
-				List{[]rune("[def]"), false},
-				List{[]rune("[abc]"), false},
+				NewList([]rune("[def]"), false),
+				NewList([]rune("[abc]"), false),
 			},
 			"abcdef",
 			0,

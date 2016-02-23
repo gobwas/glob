@@ -15,6 +15,7 @@ func (self Super) Len() int {
 }
 
 func (self Super) Index(s string) (int, []int) {
+	//todo acquire here
 	segments := make([]int, 0, len(s)+1)
 	for i := range s {
 		segments = append(segments, i)

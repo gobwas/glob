@@ -27,7 +27,7 @@ func (self Single) Len() int {
 func (self Single) Index(s string) (int, []int) {
 	for i, r := range s {
 		if runes.IndexRune(self.Separators, r) == -1 {
-			return i, []int{utf8.RuneLen(r)}
+			return i, segmentsByRuneLength[utf8.RuneLen(r)]
 		}
 	}
 

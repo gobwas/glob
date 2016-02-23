@@ -11,6 +11,13 @@ type List struct {
 	Not  bool
 }
 
+func NewList(list []rune, not bool) List {
+	return List{
+		List: list,
+		Not:  not,
+	}
+}
+
 func (self List) Match(s string) bool {
 	r, w := utf8.DecodeRuneInString(s)
 	if len(s) > w {
@@ -28,7 +35,7 @@ func (self List) Len() int {
 func (self List) Index(s string) (int, []int) {
 	for i, r := range s {
 		if self.Not == (runes.IndexRune(self.List, r) == -1) {
-			return i, []int{utf8.RuneLen(r)}
+			return i, segmentsByRuneLength[utf8.RuneLen(r)]
 		}
 	}
 

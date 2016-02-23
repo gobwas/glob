@@ -11,7 +11,7 @@ func (self Nothing) Match(s string) bool {
 }
 
 func (self Nothing) Index(s string) (int, []int) {
-	return 0, []int{0}
+	return 0, segments0
 }
 
 func (self Nothing) Len() int {

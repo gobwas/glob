@@ -11,6 +11,7 @@ type Text struct {
 	Str         string
 	RunesLength int
 	BytesLength int
+	Segments    []int
 }
 
 func NewText(s string) Text {
@@ -18,6 +19,7 @@ func NewText(s string) Text {
 		Str:         s,
 		RunesLength: utf8.RuneCountInString(s),
 		BytesLength: len(s),
+		Segments:    []int{len(s)},
 	}
 }
 
@@ -35,7 +37,7 @@ func (self Text) Index(s string) (int, []int) {
 		return -1, nil
 	}
 
-	return index, []int{self.BytesLength}
+	return index, self.Segments
 }
 
 func (self Text) String() string {

@@ -3,6 +3,7 @@ package match
 import (
 	"reflect"
 	"testing"
+	"unicode/utf8"
 )
 
 var bench_separators = []rune{'.'}
@@ -60,5 +61,30 @@ func BenchmarkAppendMergeParallel(b *testing.B) {
 func BenchmarkReverse(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		reverseSegments([]int{1, 2, 3, 4})
+	}
+}
+
+func getTable() []int {
+	table := make([]int, utf8.MaxRune+1)
+	for i := 0; i <= utf8.MaxRune; i++ {
+		table[i] = utf8.RuneLen(rune(i))
+	}
+
+	return table
+}
+
+var table = getTable()
+
+const runeToLen = 'q'
+
+func BenchmarkRuneLenFromTable(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = table[runeToLen]
+	}
+}
+
+func BenchmarkRuneLenFromUTF8(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = utf8.RuneLen(runeToLen)
 	}
 }

@@ -7,6 +7,15 @@ import (
 type Row struct {
 	Matchers    Matchers
 	RunesLength int
+	Segments    []int
+}
+
+func NewRow(m Matchers, len int) Row {
+	return Row{
+		Matchers:    m,
+		RunesLength: len,
+		Segments:    []int{len},
+	}
 }
 
 func (self Row) matchAll(s string) bool {
@@ -66,7 +75,7 @@ func (self Row) Index(s string) (int, []int) {
 		}
 
 		if self.matchAll(s[i:]) {
-			return i, []int{self.RunesLength}
+			return i, self.Segments
 		}
 	}
 
