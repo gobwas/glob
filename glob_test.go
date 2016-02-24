@@ -150,6 +150,22 @@ func TestGlob(t *testing.T) {
 	}
 }
 
+func TestQuoteMeta(t *testing.T) {
+	for id, test := range []struct {
+		in, out string
+	}{
+		{
+			in:  `[foo*]`,
+			out: `\[foo\*\]`,
+		},
+	} {
+		act := QuoteMeta(test.in)
+		if act != test.out {
+			t.Errorf("#%d QuoteMeta(%q) = %q; want %q", id, test.in, act, test.out)
+		}
+	}
+}
+
 func BenchmarkParseGlob(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Compile(pattern_all)
@@ -193,12 +209,12 @@ func BenchmarkAllGlobMismatch(b *testing.B) {
 		_ = m.Match(fixture_all_mismatch)
 	}
 }
-func BenchmarkAllGlobMatchParallel(b *testing.B) {
+func BenchmarkAllGlobMismatchParallel(b *testing.B) {
 	m, _ := Compile(pattern_all)
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			_ = m.Match(fixture_all_match)
+			_ = m.Match(fixture_all_mismatch)
 		}
 	})
 }

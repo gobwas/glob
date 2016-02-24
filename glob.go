@@ -54,3 +54,22 @@ func MustCompile(pattern string, separators ...rune) Glob {
 
 	return g
 }
+
+// QuoteMeta returns a string that quotes all glob pattern metacharacters
+// inside the argument text; For example, QuoteMeta(`{foo*}`) returns `\[foo\*\]`.
+func QuoteMeta(s string) string {
+	b := make([]byte, 2*len(s))
+
+	// A byte loop is correct because all metacharacters are ASCII.
+	j := 0
+	for i := 0; i < len(s); i++ {
+		if special(s[i]) {
+			b[j] = '\\'
+			j++
+		}
+		b[j] = s[i]
+		j++
+	}
+
+	return string(b[0:j])
+}
