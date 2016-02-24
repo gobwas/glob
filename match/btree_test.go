@@ -11,17 +11,17 @@ func TestBTree(t *testing.T) {
 		exp  bool
 	}{
 		{
-			NewBTree(NewText("abc"), Super{}, Super{}),
+			NewBTree(NewText("abc"), NewSuper(), NewSuper()),
 			"abc",
 			true,
 		},
 		{
-			NewBTree(NewText("a"), Single{}, Single{}),
+			NewBTree(NewText("a"), NewSingle(nil), NewSingle(nil)),
 			"aaa",
 			true,
 		},
 		{
-			NewBTree(NewText("b"), Single{}, nil),
+			NewBTree(NewText("b"), NewSingle(nil), nil),
 			"bbb",
 			false,
 		},
@@ -29,8 +29,8 @@ func TestBTree(t *testing.T) {
 			NewBTree(
 				NewText("c"),
 				NewBTree(
-					Single{},
-					Super{},
+					NewSingle(nil),
+					NewSuper(),
 					nil,
 				),
 				nil,

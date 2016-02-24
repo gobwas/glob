@@ -1,7 +1,5 @@
 package glob
 
-import "strings"
-
 // Glob represents compiled glob pattern.
 type Glob interface {
 	Match(string) bool
@@ -33,13 +31,13 @@ type Glob interface {
 //        pattern { `,` pattern }
 //                    comma-separated (without spaces) patterns
 //
-func Compile(pattern string, separators ...string) (Glob, error) {
+func Compile(pattern string, separators ...rune) (Glob, error) {
 	ast, err := parse(newLexer(pattern))
 	if err != nil {
 		return nil, err
 	}
 
-	matcher, err := compile(ast, strings.Join(separators, ""))
+	matcher, err := compile(ast, separators)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +46,7 @@ func Compile(pattern string, separators ...string) (Glob, error) {
 }
 
 // MustCompile is the same as Compile, except that if Compile returns error, this will panic
-func MustCompile(pattern string, separators ...string) Glob {
+func MustCompile(pattern string, separators ...rune) Glob {
 	g, err := Compile(pattern, separators...)
 	if err != nil {
 		panic(err)

@@ -53,10 +53,10 @@ const (
 type test struct {
 	pattern, match string
 	should         bool
-	delimiters     []string
+	delimiters     []rune
 }
 
-func glob(s bool, p, m string, d ...string) test {
+func glob(s bool, p, m string, d ...rune) test {
 	return test{p, m, s, d}
 }
 
@@ -68,22 +68,22 @@ func TestGlob(t *testing.T) {
 		glob(true, "a*c", "abc"),
 		glob(true, "a*c", "a12345c"),
 		glob(true, "a?c", "a1c"),
-		glob(true, "a.b", "a.b", "."),
-		glob(true, "a.*", "a.b", "."),
-		glob(true, "a.**", "a.b.c", "."),
-		glob(true, "a.?.c", "a.b.c", "."),
-		glob(true, "a.?.?", "a.b.c", "."),
+		glob(true, "a.b", "a.b", '.'),
+		glob(true, "a.*", "a.b", '.'),
+		glob(true, "a.**", "a.b.c", '.'),
+		glob(true, "a.?.c", "a.b.c", '.'),
+		glob(true, "a.?.?", "a.b.c", '.'),
 		glob(true, "?at", "cat"),
 		glob(true, "?at", "fat"),
 		glob(true, "*", "abc"),
 		glob(true, `\*`, "*"),
-		glob(true, "**", "a.b.c", "."),
+		glob(true, "**", "a.b.c", '.'),
 
 		glob(false, "?at", "at"),
-		glob(false, "?at", "fat", "f"),
-		glob(false, "a.*", "a.b.c", "."),
-		glob(false, "a.?.c", "a.bb.c", "."),
-		glob(false, "*", "a.b.c", "."),
+		glob(false, "?at", "fat", 'f'),
+		glob(false, "a.*", "a.b.c", '.'),
+		glob(false, "a.?.c", "a.bb.c", '.'),
+		glob(false, "*", "a.b.c", '.'),
 
 		glob(true, "*test", "this is a test"),
 		glob(true, "this*", "this is a test"),
@@ -168,6 +168,16 @@ func BenchmarkAllGlobMatch(b *testing.B) {
 		_ = m.Match(fixture_all_match)
 	}
 }
+func BenchmarkAllGlobMatchParallel(b *testing.B) {
+	m, _ := Compile(pattern_all)
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = m.Match(fixture_all_match)
+		}
+	})
+}
+
 func BenchmarkAllRegexpMatch(b *testing.B) {
 	m := regexp.MustCompile(regexp_all)
 	f := []byte(fixture_all_match)

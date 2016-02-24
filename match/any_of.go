@@ -8,6 +8,10 @@ type AnyOf struct {
 	Matchers Matchers
 }
 
+func NewAnyOf(m ...Matcher) AnyOf {
+	return AnyOf{Matchers(m)}
+}
+
 func (self *AnyOf) Add(m Matcher) error {
 	self.Matchers = append(self.Matchers, m)
 	return nil
@@ -24,14 +28,9 @@ func (self AnyOf) Match(s string) bool {
 }
 
 func (self AnyOf) Index(s string) (int, []int) {
-	if len(self.Matchers) == 0 {
-		return -1, nil
-	}
-
-	// segments to merge
-	var segments [][]int
 	index := -1
 
+	segments := acquireSegments(len(s))
 	for _, m := range self.Matchers {
 		idx, seg := m.Index(s)
 		if idx == -1 {
@@ -40,7 +39,7 @@ func (self AnyOf) Index(s string) (int, []int) {
 
 		if index == -1 || idx < index {
 			index = idx
-			segments = [][]int{seg}
+			segments = append(segments[:0], seg...)
 			continue
 		}
 
@@ -48,14 +47,16 @@ func (self AnyOf) Index(s string) (int, []int) {
 			continue
 		}
 
-		segments = append(segments, seg)
+		// here idx == index
+		segments = appendMerge(segments, seg)
 	}
 
 	if index == -1 {
+		releaseSegments(segments)
 		return -1, nil
 	}
 
-	return index, mergeSegments(segments)
+	return index, segments
 }
 
 func (self AnyOf) Len() (l int) {

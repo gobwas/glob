@@ -1,18 +1,20 @@
 package glob
 
+// TODO use constructor with all matchers, and to their structs private
+
 import (
 	"fmt"
 	"github.com/gobwas/glob/match"
+	"github.com/gobwas/glob/runes"
 	"reflect"
-	"unicode/utf8"
 )
 
 func optimize(matcher match.Matcher) match.Matcher {
 	switch m := matcher.(type) {
 
 	case match.Any:
-		if m.Separators == "" {
-			return match.Super{}
+		if len(m.Separators) == 0 {
+			return match.NewSuper()
 		}
 
 	case match.AnyOf:
@@ -23,8 +25,8 @@ func optimize(matcher match.Matcher) match.Matcher {
 		return m
 
 	case match.List:
-		if m.Not == false && utf8.RuneCountInString(m.List) == 1 {
-			return match.NewText(m.List)
+		if m.Not == false && len(m.List) == 1 {
+			return match.NewText(string(m.List))
 		}
 
 		return m
@@ -52,23 +54,23 @@ func optimize(matcher match.Matcher) match.Matcher {
 		rs, rightSuffix := m.Right.(match.Suffix)
 
 		if leftSuper && rightSuper {
-			return match.Contains{r.Str, false}
+			return match.NewContains(r.Str, false)
 		}
 
 		if leftSuper && rightNil {
-			return match.Suffix{r.Str}
+			return match.NewSuffix(r.Str)
 		}
 
 		if rightSuper && leftNil {
-			return match.Prefix{r.Str}
+			return match.NewPrefix(r.Str)
 		}
 
 		if leftNil && rightSuffix {
-			return match.PrefixSuffix{Prefix: r.Str, Suffix: rs.Suffix}
+			return match.NewPrefixSuffix(r.Str, rs.Suffix)
 		}
 
 		if rightNil && leftPrefix {
-			return match.PrefixSuffix{Prefix: lp.Prefix, Suffix: r.Str}
+			return match.NewPrefixSuffix(lp.Prefix, r.Str)
 		}
 
 		return m
@@ -122,7 +124,7 @@ func glueAsRow(matchers []match.Matcher) match.Matcher {
 		}
 	}
 
-	return match.Row{c, l}
+	return match.NewRow(l, c...)
 }
 
 func glueAsEvery(matchers []match.Matcher) match.Matcher {
@@ -135,15 +137,15 @@ func glueAsEvery(matchers []match.Matcher) match.Matcher {
 		hasSuper  bool
 		hasSingle bool
 		min       int
-		separator string
+		separator []rune
 	)
 
 	for i, matcher := range matchers {
-		var sep string
-		switch m := matcher.(type) {
+		var sep []rune
 
+		switch m := matcher.(type) {
 		case match.Super:
-			sep = ""
+			sep = []rune{}
 			hasSuper = true
 
 		case match.Any:
@@ -172,7 +174,7 @@ func glueAsEvery(matchers []match.Matcher) match.Matcher {
 			separator = sep
 		}
 
-		if sep == separator {
+		if runes.Equal(sep, separator) {
 			continue
 		}
 
@@ -180,29 +182,29 @@ func glueAsEvery(matchers []match.Matcher) match.Matcher {
 	}
 
 	if hasSuper && !hasAny && !hasSingle {
-		return match.Super{}
+		return match.NewSuper()
 	}
 
 	if hasAny && !hasSuper && !hasSingle {
-		return match.Any{separator}
+		return match.NewAny(separator)
 	}
 
-	if (hasAny || hasSuper) && min > 0 && separator == "" {
-		return match.Min{min}
+	if (hasAny || hasSuper) && min > 0 && len(separator) == 0 {
+		return match.NewMin(min)
 	}
 
-	every := match.EveryOf{}
+	every := match.NewEveryOf()
 
 	if min > 0 {
-		every.Add(match.Min{min})
+		every.Add(match.NewMin(min))
 
 		if !hasAny && !hasSuper {
-			every.Add(match.Max{min})
+			every.Add(match.NewMax(min))
 		}
 	}
 
-	if separator != "" {
-		every.Add(match.Contains{separator, true})
+	if len(separator) > 0 {
+		every.Add(match.NewContains(string(separator), true))
 	}
 
 	return every
@@ -468,11 +470,11 @@ func compileMatchers(matchers []match.Matcher) (match.Matcher, error) {
 //	return sum * k
 //}
 
-func doAnyOf(n *nodeAnyOf, s string) (match.Matcher, error) {
+func doAnyOf(n *nodeAnyOf, s []rune) (match.Matcher, error) {
 	var matchers []match.Matcher
 	for _, desc := range n.children() {
 		if desc == nil {
-			matchers = append(matchers, match.Nothing{})
+			matchers = append(matchers, match.NewNothing())
 			continue
 		}
 
@@ -483,10 +485,10 @@ func doAnyOf(n *nodeAnyOf, s string) (match.Matcher, error) {
 		matchers = append(matchers, optimize(m))
 	}
 
-	return match.AnyOf{matchers}, nil
+	return match.NewAnyOf(matchers...), nil
 }
 
-func do(leaf node, s string) (m match.Matcher, err error) {
+func do(leaf node, s []rune) (m match.Matcher, err error) {
 	switch n := leaf.(type) {
 
 	case *nodeAnyOf:
@@ -498,7 +500,7 @@ func do(leaf node, s string) (m match.Matcher, err error) {
 		var matchers []match.Matcher
 		for _, desc := range n.children() {
 			if desc == nil {
-				matchers = append(matchers, match.Nothing{})
+				matchers = append(matchers, match.NewNothing())
 				continue
 			}
 
@@ -509,12 +511,12 @@ func do(leaf node, s string) (m match.Matcher, err error) {
 			matchers = append(matchers, optimize(m))
 		}
 
-		return match.AnyOf{matchers}, nil
+		return match.NewAnyOf(matchers...), nil
 
 	case *nodePattern:
 		nodes := leaf.children()
 		if len(nodes) == 0 {
-			return match.Nothing{}, nil
+			return match.NewNothing(), nil
 		}
 
 		var matchers []match.Matcher
@@ -532,19 +534,19 @@ func do(leaf node, s string) (m match.Matcher, err error) {
 		}
 
 	case *nodeList:
-		m = match.List{n.chars, n.not}
+		m = match.NewList([]rune(n.chars), n.not)
 
 	case *nodeRange:
-		m = match.Range{n.lo, n.hi, n.not}
+		m = match.NewRange(n.lo, n.hi, n.not)
 
 	case *nodeAny:
-		m = match.Any{s}
+		m = match.NewAny(s)
 
 	case *nodeSuper:
-		m = match.Super{}
+		m = match.NewSuper()
 
 	case *nodeSingle:
-		m = match.Single{s}
+		m = match.NewSingle(s)
 
 	case *nodeText:
 		m = match.NewText(n.text)
@@ -556,7 +558,7 @@ func do(leaf node, s string) (m match.Matcher, err error) {
 	return optimize(m), nil
 }
 
-func do2(node node, s string) ([]match.Matcher, error) {
+func do2(node node, s []rune) ([]match.Matcher, error) {
 	var result []match.Matcher
 
 	switch n := node.(type) {
@@ -631,19 +633,19 @@ func do2(node node, s string) ([]match.Matcher, error) {
 		}
 
 	case *nodeList:
-		result = append(result, match.List{n.chars, n.not})
+		result = append(result, match.NewList([]rune(n.chars), n.not))
 
 	case *nodeRange:
-		result = append(result, match.Range{n.lo, n.hi, n.not})
+		result = append(result, match.NewRange(n.lo, n.hi, n.not))
 
 	case *nodeAny:
-		result = append(result, match.Any{s})
+		result = append(result, match.NewAny(s))
 
 	case *nodeSuper:
-		result = append(result, match.Super{})
+		result = append(result, match.NewSuper())
 
 	case *nodeSingle:
-		result = append(result, match.Single{s})
+		result = append(result, match.NewSingle(s))
 
 	case *nodeText:
 		result = append(result, match.NewText(n.text))
@@ -659,7 +661,7 @@ func do2(node node, s string) ([]match.Matcher, error) {
 	return result, nil
 }
 
-func compile(ast *nodePattern, s string) (Glob, error) {
+func compile(ast *nodePattern, s []rune) (Glob, error) {
 	//	ms, err := do2(ast, s)
 	//	if err != nil {
 	//		return nil, err
@@ -667,7 +669,7 @@ func compile(ast *nodePattern, s string) (Glob, error) {
 	//	if len(ms) == 1 {
 	//		return ms[0], nil
 	//	} else {
-	//		return match.AnyOf{ms}, nil
+	//		return match.NewAnyOf(ms), nil
 	//	}
 
 	g, err := do(ast, s)
