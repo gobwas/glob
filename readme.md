@@ -26,13 +26,13 @@ func main() {
     g.Match("api.github.com") // true
     
     // create new glob with set of delimiters as ["."]
-    g = glob.MustCompile("api.*.com", ".")
+    g = glob.MustCompile("api.*.com", '.')
     g.Match("api.github.com") // true
     g.Match("api.gi.hub.com") // false
     
     // create new glob with set of delimiters as ["."]
     // but now with super wildcard
-    g = glob.MustCompile("api.**.com", ".")
+    g = glob.MustCompile("api.**.com", '.')
     g.Match("api.github.com") // true
     g.Match("api.gi.hub.com") // true
         
@@ -42,8 +42,8 @@ func main() {
     g.Match("fat") // true
     g.Match("at") // false
     
-    // create glob with single symbol wildcard and delimiters ["f"]
-    g = glob.MustCompile("?at", "f")
+    // create glob with single symbol wildcard and delimiters ['f']
+    g = glob.MustCompile("?at", 'f')
     g.Match("cat") // true
     g.Match("fat") // false
     g.Match("at") // false 
