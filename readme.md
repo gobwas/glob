@@ -100,18 +100,18 @@ Run `go test -bench=.` from source root to see the benchmarks:
 
 Pattern | Fixture | Match | Operations | Speed (ns/op)
 --------|---------|-------|------------|--------------
-`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my cat has very bright eyes` | `true` | 2000000 | 527
-`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my dog has very bright eyes` | `false` | 10000000 | 229
-`https://*.google.*` | `https://account.google.com` | `true` | 10000000 | 121
-`https://*.google.*` | `https://google.com` | `false` | 20000000 | 68.6
-`{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://yahoo.com` | `true` | 10000000 | 167
-`{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://google.com` | `false` | 10000000 | 198
-`{https://*gobwas.com,http://exclude.gobwas.com}` | `https://safe.gobwas.com` | `true` | 100000000 | 23.9 
-`{https://*gobwas.com,http://exclude.gobwas.com}` | `http://safe.gobwas.com` | `false` | 50000000 | 24.7 
-`abc*` | `abcdef` | `true` | 200000000 | 8.86
-`abc*` | `af` | `false` | 300000000 | 4.99
-`*def` | `abcdef` | `true` | 200000000 | 9.23
-`*def` | `af` | `false` | 300000000 | 5.44
+`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my cat has very bright eyes` | `true` | 2000000 | 432
+`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my dog has very bright eyes` | `false` | 10000000 | 199
+`https://*.google.*` | `https://account.google.com` | `true` | 10000000 | 96
+`https://*.google.*` | `https://google.com` | `false` | 20000000 | 66
+`{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://yahoo.com` | `true` | 10000000 | 163
+`{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://google.com` | `false` | 10000000 | 197
+`{https://*gobwas.com,http://exclude.gobwas.com}` | `https://safe.gobwas.com` | `true` | 100000000 | 22
+`{https://*gobwas.com,http://exclude.gobwas.com}` | `http://safe.gobwas.com` | `false` | 50000000 | 24
+`abc*` | `abcdef` | `true` | 200000000 | 8.15
+`abc*` | `af` | `false` | 300000000 | 5.68
+`*def` | `abcdef` | `true` | 200000000 | 8.84
+`*def` | `af` | `false` | 300000000 | 5.74
 `ab*ef` | `abcdef` | `true` | 100000000 | 15.2
 `ab*ef` | `af` | `false` | 100000000 | 10.4
 
