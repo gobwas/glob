@@ -41,5 +41,5 @@ func (self Text) Index(s string) (int, []int) {
 }
 
 func (self Text) String() string {
-	return fmt.Sprintf("<text:%s>", self.Str)
+	return fmt.Sprintf("<text:`%v`>", self.Str)
 }
