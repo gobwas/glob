@@ -7,11 +7,11 @@ bench() {
         echo "Already exists ${filename}"
     else
         backup=`git rev-parse --abbrev-ref HEAD`
-        git checkout $1 &>/dev/null
+        git checkout $1
         echo -n "Creating ${filename}... "
         go test ./... -run=NONE -bench=$2 > "${filename}" -benchmem
         echo "OK"
-        git checkout ${backup} &>/dev/null
+        git checkout ${backup}
     fi
 }
 
