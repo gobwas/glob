@@ -11,6 +11,10 @@ type Single struct {
 	Separators []rune
 }
 
+func NewSingle(s []rune) Single {
+	return Single{s}
+}
+
 func (self Single) Match(s string) bool {
 	r, w := utf8.DecodeRuneInString(s)
 	if len(s) > w {
@@ -35,5 +39,5 @@ func (self Single) Index(s string) (int, []int) {
 }
 
 func (self Single) String() string {
-	return fmt.Sprintf("<single:![%s]>", self.Separators)
+	return fmt.Sprintf("<single:![%s]>", string(self.Separators))
 }

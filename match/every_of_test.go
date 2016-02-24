@@ -14,7 +14,7 @@ func TestEveryOfIndex(t *testing.T) {
 	}{
 		{
 			Matchers{
-				Any{},
+				NewAny(nil),
 				NewText("b"),
 				NewText("c"),
 			},
@@ -24,16 +24,16 @@ func TestEveryOfIndex(t *testing.T) {
 		},
 		{
 			Matchers{
-				Any{},
-				Prefix{"b"},
-				Suffix{"c"},
+				NewAny(nil),
+				NewPrefix("b"),
+				NewSuffix("c"),
 			},
 			"abc",
 			1,
 			[]int{2},
 		},
 	} {
-		everyOf := EveryOf{test.matchers}
+		everyOf := NewEveryOf(test.matchers...)
 		index, segments := everyOf.Index(test.fixture)
 		if index != test.index {
 			t.Errorf("#%d unexpected index: exp: %d, act: %d", id, test.index, index)

@@ -8,6 +8,10 @@ type AnyOf struct {
 	Matchers Matchers
 }
 
+func NewAnyOf(m ...Matcher) AnyOf {
+	return AnyOf{Matchers(m)}
+}
+
 func (self *AnyOf) Add(m Matcher) error {
 	self.Matchers = append(self.Matchers, m)
 	return nil
@@ -27,7 +31,6 @@ func (self AnyOf) Index(s string) (int, []int) {
 	index := -1
 
 	segments := acquireSegments(len(s))
-
 	for _, m := range self.Matchers {
 		idx, seg := m.Index(s)
 		if idx == -1 {

@@ -25,7 +25,7 @@ func TestPrefixIndex(t *testing.T) {
 			[]int{2, 3, 4, 5},
 		},
 	} {
-		p := Prefix{test.prefix}
+		p := NewPrefix(test.prefix)
 		index, segments := p.Index(test.fixture)
 		if index != test.index {
 			t.Errorf("#%d unexpected index: exp: %d, act: %d", id, test.index, index)
@@ -37,7 +37,7 @@ func TestPrefixIndex(t *testing.T) {
 }
 
 func BenchmarkIndexPrefix(b *testing.B) {
-	m := Prefix{"qew"}
+	m := NewPrefix("qew")
 
 	for i := 0; i < b.N; i++ {
 		_, s := m.Index(bench_pattern)
@@ -46,7 +46,7 @@ func BenchmarkIndexPrefix(b *testing.B) {
 }
 
 func BenchmarkIndexPrefixParallel(b *testing.B) {
-	m := Prefix{"qew"}
+	m := NewPrefix("qew")
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {

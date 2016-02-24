@@ -15,40 +15,40 @@ func TestGlueMatchers(t *testing.T) {
 	}{
 		{
 			[]match.Matcher{
-				match.Super{},
-				match.Single{},
+				match.NewSuper(),
+				match.NewSingle(nil),
 			},
-			match.Min{1},
+			match.NewMin(1),
 		},
 		{
 			[]match.Matcher{
-				match.Any{separators},
-				match.Single{separators},
+				match.NewAny(separators),
+				match.NewSingle(separators),
 			},
 			match.EveryOf{match.Matchers{
-				match.Min{1},
-				match.Contains{string(separators), true},
+				match.NewMin(1),
+				match.NewContains(string(separators), true),
 			}},
 		},
 		{
 			[]match.Matcher{
-				match.Single{},
-				match.Single{},
-				match.Single{},
+				match.NewSingle(nil),
+				match.NewSingle(nil),
+				match.NewSingle(nil),
 			},
 			match.EveryOf{match.Matchers{
-				match.Min{3},
-				match.Max{3},
+				match.NewMin(3),
+				match.NewMax(3),
 			}},
 		},
 		{
 			[]match.Matcher{
-				match.List{[]rune{'a'}, true},
-				match.Any{[]rune{'a'}},
+				match.NewList([]rune{'a'}, true),
+				match.NewAny([]rune{'a'}),
 			},
 			match.EveryOf{match.Matchers{
-				match.Min{1},
-				match.Contains{"a", true},
+				match.NewMin(1),
+				match.NewContains("a", true),
 			}},
 		},
 	} {
@@ -59,7 +59,7 @@ func TestGlueMatchers(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(act, test.exp) {
-			t.Errorf("#%d unexpected convert matchers result:\nact: %s;\nexp: %s", id, act, test.exp)
+			t.Errorf("#%d unexpected convert matchers result:\nact: %#v;\nexp: %#v", id, act, test.exp)
 			continue
 		}
 	}
@@ -72,15 +72,15 @@ func TestCompileMatchers(t *testing.T) {
 	}{
 		{
 			[]match.Matcher{
-				match.Super{},
-				match.Single{separators},
+				match.NewSuper(),
+				match.NewSingle(separators),
 				match.NewText("c"),
 			},
 			match.NewBTree(
 				match.NewText("c"),
 				match.NewBTree(
-					match.Single{separators},
-					match.Super{},
+					match.NewSingle(separators),
+					match.NewSuper(),
 					nil,
 				),
 				nil,
@@ -88,32 +88,32 @@ func TestCompileMatchers(t *testing.T) {
 		},
 		{
 			[]match.Matcher{
-				match.Any{},
+				match.NewAny(nil),
 				match.NewText("c"),
-				match.Any{},
+				match.NewAny(nil),
 			},
 			match.NewBTree(
 				match.NewText("c"),
-				match.Any{},
-				match.Any{},
+				match.NewAny(nil),
+				match.NewAny(nil),
 			),
 		},
 		{
 			[]match.Matcher{
-				match.Range{'a', 'c', true},
-				match.List{[]rune{'z', 't', 'e'}, false},
+				match.NewRange('a', 'c', true),
+				match.NewList([]rune{'z', 't', 'e'}, false),
 				match.NewText("c"),
-				match.Single{},
+				match.NewSingle(nil),
 			},
-			match.Row{
-				Matchers: match.Matchers{
-					match.Range{'a', 'c', true},
-					match.List{[]rune{'z', 't', 'e'}, false},
+			match.NewRow(
+				4,
+				match.Matchers{
+					match.NewRange('a', 'c', true),
+					match.NewList([]rune{'z', 't', 'e'}, false),
 					match.NewText("c"),
-					match.Single{},
-				},
-				RunesLength: 4,
-			},
+					match.NewSingle(nil),
+				}...,
+			),
 		},
 	} {
 		act, err := compileMatchers(test.in)
@@ -123,7 +123,7 @@ func TestCompileMatchers(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(act, test.exp) {
-			t.Errorf("#%d unexpected convert matchers result:\nact: %s;\nexp: %s", id, act, test.exp)
+			t.Errorf("#%d unexpected convert matchers result:\nact: %#v\nexp: %#v", id, act, test.exp)
 			continue
 		}
 	}
@@ -135,52 +135,52 @@ func TestConvertMatchers(t *testing.T) {
 	}{
 		{
 			[]match.Matcher{
-				match.Range{'a', 'c', true},
-				match.List{[]rune{'z', 't', 'e'}, false},
+				match.NewRange('a', 'c', true),
+				match.NewList([]rune{'z', 't', 'e'}, false),
 				match.NewText("c"),
-				match.Single{},
-				match.Any{},
+				match.NewSingle(nil),
+				match.NewAny(nil),
 			},
 			[]match.Matcher{
-				match.Row{
-					Matchers: match.Matchers{
-						match.Range{'a', 'c', true},
-						match.List{[]rune{'z', 't', 'e'}, false},
+				match.NewRow(
+					4,
+					[]match.Matcher{
+						match.NewRange('a', 'c', true),
+						match.NewList([]rune{'z', 't', 'e'}, false),
 						match.NewText("c"),
-						match.Single{},
-					},
-					RunesLength: 4,
-				},
-				match.Any{},
+						match.NewSingle(nil),
+					}...,
+				),
+				match.NewAny(nil),
 			},
 		},
 		{
 			[]match.Matcher{
-				match.Range{'a', 'c', true},
-				match.List{[]rune{'z', 't', 'e'}, false},
+				match.NewRange('a', 'c', true),
+				match.NewList([]rune{'z', 't', 'e'}, false),
 				match.NewText("c"),
-				match.Single{},
-				match.Any{},
-				match.Single{},
-				match.Single{},
-				match.Any{},
+				match.NewSingle(nil),
+				match.NewAny(nil),
+				match.NewSingle(nil),
+				match.NewSingle(nil),
+				match.NewAny(nil),
 			},
 			[]match.Matcher{
-				match.Row{
-					Matchers: match.Matchers{
-						match.Range{'a', 'c', true},
-						match.List{[]rune{'z', 't', 'e'}, false},
+				match.NewRow(
+					3,
+					match.Matchers{
+						match.NewRange('a', 'c', true),
+						match.NewList([]rune{'z', 't', 'e'}, false),
 						match.NewText("c"),
-					},
-					RunesLength: 3,
-				},
-				match.Min{3},
+					}...,
+				),
+				match.NewMin(3),
 			},
 		},
 	} {
 		act := minimizeMatchers(test.in)
 		if !reflect.DeepEqual(act, test.exp) {
-			t.Errorf("#%d unexpected convert matchers 2 result:\nact: %s;\nexp: %s", id, act, test.exp)
+			t.Errorf("#%d unexpected convert matchers 2 result:\nact: %#v\nexp: %#v", id, act, test.exp)
 			continue
 		}
 	}
@@ -213,20 +213,20 @@ func TestCompiler(t *testing.T) {
 		{
 			ast:    pattern(&nodeAny{}),
 			sep:    separators,
-			result: match.Any{separators},
+			result: match.NewAny(separators),
 		},
 		{
 			ast:    pattern(&nodeAny{}),
-			result: match.Super{},
+			result: match.NewSuper(),
 		},
 		{
 			ast:    pattern(&nodeSuper{}),
-			result: match.Super{},
+			result: match.NewSuper(),
 		},
 		{
 			ast:    pattern(&nodeSingle{}),
 			sep:    separators,
-			result: match.Single{separators},
+			result: match.NewSingle(separators),
 		},
 		{
 			ast: pattern(&nodeRange{
@@ -234,39 +234,39 @@ func TestCompiler(t *testing.T) {
 				hi:  'z',
 				not: true,
 			}),
-			result: match.Range{'a', 'z', true},
+			result: match.NewRange('a', 'z', true),
 		},
 		{
 			ast: pattern(&nodeList{
 				chars: "abc",
 				not:   true,
 			}),
-			result: match.List{[]rune{'a', 'b', 'c'}, true},
+			result: match.NewList([]rune{'a', 'b', 'c'}, true),
 		},
 		{
 			ast: pattern(&nodeAny{}, &nodeSingle{}, &nodeSingle{}, &nodeSingle{}),
 			sep: separators,
 			result: match.EveryOf{Matchers: match.Matchers{
-				match.Min{3},
-				match.Contains{string(separators), true},
+				match.NewMin(3),
+				match.NewContains(string(separators), true),
 			}},
 		},
 		{
 			ast:    pattern(&nodeAny{}, &nodeSingle{}, &nodeSingle{}, &nodeSingle{}),
-			result: match.Min{3},
+			result: match.NewMin(3),
 		},
 		{
 			ast: pattern(&nodeAny{}, &nodeText{text: "abc"}, &nodeSingle{}),
 			sep: separators,
 			result: match.NewBTree(
-				match.Row{
-					Matchers: match.Matchers{
+				match.NewRow(
+					4,
+					match.Matchers{
 						match.NewText("abc"),
-						match.Single{separators},
-					},
-					RunesLength: 4,
-				},
-				match.Any{separators},
+						match.NewSingle(separators),
+					}...,
+				),
+				match.NewAny(separators),
 				nil,
 			),
 		},
@@ -274,49 +274,49 @@ func TestCompiler(t *testing.T) {
 			ast: pattern(&nodeSuper{}, &nodeSingle{}, &nodeText{text: "abc"}, &nodeSingle{}),
 			sep: separators,
 			result: match.NewBTree(
-				match.Row{
-					Matchers: match.Matchers{
-						match.Single{separators},
+				match.NewRow(
+					5,
+					match.Matchers{
+						match.NewSingle(separators),
 						match.NewText("abc"),
-						match.Single{separators},
-					},
-					RunesLength: 5,
-				},
-				match.Super{},
+						match.NewSingle(separators),
+					}...,
+				),
+				match.NewSuper(),
 				nil,
 			),
 		},
 		{
 			ast:    pattern(&nodeAny{}, &nodeText{text: "abc"}),
-			result: match.Suffix{"abc"},
+			result: match.NewSuffix("abc"),
 		},
 		{
 			ast:    pattern(&nodeText{text: "abc"}, &nodeAny{}),
-			result: match.Prefix{"abc"},
+			result: match.NewPrefix("abc"),
 		},
 		{
 			ast:    pattern(&nodeText{text: "abc"}, &nodeAny{}, &nodeText{text: "def"}),
-			result: match.PrefixSuffix{"abc", "def"},
+			result: match.NewPrefixSuffix("abc", "def"),
 		},
 		{
 			ast:    pattern(&nodeAny{}, &nodeAny{}, &nodeAny{}, &nodeText{text: "abc"}, &nodeAny{}, &nodeAny{}),
-			result: match.Contains{"abc", false},
+			result: match.NewContains("abc", false),
 		},
 		{
 			ast: pattern(&nodeAny{}, &nodeAny{}, &nodeAny{}, &nodeText{text: "abc"}, &nodeAny{}, &nodeAny{}),
 			sep: separators,
 			result: match.NewBTree(
 				match.NewText("abc"),
-				match.Any{separators},
-				match.Any{separators},
+				match.NewAny(separators),
+				match.NewAny(separators),
 			),
 		},
 		{
 			ast: pattern(&nodeSuper{}, &nodeSingle{}, &nodeText{text: "abc"}, &nodeSuper{}, &nodeSingle{}),
 			result: match.NewBTree(
 				match.NewText("abc"),
-				match.Min{1},
-				match.Min{1},
+				match.NewMin(1),
+				match.NewMin(1),
 			),
 		},
 		{
@@ -348,9 +348,9 @@ func TestCompiler(t *testing.T) {
 				match.NewText("abc"),
 				nil,
 				match.AnyOf{Matchers: match.Matchers{
-					match.Single{},
-					match.List{List: []rune{'d', 'e', 'f'}},
-					match.Nothing{},
+					match.NewSingle(nil),
+					match.NewList([]rune{'d', 'e', 'f'}, false),
+					match.NewNothing(),
 				}},
 			),
 		},
@@ -361,15 +361,15 @@ func TestCompiler(t *testing.T) {
 				&nodeAny{},
 			),
 			result: match.NewBTree(
-				match.Row{
-					Matchers: match.Matchers{
-						match.Range{Lo: 'a', Hi: 'z'},
-						match.Range{Lo: 'a', Hi: 'x', Not: true},
-					},
-					RunesLength: 2,
-				},
+				match.NewRow(
+					2,
+					match.Matchers{
+						match.NewRange('a', 'z', false),
+						match.NewRange('a', 'x', true),
+					}...,
+				),
 				nil,
-				match.Super{},
+				match.NewSuper(),
 			),
 		},
 		{
@@ -385,17 +385,17 @@ func TestCompiler(t *testing.T) {
 					&nodeText{text: "ghi"},
 				),
 			)),
-			result: match.Row{
-				RunesLength: 7,
-				Matchers: match.Matchers{
+			result: match.NewRow(
+				7,
+				match.Matchers{
 					match.NewText("abc"),
 					match.AnyOf{Matchers: match.Matchers{
-						match.List{List: []rune{'a', 'b', 'c'}},
-						match.List{List: []rune{'d', 'e', 'f'}},
+						match.NewList([]rune{'a', 'b', 'c'}, false),
+						match.NewList([]rune{'d', 'e', 'f'}, false),
 					}},
 					match.NewText("ghi"),
-				},
-			},
+				}...,
+			),
 		},
 		//				{
 		//			ast: pattern(
@@ -403,21 +403,21 @@ func TestCompiler(t *testing.T) {
 		//				anyOf(&nodeText{text: "c"}, &nodeText{text: "d"}),
 		//			),
 		//			result: match.AnyOf{Matchers: match.Matchers{
-		//				match.Row{Matchers: match.Matchers{match.Raw{"a"}, match.Raw{"c", 1}}},
-		//				match.Row{Matchers: match.Matchers{match.Raw{"a"}, match.Raw{"d"}}},
-		//				match.Row{Matchers: match.Matchers{match.Raw{"b"}, match.Raw{"c", 1}}},
-		//				match.Row{Matchers: match.Matchers{match.Raw{"b"}, match.Raw{"d"}}},
+		//				match.NewRow(Matchers: match.Matchers{match.Raw{"a"}, match.Raw{"c", 1}}),
+		//				match.NewRow(Matchers: match.Matchers{match.Raw{"a"}, match.Raw{"d"}}),
+		//				match.NewRow(Matchers: match.Matchers{match.Raw{"b"}, match.Raw{"c", 1}}),
+		//				match.NewRow(Matchers: match.Matchers{match.Raw{"b"}, match.Raw{"d"}}),
 		//			}},
 		//		},
 	} {
-		prog, err := compile(test.ast, test.sep)
+		m, err := compile(test.ast, test.sep)
 		if err != nil {
 			t.Errorf("compilation error: %s", err)
 			continue
 		}
 
-		if !reflect.DeepEqual(prog, test.result) {
-			t.Errorf("#%d results are not equal:\nexp: %s,\nact: %s", id, test.result, prog)
+		if !reflect.DeepEqual(m, test.result) {
+			t.Errorf("#%d results are not equal:\nexp: %#v\nact: %#v", id, test.result, m)
 			continue
 		}
 	}
@@ -426,105 +426,105 @@ func TestCompiler(t *testing.T) {
 const complexityString = "abcd"
 
 //func BenchmarkComplexityAny(b *testing.B) {
-//	m := match.Any{}
+//	m := match.NewAny(nil)
 //	for i := 0; i < b.N; i++ {
 //		_ = m.Match(complexityString)
 //		_, _ = m.Index(complexityString)
 //	}
 //}
 //func BenchmarkComplexityContains(b *testing.B) {
-//	m := match.Contains{}
+//	m := match.NewContains()
 //	for i := 0; i < b.N; i++ {
 //		_ = m.Match(complexityString)
 //		_, _ = m.Index(complexityString)
 //	}
 //}
 //func BenchmarkComplexityList(b *testing.B) {
-//	m := match.List{}
+//	m := match.NewList()
 //	for i := 0; i < b.N; i++ {
 //		_ = m.Match(complexityString)
 //		_, _ = m.Index(complexityString)
 //	}
 //}
 //func BenchmarkComplexityMax(b *testing.B) {
-//	m := match.Max{}
+//	m := match.NewMax()
 //	for i := 0; i < b.N; i++ {
 //		_ = m.Match(complexityString)
 //		_, _ = m.Index(complexityString)
 //	}
 //}
 //func BenchmarkComplexityMin(b *testing.B) {
-//	m := match.Min{}
+//	m := match.NewMin()
 //	for i := 0; i < b.N; i++ {
 //		_ = m.Match(complexityString)
 //		_, _ = m.Index(complexityString)
 //	}
 //}
 //func BenchmarkComplexityNothing(b *testing.B) {
-//	m := match.Nothing{}
+//	m := match.NewNothing()
 //	for i := 0; i < b.N; i++ {
 //		_ = m.Match(complexityString)
 //		_, _ = m.Index(complexityString)
 //	}
 //}
 //func BenchmarkComplexityPrefix(b *testing.B) {
-//	m := match.Prefix{}
+//	m := match.NewPrefix()
 //	for i := 0; i < b.N; i++ {
 //		_ = m.Match(complexityString)
 //		_, _ = m.Index(complexityString)
 //	}
 //}
 //func BenchmarkComplexityPrefixSuffix(b *testing.B) {
-//	m := match.PrefixSuffix{}
+//	m := match.NewPrefixSuffix()
 //	for i := 0; i < b.N; i++ {
 //		_ = m.Match(complexityString)
 //		_, _ = m.Index(complexityString)
 //	}
 //}
 //func BenchmarkComplexityRange(b *testing.B) {
-//	m := match.Range{}
+//	m := match.NewRange()
 //	for i := 0; i < b.N; i++ {
 //		_ = m.Match(complexityString)
 //		_, _ = m.Index(complexityString)
 //	}
 //}
 //func BenchmarkComplexityRow(b *testing.B) {
-//	m := match.Row{}
+//	m := match.NewRow()
 //	for i := 0; i < b.N; i++ {
 //		_ = m.Match(complexityString)
 //		_, _ = m.Index(complexityString)
 //	}
 //}
 //func BenchmarkComplexitySingle(b *testing.B) {
-//	m := match.Single{}
+//	m := match.NewSingle(nil)
 //	for i := 0; i < b.N; i++ {
 //		_ = m.Match(complexityString)
 //		_, _ = m.Index(complexityString)
 //	}
 //}
 //func BenchmarkComplexitySuffix(b *testing.B) {
-//	m := match.Suffix{}
+//	m := match.NewSuffix()
 //	for i := 0; i < b.N; i++ {
 //		_ = m.Match(complexityString)
 //		_, _ = m.Index(complexityString)
 //	}
 //}
 //func BenchmarkComplexitySuper(b *testing.B) {
-//	m := match.Super{}
+//	m := match.NewSuper()
 //	for i := 0; i < b.N; i++ {
 //		_ = m.Match(complexityString)
 //		_, _ = m.Index(complexityString)
 //	}
 //}
 //func BenchmarkComplexityText(b *testing.B) {
-//	m := match.Text{}
+//	m := match.NewText()
 //	for i := 0; i < b.N; i++ {
 //		_ = m.Match(complexityString)
 //		_, _ = m.Index(complexityString)
 //	}
 //}
 //func BenchmarkComplexityAnyOf(b *testing.B) {
-//	m := match.AnyOf{}
+//	m := match.NewAnyOf()
 //	for i := 0; i < b.N; i++ {
 //		_ = m.Match(complexityString)
 //		_, _ = m.Index(complexityString)
@@ -538,7 +538,7 @@ const complexityString = "abcd"
 //	}
 //}
 //func BenchmarkComplexityEveryOf(b *testing.B) {
-//	m := match.EveryOf{}
+//	m := match.NewEveryOf()
 //	for i := 0; i < b.N; i++ {
 //		_ = m.Match(complexityString)
 //		_, _ = m.Index(complexityString)

@@ -12,10 +12,7 @@ type List struct {
 }
 
 func NewList(list []rune, not bool) List {
-	return List{
-		List: list,
-		Not:  not,
-	}
+	return List{list, not}
 }
 
 func (self List) Match(s string) bool {
@@ -48,5 +45,5 @@ func (self List) String() string {
 		not = "!"
 	}
 
-	return fmt.Sprintf("<list:%s[%s]>", not, self.List)
+	return fmt.Sprintf("<list:%s[%s]>", not, string(self.List))
 }

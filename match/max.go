@@ -9,6 +9,10 @@ type Max struct {
 	Limit int
 }
 
+func NewMax(l int) Max {
+	return Max{l}
+}
+
 func (self Max) Match(s string) bool {
 	var l int
 	for range s {
@@ -22,8 +26,7 @@ func (self Max) Match(s string) bool {
 }
 
 func (self Max) Index(s string) (int, []int) {
-	segments := make([]int, 0, self.Limit+1)
-
+	segments := acquireSegments(self.Limit + 1)
 	segments = append(segments, 0)
 	var count int
 	for i, r := range s {

@@ -8,6 +8,10 @@ type EveryOf struct {
 	Matchers Matchers
 }
 
+func NewEveryOf(m ...Matcher) EveryOf {
+	return EveryOf{Matchers(m)}
+}
+
 func (self *EveryOf) Add(m Matcher) error {
 	self.Matchers = append(self.Matchers, m)
 	return nil
@@ -31,7 +35,6 @@ func (self EveryOf) Index(s string) (int, []int) {
 
 	// make `in` with cap as len(s),
 	// cause it is the maximum size of output segments values
-	//todo opti!!!
 	next := acquireSegments(len(s))
 	current := acquireSegments(len(s))
 
@@ -39,6 +42,8 @@ func (self EveryOf) Index(s string) (int, []int) {
 	for i, m := range self.Matchers {
 		idx, seg := m.Index(sub)
 		if idx == -1 {
+			releaseSegments(next)
+			releaseSegments(current)
 			return -1, nil
 		}
 
@@ -61,6 +66,8 @@ func (self EveryOf) Index(s string) (int, []int) {
 			}
 
 			if len(next) == 0 {
+				releaseSegments(next)
+				releaseSegments(current)
 				return -1, nil
 			}
 
@@ -71,6 +78,8 @@ func (self EveryOf) Index(s string) (int, []int) {
 		sub = s[index:]
 		offset += idx
 	}
+
+	releaseSegments(next)
 
 	return index, current
 }

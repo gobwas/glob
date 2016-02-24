@@ -10,6 +10,10 @@ type Range struct {
 	Not    bool
 }
 
+func NewRange(lo, hi rune, not bool) Range {
+	return Range{lo, hi, not}
+}
+
 func (self Range) Len() int {
 	return lenOne
 }

@@ -129,5 +129,18 @@ func (self BTree) Match(s string) bool {
 }
 
 func (self BTree) String() string {
-	return fmt.Sprintf("<btree:[%s<-%s->%s]>", self.Left, self.Value, self.Right)
+	const n string = "<nil>"
+	var l, r string
+	if self.Left == nil {
+		l = n
+	} else {
+		l = self.Left.String()
+	}
+	if self.Right == nil {
+		r = n
+	} else {
+		r = self.Right.String()
+	}
+
+	return fmt.Sprintf("<btree:[%s<-%s->%s]>", l, self.Value, r)
 }

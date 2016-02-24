@@ -10,9 +10,9 @@ type Row struct {
 	Segments    []int
 }
 
-func NewRow(m Matchers, len int) Row {
+func NewRow(len int, m ...Matcher) Row {
 	return Row{
-		Matchers:    m,
+		Matchers:    Matchers(m),
 		RunesLength: len,
 		Segments:    []int{len},
 	}
@@ -68,8 +68,6 @@ func (self Row) Index(s string) (int, []int) {
 
 	for i := range s {
 		// this is not strict check but useful
-		// when glob will be refactored for usage with []rune
-		// it will be better
 		if len(s[i:]) < self.RunesLength {
 			break
 		}

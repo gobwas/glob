@@ -10,6 +10,10 @@ type Prefix struct {
 	Prefix string
 }
 
+func NewPrefix(p string) Prefix {
+	return Prefix{p}
+}
+
 func (self Prefix) Index(s string) (int, []int) {
 	idx := strings.Index(s, self.Prefix)
 	if idx == -1 {

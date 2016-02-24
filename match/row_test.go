@@ -17,7 +17,7 @@ func TestRowIndex(t *testing.T) {
 			Matchers{
 				NewText("abc"),
 				NewText("def"),
-				Single{},
+				NewSingle(nil),
 			},
 			7,
 			"qweabcdefghij",
@@ -28,7 +28,7 @@ func TestRowIndex(t *testing.T) {
 			Matchers{
 				NewText("abc"),
 				NewText("def"),
-				Single{},
+				NewSingle(nil),
 			},
 			7,
 			"abcd",
@@ -36,10 +36,7 @@ func TestRowIndex(t *testing.T) {
 			nil,
 		},
 	} {
-		p := Row{
-			Matchers:    test.matchers,
-			RunesLength: test.length,
-		}
+		p := NewRow(test.length, test.matchers...)
 		index, segments := p.Index(test.fixture)
 		if index != test.index {
 			t.Errorf("#%d unexpected index: exp: %d, act: %d", id, test.index, index)
@@ -51,14 +48,14 @@ func TestRowIndex(t *testing.T) {
 }
 
 func BenchmarkRowIndex(b *testing.B) {
-	m := Row{
-		Matchers: Matchers{
+	m := NewRow(
+		7,
+		Matchers{
 			NewText("abc"),
 			NewText("def"),
-			Single{},
-		},
-		RunesLength: 7,
-	}
+			NewSingle(nil),
+		}...,
+	)
 
 	for i := 0; i < b.N; i++ {
 		_, s := m.Index(bench_pattern)
@@ -67,14 +64,14 @@ func BenchmarkRowIndex(b *testing.B) {
 }
 
 func BenchmarkIndexRowParallel(b *testing.B) {
-	m := Row{
-		Matchers: Matchers{
+	m := NewRow(
+		7,
+		Matchers{
 			NewText("abc"),
 			NewText("def"),
-			Single{},
-		},
-		RunesLength: 7,
-	}
+			NewSingle(nil),
+		}...,
+	)
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {

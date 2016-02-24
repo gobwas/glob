@@ -10,6 +10,10 @@ type Contains struct {
 	Not    bool
 }
 
+func NewContains(needle string, not bool) Contains {
+	return Contains{needle, not}
+}
+
 func (self Contains) Match(s string) bool {
 	return strings.Contains(s, self.Needle) != self.Not
 }

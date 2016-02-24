@@ -6,6 +6,10 @@ import (
 
 type Nothing struct{}
 
+func NewNothing() Nothing {
+	return Nothing{}
+}
+
 func (self Nothing) Match(s string) bool {
 	return len(s) == 0
 }

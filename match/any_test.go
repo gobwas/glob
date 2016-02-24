@@ -25,7 +25,7 @@ func TestAnyIndex(t *testing.T) {
 			[]int{0, 1, 2, 3},
 		},
 	} {
-		p := Any{test.sep}
+		p := NewAny(test.sep)
 		index, segments := p.Index(test.fixture)
 		if index != test.index {
 			t.Errorf("#%d unexpected index: exp: %d, act: %d", id, test.index, index)
@@ -37,7 +37,7 @@ func TestAnyIndex(t *testing.T) {
 }
 
 func BenchmarkIndexAny(b *testing.B) {
-	m := Any{bench_separators}
+	m := NewAny(bench_separators)
 
 	for i := 0; i < b.N; i++ {
 		_, s := m.Index(bench_pattern)
@@ -46,7 +46,7 @@ func BenchmarkIndexAny(b *testing.B) {
 }
 
 func BenchmarkIndexAnyParallel(b *testing.B) {
-	m := Any{bench_separators}
+	m := NewAny(bench_separators)
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {

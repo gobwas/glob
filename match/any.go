@@ -9,6 +9,10 @@ type Any struct {
 	Separators []rune
 }
 
+func NewAny(s []rune) Any {
+	return Any{s}
+}
+
 func (self Any) Match(s string) bool {
 	return strings.IndexAnyRunes(s, self.Separators) == -1
 }
