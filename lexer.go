@@ -1,6 +1,7 @@
 package glob
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"unicode/utf8"
@@ -18,6 +19,20 @@ const (
 	char_range_not     = '!'
 	char_range_between = '-'
 )
+
+var specials = []byte{
+	char_any,
+	char_single,
+	char_escape,
+	char_range_open,
+	char_range_close,
+	char_terms_open,
+	char_terms_close,
+}
+
+func special(c byte) bool {
+	return bytes.IndexByte(specials, c) != -1
+}
 
 var eof rune = 0
 
@@ -124,7 +139,7 @@ func newLexer(source string) *lexer {
 	l := &lexer{
 		input:       source,
 		state:       lexText,
-		items:       make(chan item, 5),
+		items:       make(chan item, len(source)),
 		termPhrases: make(map[int]int),
 	}
 	return l
@@ -281,9 +296,7 @@ func lexText(l *lexer) stateFn {
 			l.unread()
 			l.emitMaybe(item_text)
 			return lexSeparator
-
 		}
-
 	}
 
 	if l.pos > l.start {

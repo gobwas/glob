@@ -25,6 +25,10 @@ func main() {
     g = glob.MustCompile("*.github.com")
     g.Match("api.github.com") // true
     
+    // quote meta characters and then create simple glob 
+    g = glob.MustCompile(glob.QuoteMeta("*.github.com"))
+    g.Match("*.github.com") // true
+    
     // create new glob with set of delimiters as ["."]
     g = glob.MustCompile("api.*.com", '.')
     g.Match("api.github.com") // true
@@ -75,7 +79,6 @@ func main() {
     g.Match("bat") // false
     g.Match("fat") // true
     g.Match("at") // false 
-    
     
     // create glob with pattern-alternatives list 
     g = glob.MustCompile("{cat,bat,[fr]at}")
