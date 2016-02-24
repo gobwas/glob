@@ -59,7 +59,10 @@ func init() {
 			//			segmentsPools[i-1] = &sync.Pool{New: func() interface{} {
 			//				return make([]int, 0, i)
 			//			}}
-			segmentsPools[i-1] = newChanPool(func() []int {
+			//			segmentsPools[i-1] = newChanPool(func() []int {
+			//				return make([]int, 0, i)
+			//			})
+			segmentsPools[i-1] = newSyncPool(func() []int {
 				return make([]int, 0, i)
 			})
 		}(i)
@@ -133,7 +136,7 @@ type chanPool struct {
 
 func newChanPool(m maker) *chanPool {
 	return &chanPool{
-		pool: make(chan []int, 32),
+		pool: make(chan []int, 16),
 		new:  m,
 	}
 }
