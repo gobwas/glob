@@ -20,6 +20,7 @@ to=$1
 current=`git rev-parse --abbrev-ref HEAD`
 
 bench ${to} $2
+sleep 5
 bench ${current} $2
 
 benchcmp $3 "/tmp/${to}-$2.bench" "/tmp/${current}-$2.bench"
