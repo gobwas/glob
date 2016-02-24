@@ -22,15 +22,12 @@ const (
 
 var specials = []byte{
 	char_any,
-	char_separator,
 	char_single,
 	char_escape,
 	char_range_open,
 	char_range_close,
 	char_terms_open,
 	char_terms_close,
-	char_range_not,
-	char_range_between,
 }
 
 func special(c byte) bool {
