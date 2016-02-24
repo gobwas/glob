@@ -37,5 +37,5 @@ func (self Any) Len() int {
 }
 
 func (self Any) String() string {
-	return fmt.Sprintf("<any:![%s]>", self.Separators)
+	return fmt.Sprintf("<any:![%s]>", string(self.Separators))
 }

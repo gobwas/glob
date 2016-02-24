@@ -25,10 +25,6 @@ const (
 	cacheToAndHigherIndex = 1023
 )
 
-var asciiTable [128]byte
-
-var segmentsByRuneLength [5][]int
-
 var (
 	segments0 = []int{0}
 	segments1 = []int{1}
@@ -36,6 +32,14 @@ var (
 	segments3 = []int{3}
 	segments4 = []int{4}
 )
+
+var segmentsByRuneLength [5][]int = [5][]int{
+	0: segments0,
+	1: segments1,
+	2: segments2,
+	3: segments3,
+	4: segments4,
+}
 
 const (
 	asciiLo = 0
@@ -49,16 +53,6 @@ func init() {
 				return make([]int, 0, i)
 			}}
 		}(i)
-	}
-
-	segmentsByRuneLength[0] = segments0
-	segmentsByRuneLength[1] = segments1
-	segmentsByRuneLength[2] = segments2
-	segmentsByRuneLength[3] = segments3
-	segmentsByRuneLength[4] = segments4
-
-	for i := 0; i <= 127; i++ {
-		asciiTable[i] = 1
 	}
 }
 
