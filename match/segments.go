@@ -4,7 +4,14 @@ import (
 	"sync"
 )
 
-var segmentsPools [1024]*sync.Pool
+type SomePool interface {
+	Get() []int
+	Put([]int)
+}
+
+var segmentsPools [1024]SomePool
+
+//var segmentsPools [1024]*sync.Pool
 
 func toPowerOfTwo(v int) int {
 	v--
@@ -49,9 +56,12 @@ const (
 func init() {
 	for i := cacheToAndHigher; i >= cacheFrom; i >>= 1 {
 		func(i int) {
-			segmentsPools[i-1] = &sync.Pool{New: func() interface{} {
+			//			segmentsPools[i-1] = &sync.Pool{New: func() interface{} {
+			//				return make([]int, 0, i)
+			//			}}
+			segmentsPools[i-1] = newChanPool(func() []int {
 				return make([]int, 0, i)
-			}}
+			})
 		}(i)
 	}
 }
@@ -75,7 +85,8 @@ func acquireSegments(c int) []int {
 		return make([]int, 0, c)
 	}
 
-	return segmentsPools[getTableIndex(c)].Get().([]int)[:0]
+	//	return segmentsPools[getTableIndex(c)].Get().([]int)[:0]
+	return segmentsPools[getTableIndex(c)].Get()
 }
 
 func releaseSegments(s []int) {
@@ -87,5 +98,61 @@ func releaseSegments(s []int) {
 		return
 	}
 
-	segmentsPools[getTableIndex(cap(s))].Put(s)
+	segmentsPools[getTableIndex(c)].Put(s)
+}
+
+type maker func() []int
+
+type syncPool struct {
+	new  maker
+	pool sync.Pool
+}
+
+func newSyncPool(m maker) *syncPool {
+	return &syncPool{
+		new: m,
+		pool: sync.Pool{New: func() interface{} {
+			return m()
+		}},
+	}
+}
+
+func (s *syncPool) Get() []int {
+	return s.pool.Get().([]int)[:0]
+}
+
+func (s *syncPool) Put(x []int) {
+	s.pool.Put(x)
+}
+
+type chanPool struct {
+	pool  chan []int
+	new   maker
+	index int
+}
+
+func newChanPool(m maker) *chanPool {
+	return &chanPool{
+		pool: make(chan []int, 32),
+		new:  m,
+	}
+}
+
+func (c *chanPool) Get() []int {
+	select {
+	case s := <-c.pool:
+		return s[:0]
+	default:
+		// pool is empty
+		return c.new()
+	}
+}
+
+func (c *chanPool) Put(s []int) {
+	select {
+	case c.pool <- s:
+		// ok
+	default:
+		// pool is full
+	}
 }
