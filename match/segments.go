@@ -46,11 +46,6 @@ var segmentsByRuneLength [5][]int = [5][]int{
 	4: segments4,
 }
 
-const (
-	asciiLo = 0
-	asciiHi = 127
-)
-
 func init() {
 	for i := cacheToAndHigher; i >= cacheFrom; i >>= 1 {
 		func(i int) {
