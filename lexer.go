@@ -142,7 +142,7 @@ func newLexer(source string) *lexer {
 	l := &lexer{
 		input:       source,
 		state:       lexText,
-		items:       make(chan item, 5),
+		items:       make(chan item, len(source)),
 		termPhrases: make(map[int]int),
 	}
 	return l
@@ -299,9 +299,7 @@ func lexText(l *lexer) stateFn {
 			l.unread()
 			l.emitMaybe(item_text)
 			return lexSeparator
-
 		}
-
 	}
 
 	if l.pos > l.start {
