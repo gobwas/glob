@@ -101,8 +101,8 @@ If you will not use compiled `glob.Glob` object, and do `g := glob.MustCompile(p
 
 Run `go test -bench=.` from source root to see the benchmarks:
 
-Pattern | Fixture | Match | Operations | Speed (ns/op)
---------|---------|-------|------------|--------------
+Pattern | Fixture | Match | Speed (ns/op)
+--------|---------|-------|--------------
 `[a-z][!a-x]*cat*[h][!b]*eyes*` | `my cat has very bright eyes` | `true` | 432
 `[a-z][!a-x]*cat*[h][!b]*eyes*` | `my dog has very bright eyes` | `false` | 199
 `https://*.google.*` | `https://account.google.com` | `true` | 96
@@ -120,8 +120,8 @@ Pattern | Fixture | Match | Operations | Speed (ns/op)
 
 The same things with `regexp` package:
 
-Pattern | Fixture | Match | Operations | Speed (ns/op)
---------|---------|-------|------------|--------------
+Pattern | Fixture | Match | Speed (ns/op)
+--------|---------|-------|--------------
 `^[a-z][^a-x].*cat.*[h][^b].*eyes.*$` | `my cat has very bright eyes` | `true` | 2553
 `^[a-z][^a-x].*cat.*[h][^b].*eyes.*$` | `my dog has very bright eyes` | `false` | 1383
 `^https:\/\/.*\.google\..*$` | `https://account.google.com` | `true` | 1205
