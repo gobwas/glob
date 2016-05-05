@@ -5,6 +5,8 @@ type Glob interface {
 	Match(string) bool
 }
 
+type Globs []Glob
+
 // Compile creates Glob for given pattern and strings (if any present after pattern) as separators.
 // The pattern syntax is:
 //
