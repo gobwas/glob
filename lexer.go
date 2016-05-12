@@ -123,6 +123,20 @@ func (i item) String() string {
 	return fmt.Sprintf("%v<%s>", i.t, i.s)
 }
 
+type stubLexer struct {
+	Items []item
+	pos   int
+}
+
+func (s *stubLexer) nextItem() (ret item) {
+	if s.pos == len(s.Items) {
+		return item{item_eof, ""}
+	}
+	ret = s.Items[s.pos]
+	s.pos++
+	return
+}
+
 type lexer struct {
 	input       string
 	start       int

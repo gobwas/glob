@@ -16,6 +16,14 @@ func TestLexGood(t *testing.T) {
 				item{item_eof, ""},
 			},
 		},
+		//{
+		//	 TODO(gobwas): this is freezing on globtest/globdraw (`]]` syntax error)
+		//pattern: "/{rate,[0-9]]}*",
+		//items: []item{
+		//	item{item_text, "hello"},
+		//	item{item_eof, ""},
+		//},
+		//},
 		{
 			pattern: "hello,world",
 			items: []item{
@@ -111,6 +119,19 @@ func TestLexGood(t *testing.T) {
 				item{item_separator, ","},
 				item{item_text, "b"},
 				item{item_terms_close, "}"},
+				item{item_eof, ""},
+			},
+		},
+		{
+			pattern: "/{z,ab}*",
+			items: []item{
+				item{item_text, "/"},
+				item{item_terms_open, "{"},
+				item{item_text, "z"},
+				item{item_separator, ","},
+				item{item_text, "ab"},
+				item{item_terms_close, "}"},
+				item{item_any, "*"},
 				item{item_eof, ""},
 			},
 		},

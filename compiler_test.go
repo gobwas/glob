@@ -2,6 +2,7 @@ package glob
 
 import (
 	"github.com/gobwas/glob/match"
+	"github.com/gobwas/glob/match/debug"
 	"reflect"
 	"testing"
 )
@@ -206,209 +207,210 @@ func TestCompiler(t *testing.T) {
 		result Glob
 		sep    []rune
 	}{
+		//{
+		//	ast:    pattern(&nodeText{text: "abc"}),
+		//	result: match.NewText("abc"),
+		//},
+		//{
+		//	ast:    pattern(&nodeAny{}),
+		//	sep:    separators,
+		//	result: match.NewAny(separators),
+		//},
+		//{
+		//	ast:    pattern(&nodeAny{}),
+		//	result: match.NewSuper(),
+		//},
+		//{
+		//	ast:    pattern(&nodeSuper{}),
+		//	result: match.NewSuper(),
+		//},
+		//{
+		//	ast:    pattern(&nodeSingle{}),
+		//	sep:    separators,
+		//	result: match.NewSingle(separators),
+		//},
+		//{
+		//	ast: pattern(&nodeRange{
+		//		lo:  'a',
+		//		hi:  'z',
+		//		not: true,
+		//	}),
+		//	result: match.NewRange('a', 'z', true),
+		//},
+		//{
+		//	ast: pattern(&nodeList{
+		//		chars: "abc",
+		//		not:   true,
+		//	}),
+		//	result: match.NewList([]rune{'a', 'b', 'c'}, true),
+		//},
+		//{
+		//	ast: pattern(&nodeAny{}, &nodeSingle{}, &nodeSingle{}, &nodeSingle{}),
+		//	sep: separators,
+		//	result: match.EveryOf{Matchers: match.Matchers{
+		//		match.NewMin(3),
+		//		match.NewContains(string(separators), true),
+		//	}},
+		//},
+		//{
+		//	ast:    pattern(&nodeAny{}, &nodeSingle{}, &nodeSingle{}, &nodeSingle{}),
+		//	result: match.NewMin(3),
+		//},
+		//{
+		//	ast: pattern(&nodeAny{}, &nodeText{text: "abc"}, &nodeSingle{}),
+		//	sep: separators,
+		//	result: match.NewBTree(
+		//		match.NewRow(
+		//			4,
+		//			match.Matchers{
+		//				match.NewText("abc"),
+		//				match.NewSingle(separators),
+		//			}...,
+		//		),
+		//		match.NewAny(separators),
+		//		nil,
+		//	),
+		//},
 		{
-			ast:    pattern(&nodeText{text: "abc"}),
-			result: match.NewText("abc"),
-		},
-		{
-			ast:    pattern(&nodeAny{}),
-			sep:    separators,
-			result: match.NewAny(separators),
-		},
-		{
-			ast:    pattern(&nodeAny{}),
-			result: match.NewSuper(),
-		},
-		{
-			ast:    pattern(&nodeSuper{}),
-			result: match.NewSuper(),
-		},
-		{
-			ast:    pattern(&nodeSingle{}),
-			sep:    separators,
-			result: match.NewSingle(separators),
-		},
-		{
-			ast: pattern(&nodeRange{
-				lo:  'a',
-				hi:  'z',
-				not: true,
-			}),
-			result: match.NewRange('a', 'z', true),
-		},
-		{
-			ast: pattern(&nodeList{
-				chars: "abc",
-				not:   true,
-			}),
-			result: match.NewList([]rune{'a', 'b', 'c'}, true),
-		},
-		{
-			ast: pattern(&nodeAny{}, &nodeSingle{}, &nodeSingle{}, &nodeSingle{}),
-			sep: separators,
-			result: match.EveryOf{Matchers: match.Matchers{
-				match.NewMin(3),
-				match.NewContains(string(separators), true),
-			}},
-		},
-		{
-			ast:    pattern(&nodeAny{}, &nodeSingle{}, &nodeSingle{}, &nodeSingle{}),
-			result: match.NewMin(3),
-		},
-		{
-			ast: pattern(&nodeAny{}, &nodeText{text: "abc"}, &nodeSingle{}),
-			sep: separators,
-			result: match.NewBTree(
-				match.NewRow(
-					4,
-					match.Matchers{
-						match.NewText("abc"),
-						match.NewSingle(separators),
-					}...,
-				),
-				match.NewAny(separators),
-				nil,
-			),
-		},
-		{
-			ast: pattern(&nodeSuper{}, &nodeSingle{}, &nodeText{text: "abc"}, &nodeSingle{}),
-			sep: separators,
-			result: match.NewBTree(
-				match.NewRow(
-					5,
-					match.Matchers{
-						match.NewSingle(separators),
-						match.NewText("abc"),
-						match.NewSingle(separators),
-					}...,
-				),
-				match.NewSuper(),
-				nil,
-			),
-		},
-		{
-			ast:    pattern(&nodeAny{}, &nodeText{text: "abc"}),
-			result: match.NewSuffix("abc"),
-		},
-		{
-			ast:    pattern(&nodeText{text: "abc"}, &nodeAny{}),
-			result: match.NewPrefix("abc"),
-		},
-		{
-			ast:    pattern(&nodeText{text: "abc"}, &nodeAny{}, &nodeText{text: "def"}),
-			result: match.NewPrefixSuffix("abc", "def"),
-		},
-		{
-			ast:    pattern(&nodeAny{}, &nodeAny{}, &nodeAny{}, &nodeText{text: "abc"}, &nodeAny{}, &nodeAny{}),
-			result: match.NewContains("abc", false),
-		},
-		{
-			ast: pattern(&nodeAny{}, &nodeAny{}, &nodeAny{}, &nodeText{text: "abc"}, &nodeAny{}, &nodeAny{}),
+			ast: pattern(&nodeText{text: "/"}, anyOf(&nodeText{text: "z"}, &nodeText{text: "ab"}), &nodeSuper{}),
 			sep: separators,
 			result: match.NewBTree(
-				match.NewText("abc"),
-				match.NewAny(separators),
-				match.NewAny(separators),
-			),
-		},
-		{
-			ast: pattern(&nodeSuper{}, &nodeSingle{}, &nodeText{text: "abc"}, &nodeSuper{}, &nodeSingle{}),
-			result: match.NewBTree(
-				match.NewText("abc"),
-				match.NewMin(1),
-				match.NewMin(1),
-			),
-		},
-		{
-			ast:    pattern(anyOf(&nodeText{text: "abc"})),
-			result: match.NewText("abc"),
-		},
-		{
-			ast:    pattern(anyOf(pattern(anyOf(pattern(&nodeText{text: "abc"}))))),
-			result: match.NewText("abc"),
-		},
-		{
-			ast: pattern(anyOf(
-				pattern(
-					&nodeText{text: "abc"},
-					&nodeSingle{},
-				),
-				pattern(
-					&nodeText{text: "abc"},
-					&nodeList{chars: "def"},
-				),
-				pattern(
-					&nodeText{text: "abc"},
-				),
-				pattern(
-					&nodeText{text: "abc"},
-				),
-			)),
-			result: match.NewBTree(
-				match.NewText("abc"),
+				match.NewText("/"),
 				nil,
-				match.AnyOf{Matchers: match.Matchers{
-					match.NewSingle(nil),
-					match.NewList([]rune{'d', 'e', 'f'}, false),
-					match.NewNothing(),
-				}},
+				match.NewBTree(
+					match.NewAnyOf(match.NewText("z"), match.NewText("ab")),
+					nil,
+					match.NewSuper(),
+				),
 			),
 		},
-		{
-			ast: pattern(
-				&nodeRange{lo: 'a', hi: 'z'},
-				&nodeRange{lo: 'a', hi: 'x', not: true},
-				&nodeAny{},
-			),
-			result: match.NewBTree(
-				match.NewRow(
-					2,
-					match.Matchers{
-						match.NewRange('a', 'z', false),
-						match.NewRange('a', 'x', true),
-					}...,
-				),
-				nil,
-				match.NewSuper(),
-			),
-		},
-		{
-			ast: pattern(anyOf(
-				pattern(
-					&nodeText{text: "abc"},
-					&nodeList{chars: "abc"},
-					&nodeText{text: "ghi"},
-				),
-				pattern(
-					&nodeText{text: "abc"},
-					&nodeList{chars: "def"},
-					&nodeText{text: "ghi"},
-				),
-			)),
-			result: match.NewRow(
-				7,
-				match.Matchers{
-					match.NewText("abc"),
-					match.AnyOf{Matchers: match.Matchers{
-						match.NewList([]rune{'a', 'b', 'c'}, false),
-						match.NewList([]rune{'d', 'e', 'f'}, false),
-					}},
-					match.NewText("ghi"),
-				}...,
-			),
-		},
-		//				{
-		//			ast: pattern(
-		//				anyOf(&nodeText{text: "a"}, &nodeText{text: "b"}),
-		//				anyOf(&nodeText{text: "c"}, &nodeText{text: "d"}),
-		//			),
-		//			result: match.AnyOf{Matchers: match.Matchers{
-		//				match.NewRow(Matchers: match.Matchers{match.Raw{"a"}, match.Raw{"c", 1}}),
-		//				match.NewRow(Matchers: match.Matchers{match.Raw{"a"}, match.Raw{"d"}}),
-		//				match.NewRow(Matchers: match.Matchers{match.Raw{"b"}, match.Raw{"c", 1}}),
-		//				match.NewRow(Matchers: match.Matchers{match.Raw{"b"}, match.Raw{"d"}}),
+		//{
+		//	ast: pattern(&nodeSuper{}, &nodeSingle{}, &nodeText{text: "abc"}, &nodeSingle{}),
+		//	sep: separators,
+		//	result: match.NewBTree(
+		//		match.NewRow(
+		//			5,
+		//			match.Matchers{
+		//				match.NewSingle(separators),
+		//				match.NewText("abc"),
+		//				match.NewSingle(separators),
+		//			}...,
+		//		),
+		//		match.NewSuper(),
+		//		nil,
+		//	),
+		//},
+		//{
+		//	ast:    pattern(&nodeAny{}, &nodeText{text: "abc"}),
+		//	result: match.NewSuffix("abc"),
+		//},
+		//{
+		//	ast:    pattern(&nodeText{text: "abc"}, &nodeAny{}),
+		//	result: match.NewPrefix("abc"),
+		//},
+		//{
+		//	ast:    pattern(&nodeText{text: "abc"}, &nodeAny{}, &nodeText{text: "def"}),
+		//	result: match.NewPrefixSuffix("abc", "def"),
+		//},
+		//{
+		//	ast:    pattern(&nodeAny{}, &nodeAny{}, &nodeAny{}, &nodeText{text: "abc"}, &nodeAny{}, &nodeAny{}),
+		//	result: match.NewContains("abc", false),
+		//},
+		//{
+		//	ast: pattern(&nodeAny{}, &nodeAny{}, &nodeAny{}, &nodeText{text: "abc"}, &nodeAny{}, &nodeAny{}),
+		//	sep: separators,
+		//	result: match.NewBTree(
+		//		match.NewText("abc"),
+		//		match.NewAny(separators),
+		//		match.NewAny(separators),
+		//	),
+		//},
+		//{
+		//	ast: pattern(&nodeSuper{}, &nodeSingle{}, &nodeText{text: "abc"}, &nodeSuper{}, &nodeSingle{}),
+		//	result: match.NewBTree(
+		//		match.NewText("abc"),
+		//		match.NewMin(1),
+		//		match.NewMin(1),
+		//	),
+		//},
+		//{
+		//	ast:    pattern(anyOf(&nodeText{text: "abc"})),
+		//	result: match.NewText("abc"),
+		//},
+		//{
+		//	ast:    pattern(anyOf(pattern(anyOf(pattern(&nodeText{text: "abc"}))))),
+		//	result: match.NewText("abc"),
+		//},
+		//{
+		//	ast: pattern(anyOf(
+		//		pattern(
+		//			&nodeText{text: "abc"},
+		//			&nodeSingle{},
+		//		),
+		//		pattern(
+		//			&nodeText{text: "abc"},
+		//			&nodeList{chars: "def"},
+		//		),
+		//		pattern(
+		//			&nodeText{text: "abc"},
+		//		),
+		//		pattern(
+		//			&nodeText{text: "abc"},
+		//		),
+		//	)),
+		//	result: match.NewBTree(
+		//		match.NewText("abc"),
+		//		nil,
+		//		match.AnyOf{Matchers: match.Matchers{
+		//			match.NewSingle(nil),
+		//			match.NewList([]rune{'d', 'e', 'f'}, false),
+		//			match.NewNothing(),
+		//		}},
+		//	),
+		//},
+		//{
+		//	ast: pattern(
+		//		&nodeRange{lo: 'a', hi: 'z'},
+		//		&nodeRange{lo: 'a', hi: 'x', not: true},
+		//		&nodeAny{},
+		//	),
+		//	result: match.NewBTree(
+		//		match.NewRow(
+		//			2,
+		//			match.Matchers{
+		//				match.NewRange('a', 'z', false),
+		//				match.NewRange('a', 'x', true),
+		//			}...,
+		//		),
+		//		nil,
+		//		match.NewSuper(),
+		//	),
+		//},
+		//{
+		//	ast: pattern(anyOf(
+		//		pattern(
+		//			&nodeText{text: "abc"},
+		//			&nodeList{chars: "abc"},
+		//			&nodeText{text: "ghi"},
+		//		),
+		//		pattern(
+		//			&nodeText{text: "abc"},
+		//			&nodeList{chars: "def"},
+		//			&nodeText{text: "ghi"},
+		//		),
+		//	)),
+		//	result: match.NewRow(
+		//		7,
+		//		match.Matchers{
+		//			match.NewText("abc"),
+		//			match.AnyOf{Matchers: match.Matchers{
+		//				match.NewList([]rune{'a', 'b', 'c'}, false),
+		//				match.NewList([]rune{'d', 'e', 'f'}, false),
 		//			}},
-		//		},
+		//			match.NewText("ghi"),
+		//		}...,
+		//	),
+		//},
 	} {
 		m, err := compile(test.ast, test.sep)
 		if err != nil {
@@ -417,7 +419,7 @@ func TestCompiler(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(m, test.result) {
-			t.Errorf("#%d results are not equal:\nexp: %#v\nact: %#v", id, test.result, m)
+			t.Errorf("#%d results are not equal:\nexp: %#v\nact: %#v\nexp:\n%s\nact:\n%s\n", id, test.result, m, debug.Graphviz("", test.result.(match.Matcher)), debug.Graphviz("", m.(match.Matcher)))
 			continue
 		}
 	}

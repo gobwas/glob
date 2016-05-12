@@ -490,8 +490,8 @@ func doAnyOf(n *nodeAnyOf, s []rune) (match.Matcher, error) {
 }
 
 func do(leaf node, s []rune) (m match.Matcher, err error) {
+	fmt.Println("node", reflect.Indirect(reflect.ValueOf(leaf)).Type().Name())
 	switch n := leaf.(type) {
-
 	case *nodeAnyOf:
 		// todo this could be faster on pattern_alternatives_combine_lite
 		if n := minimizeAnyOf(n.children()); n != nil {
