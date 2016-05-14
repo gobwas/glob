@@ -169,7 +169,7 @@ func TestQuoteMeta(t *testing.T) {
 	}{
 		{
 			in:  `[foo*]`,
-			out: `\[foo\*]`,
+			out: `\[foo\*\]`,
 		},
 		{
 			in:  `{foo*}`,

@@ -1,8 +1,11 @@
 package glob
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
+	"github.com/gobwas/glob/runes"
+	"io"
 	"strings"
 	"unicode/utf8"
 )
@@ -25,6 +28,7 @@ var specials = []byte{
 	char_single,
 	char_escape,
 	char_range_open,
+	char_range_close,
 	char_terms_open,
 	char_terms_close,
 }
@@ -34,8 +38,6 @@ func special(c byte) bool {
 }
 
 var eof rune = 0
-
-type stateFn func(*lexer) stateFn
 
 type itemType int
 
@@ -137,374 +139,185 @@ func (s *stubLexer) nextItem() (ret item) {
 }
 
 type lexer struct {
-	input       string
-	start       int
-	pos         int
-	width       int
-	runes       int
-	termScopes  []int
-	termPhrases map[int]int
-	state       stateFn
-	items       chan item
+	data       string
+	start      int
+	pos        int
+	current    rune
+	items      []item
+	termsLevel int
+	r          *bufio.Reader
 }
 
 func newLexer(source string) *lexer {
 	l := &lexer{
-		input:       source,
-		state:       lexRaw,
-		items:       make(chan item, len(source)+1),
-		termPhrases: make(map[int]int),
+		r:    bufio.NewReader(strings.NewReader(source)),
+		data: source,
 	}
 	return l
 }
 
-func (l *lexer) run() {
-	for state := lexRaw; state != nil; {
-		state = state(l)
-	}
-	close(l.items)
-}
-
-func (l *lexer) nextItem() item {
-	for {
-		select {
-		case item := <-l.items:
-			return item
-		default:
-			if l.state == nil {
-				return item{t: item_eof}
-			}
-
-			l.state = l.state(l)
-		}
-	}
-
-	panic("something went wrong")
-}
-
-func (l *lexer) read() (r rune) {
-	if l.pos >= len(l.input) {
-		return eof
-	}
-
-	r, l.width = utf8.DecodeRuneInString(l.input[l.pos:])
-	l.pos += l.width
-	l.runes++
-
+func (l *lexer) shiftItem() (ret item) {
+	ret, l.items = l.items[0], l.items[1:]
 	return
 }
 
-func (l *lexer) unread() {
-	l.pos -= l.width
-	l.runes--
+func (l *lexer) pushItem(i item) {
+	l.items = append(l.items, i)
 }
 
-func (l *lexer) reset() {
-	l.pos = l.start
-	l.runes = 0
+func (l *lexer) hasItem() bool {
+	return len(l.items) > 0
 }
 
-func (l *lexer) ignore() {
-	l.start = l.pos
-	l.runes = 0
-}
-
-func (l *lexer) lookahead() rune {
-	r := l.read()
-	if r != eof {
-		l.unread()
-	}
+func (l *lexer) peekRune() rune {
+	r, _ := utf8.DecodeRuneInString(l.data[l.start:])
 	return r
 }
 
-func (l *lexer) accept(valid string) bool {
-	if strings.IndexRune(valid, l.read()) != -1 {
-		return true
-	}
-	l.unread()
-	return false
-}
-
-func (l *lexer) acceptAll(valid string) {
-	for strings.IndexRune(valid, l.read()) != -1 {
-	}
-	l.unread()
-}
-
-func (l *lexer) emitCurrent(t itemType) {
-	l.emit(t, l.input[l.start:l.pos])
-}
-
-func (l *lexer) emit(t itemType, s string) {
-	l.items <- item{t, s}
-	l.start = l.pos
-	l.runes = 0
-	l.width = 0
-}
-
-func (l *lexer) errorf(format string, args ...interface{}) {
-	l.items <- item{item_error, fmt.Sprintf(format, args...)}
-}
-
 func (l *lexer) inTerms() bool {
-	return len(l.termScopes) > 0
+	return l.termsLevel > 0
 }
 
-func lexRaw(l *lexer) stateFn {
+func (l *lexer) termsEnter() {
+	l.termsLevel++
+}
+
+func (l *lexer) termsLeave() {
+	l.termsLevel--
+}
+
+func (l *lexer) nextItem() item {
+	if l.hasItem() {
+		return l.shiftItem()
+	}
+
+	r, _, err := l.r.ReadRune()
+	if err != nil {
+		switch err {
+		case io.EOF:
+			return item{item_eof, ""}
+		default:
+			return item{item_error, err.Error()}
+		}
+	}
+
+	switch r {
+	case char_terms_open:
+		l.termsEnter()
+		return item{item_terms_open, string(r)}
+
+	case char_comma:
+		if l.inTerms() {
+			return item{item_separator, string(r)}
+		}
+
+	case char_terms_close:
+		if l.inTerms() {
+			l.termsLeave()
+			return item{item_terms_close, string(r)}
+		}
+
+	case char_range_open:
+		l.fetchRange()
+		return item{item_range_open, string(r)}
+
+	case char_single:
+		return item{item_single, string(r)}
+
+	case char_any:
+		b, err := l.r.Peek(1)
+		if err == nil && b[0] == char_any {
+			l.r.ReadRune()
+			return item{item_super, string(r) + string(r)}
+		}
+		return item{item_any, string(r)}
+	}
+
+	l.r.UnreadRune()
+	breakers := []rune{char_single, char_any, char_range_open, char_terms_open}
+	if l.inTerms() {
+		breakers = append(breakers, char_terms_close, char_comma)
+	}
+	l.fetchText(breakers)
+
+	return l.nextItem()
+}
+
+func (l *lexer) fetchRange() {
+	var wantHi bool
+	var wantClose bool
+	var seenNot bool
 	for {
-		c := l.read()
-		if c == eof {
+		r, _, err := l.r.ReadRune()
+		if err != nil {
+			l.pushItem(item{item_error, err.Error()})
+			return
+		}
+
+		if wantClose {
+			if r != char_range_close {
+				l.pushItem(item{item_error, "expecting close range character"})
+			} else {
+				l.pushItem(item{item_range_close, string(r)})
+			}
+			return
+		}
+
+		if wantHi {
+			l.pushItem(item{item_range_hi, string(r)})
+			wantClose = true
+			continue
+		}
+
+		if !seenNot && r == char_range_not {
+			l.pushItem(item{item_not, string(r)})
+			seenNot = true
+			continue
+		}
+
+		b, err := l.r.Peek(1)
+		if err == nil && b[0] == char_range_between {
+			l.pushItem(item{item_range_lo, string(r)})
+			l.r.ReadRune()
+			l.pushItem(item{item_range_between, string(char_range_between)})
+			wantHi = true
+			continue
+		}
+
+		l.r.UnreadRune()
+		l.fetchText([]rune{char_range_close})
+		wantClose = true
+	}
+}
+
+func (l *lexer) fetchText(breakers []rune) {
+	var data []rune
+	var escaped bool
+
+reading:
+	for {
+		r, _, err := l.r.ReadRune()
+		if err != nil {
 			break
 		}
 
-		switch c {
-		case char_single:
-			l.unread()
-			return lexSingle
-
-		case char_any:
-			var n stateFn
-			if l.lookahead() == char_any {
-				n = lexSuper
-			} else {
-				n = lexAny
-			}
-
-			l.unread()
-			return n
-
-		case char_range_open:
-			l.unread()
-			return lexRangeOpen
-
-		case char_terms_open:
-			l.unread()
-			return lexTermsOpen
-
-		case char_terms_close:
-			if l.inTerms() { // if we are in terms
-				l.unread()
-				return lexTermsClose
-			}
-
-		case char_comma:
-			if l.inTerms() { // if we are in terms
-				l.unread()
-				return lexSeparator
-			}
-		}
-
-		l.unread()
-		return lexText
-	}
-
-	if l.pos > l.start {
-		l.emitCurrent(item_text)
-	}
-
-	if len(l.termScopes) != 0 {
-		l.errorf("invalid pattern syntax: unclosed terms")
-		return nil
-	}
-
-	l.emitCurrent(item_eof)
-
-	return nil
-}
-
-func lexText(l *lexer) stateFn {
-	var escaped bool
-	var data []rune
-
-scan:
-	for c := l.read(); c != eof; c = l.read() {
-		switch {
-		case c == char_escape:
-			escaped = true
-			continue
-
-		case !escaped && c == char_comma && l.inTerms():
-			l.unread()
-			break scan
-
-		case !escaped && utf8.RuneLen(c) == 1 && special(byte(c)):
-			l.unread()
-			break scan
-
-		default:
-			data = append(data, c)
-		}
-
-		escaped = false
-	}
-
-	if len(data) > 0 {
-		l.emit(item_text, string(data))
-	}
-
-	return lexRaw
-}
-
-func lexInsideRange(l *lexer) stateFn {
-	for {
-		c := l.read()
-		if c == eof {
-			l.errorf("unclosed range construction")
-			return nil
-		}
-
-		switch c {
-		case char_range_not:
-			// only first char makes sense
-			if l.pos-l.width == l.start {
-				l.emitCurrent(item_not)
-			}
-
-		case char_range_between:
-			if l.runes != 2 {
-				l.errorf("unexpected length of lo char inside range")
-				return nil
-			}
-
-			l.reset()
-			return lexRangeHiLo
-
-		case char_range_close:
-			if l.runes == 1 {
-				l.errorf("range should contain at least single char")
-				return nil
-			}
-
-			l.unread()
-			l.emitCurrent(item_text)
-			return lexRangeClose
-		}
-	}
-}
-
-func lexRangeHiLo(l *lexer) stateFn {
-	start := l.start
-
-	for {
-		c := l.read()
-		if c == eof {
-			l.errorf("unexpected end of input")
-			return nil
-		}
-
-		switch c {
-		case char_range_between:
-			if l.runes != 1 {
-				l.errorf("unexpected length of range: single character expected before minus")
-				return nil
-			}
-
-			l.emitCurrent(item_range_between)
-
-		case char_range_close:
-			l.unread()
-
-			if l.runes != 1 {
-				l.errorf("unexpected length of range: single character expected before close")
-				return nil
-			}
-
-			l.emitCurrent(item_range_hi)
-			return lexRangeClose
-
-		default:
-			if start != l.start {
+		if !escaped {
+			if r == char_escape {
+				escaped = true
 				continue
 			}
 
-			if l.runes != 1 {
-				l.errorf("unexpected length of range: single character expected at the begining")
-				return nil
+			if runes.IndexRune(breakers, r) != -1 {
+				l.r.UnreadRune()
+				break reading
 			}
-
-			l.emitCurrent(item_range_lo)
 		}
-	}
-}
 
-func lexAny(l *lexer) stateFn {
-	l.pos += 1
-	l.emitCurrent(item_any)
-	return lexRaw
-}
-
-func lexSuper(l *lexer) stateFn {
-	l.pos += 2
-	l.emitCurrent(item_super)
-	return lexRaw
-}
-
-func lexSingle(l *lexer) stateFn {
-	l.pos += 1
-	l.emitCurrent(item_single)
-	return lexRaw
-}
-
-func lexSeparator(l *lexer) stateFn {
-	posOpen := l.termScopes[len(l.termScopes)-1]
-
-	if l.pos-posOpen == 1 {
-		l.errorf("syntax error: empty term before separator")
-		return nil
+		escaped = false
+		data = append(data, r)
 	}
 
-	l.termPhrases[posOpen] += 1
-	l.pos += 1
-	l.emitCurrent(item_separator)
-	return lexRaw
-}
-
-func lexTermsOpen(l *lexer) stateFn {
-	l.termScopes = append(l.termScopes, l.pos)
-	l.pos += 1
-	l.emitCurrent(item_terms_open)
-
-	return lexRaw
-}
-
-func lexTermsClose(l *lexer) stateFn {
-	if len(l.termScopes) == 0 {
-		l.errorf("unexpected closing of terms: there is no opened terms")
-		return nil
+	if len(data) > 0 {
+		l.pushItem(item{item_text, string(data)})
 	}
-
-	lastOpen := len(l.termScopes) - 1
-	posOpen := l.termScopes[lastOpen]
-
-	// if it is empty term
-	if posOpen == l.pos-1 {
-		l.errorf("term could not be empty")
-		return nil
-	}
-
-	if l.termPhrases[posOpen] == 0 {
-		l.errorf("term must contain >1 phrases")
-		return nil
-	}
-
-	// cleanup
-	l.termScopes = l.termScopes[:lastOpen]
-	delete(l.termPhrases, posOpen)
-
-	l.pos += 1
-	l.emitCurrent(item_terms_close)
-
-	return lexRaw
-}
-
-func lexRangeOpen(l *lexer) stateFn {
-	l.pos += 1
-	l.emitCurrent(item_range_open)
-	return lexInsideRange
-}
-
-func lexRangeClose(l *lexer) stateFn {
-	l.pos += 1
-	l.emitCurrent(item_range_close)
-	return lexRaw
 }
