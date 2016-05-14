@@ -10,6 +10,12 @@ func TestLexGood(t *testing.T) {
 		items   []item
 	}{
 		{
+			pattern: "",
+			items: []item{
+				item{item_eof, ""},
+			},
+		},
+		{
 			pattern: "hello",
 			items: []item{
 				item{item_text, "hello"},

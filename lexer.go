@@ -152,7 +152,7 @@ func newLexer(source string) *lexer {
 	l := &lexer{
 		input:       source,
 		state:       lexRaw,
-		items:       make(chan item, len(source)),
+		items:       make(chan item, len(source)+1),
 		termPhrases: make(map[int]int),
 	}
 	return l

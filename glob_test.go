@@ -64,6 +64,9 @@ func TestGlob(t *testing.T) {
 	for _, test := range []test{
 		glob(true, "* ?at * eyes", "my cat has very bright eyes"),
 
+		glob(true, "", ""),
+		glob(false, "", "b"),
+
 		glob(true, "abc", "abc"),
 		glob(true, "a*c", "abc"),
 		glob(true, "a*c", "a12345c"),
