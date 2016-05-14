@@ -108,6 +108,10 @@ func TestGlob(t *testing.T) {
 		glob(true, "{*,**}{a,b}", "ab"),
 		glob(false, "{*,**}{a,b}", "ac"),
 
+		glob(true, "/{rate,[a-z][a-z][a-z]}*", "/rate"),
+		glob(true, "/{rate,[0-9][0-9][0-9]}*", "/rate"),
+		glob(true, "/{rate,[a-z][a-z][a-z]}*", "/usd"),
+
 		glob(true, pattern_all, fixture_all_match),
 		glob(false, pattern_all, fixture_all_mismatch),
 
@@ -162,7 +166,11 @@ func TestQuoteMeta(t *testing.T) {
 	}{
 		{
 			in:  `[foo*]`,
-			out: `\[foo\*\]`,
+			out: `\[foo\*]`,
+		},
+		{
+			in:  `{foo*}`,
+			out: `\{foo\*\}`,
 		},
 		{
 			in:  string(specials),

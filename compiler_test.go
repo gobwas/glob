@@ -2,6 +2,7 @@ package glob
 
 import (
 	"github.com/gobwas/glob/match"
+	"github.com/gobwas/glob/match/debug"
 	"reflect"
 	"testing"
 )
@@ -271,6 +272,19 @@ func TestCompiler(t *testing.T) {
 			),
 		},
 		{
+			ast: pattern(&nodeText{text: "/"}, anyOf(&nodeText{text: "z"}, &nodeText{text: "ab"}), &nodeSuper{}),
+			sep: separators,
+			result: match.NewBTree(
+				match.NewText("/"),
+				nil,
+				match.NewBTree(
+					match.NewAnyOf(match.NewText("z"), match.NewText("ab")),
+					nil,
+					match.NewSuper(),
+				),
+			),
+		},
+		{
 			ast: pattern(&nodeSuper{}, &nodeSingle{}, &nodeText{text: "abc"}, &nodeSingle{}),
 			sep: separators,
 			result: match.NewBTree(
@@ -397,18 +411,6 @@ func TestCompiler(t *testing.T) {
 				}...,
 			),
 		},
-		//				{
-		//			ast: pattern(
-		//				anyOf(&nodeText{text: "a"}, &nodeText{text: "b"}),
-		//				anyOf(&nodeText{text: "c"}, &nodeText{text: "d"}),
-		//			),
-		//			result: match.AnyOf{Matchers: match.Matchers{
-		//				match.NewRow(Matchers: match.Matchers{match.Raw{"a"}, match.Raw{"c", 1}}),
-		//				match.NewRow(Matchers: match.Matchers{match.Raw{"a"}, match.Raw{"d"}}),
-		//				match.NewRow(Matchers: match.Matchers{match.Raw{"b"}, match.Raw{"c", 1}}),
-		//				match.NewRow(Matchers: match.Matchers{match.Raw{"b"}, match.Raw{"d"}}),
-		//			}},
-		//		},
 	} {
 		m, err := compile(test.ast, test.sep)
 		if err != nil {
@@ -417,7 +419,7 @@ func TestCompiler(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(m, test.result) {
-			t.Errorf("#%d results are not equal:\nexp: %#v\nact: %#v", id, test.result, m)
+			t.Errorf("#%d results are not equal:\nexp: %#v\nact: %#v\nexp:\n%s\nact:\n%s\n", id, test.result, m, debug.Graphviz("", test.result.(match.Matcher)), debug.Graphviz("", m.(match.Matcher)))
 			continue
 		}
 	}

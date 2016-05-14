@@ -25,7 +25,6 @@ var specials = []byte{
 	char_single,
 	char_escape,
 	char_range_open,
-	char_range_close,
 	char_terms_open,
 	char_terms_close,
 }
@@ -121,6 +120,20 @@ type item struct {
 
 func (i item) String() string {
 	return fmt.Sprintf("%v<%s>", i.t, i.s)
+}
+
+type stubLexer struct {
+	Items []item
+	pos   int
+}
+
+func (s *stubLexer) nextItem() (ret item) {
+	if s.pos == len(s.Items) {
+		return item{item_eof, ""}
+	}
+	ret = s.Items[s.pos]
+	s.pos++
+	return
 }
 
 type lexer struct {
@@ -269,20 +282,20 @@ func lexRaw(l *lexer) stateFn {
 			return lexTermsOpen
 
 		case char_terms_close:
-			l.unread()
-			return lexTermsClose
+			if l.inTerms() { // if we are in terms
+				l.unread()
+				return lexTermsClose
+			}
 
 		case char_comma:
-			if l.inTerms() { // if we are not in terms
+			if l.inTerms() { // if we are in terms
 				l.unread()
 				return lexSeparator
 			}
-			fallthrough
-
-		default:
-			l.unread()
-			return lexText
 		}
+
+		l.unread()
+		return lexText
 	}
 
 	if l.pos > l.start {
@@ -325,7 +338,10 @@ scan:
 		escaped = false
 	}
 
-	l.emit(item_text, string(data))
+	if len(data) > 0 {
+		l.emit(item_text, string(data))
+	}
+
 	return lexRaw
 }
 

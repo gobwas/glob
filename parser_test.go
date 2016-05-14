@@ -8,11 +8,15 @@ import (
 
 func TestParseString(t *testing.T) {
 	for id, test := range []struct {
-		pattern string
-		tree    node
+		items []item
+		tree  node
 	}{
 		{
-			pattern: "abc",
+			//pattern: "abc",
+			items: []item{
+				item{item_text, "abc"},
+				item{item_eof, ""},
+			},
 			tree: &nodePattern{
 				nodeImpl: nodeImpl{
 					desc: []node{
@@ -22,7 +26,13 @@ func TestParseString(t *testing.T) {
 			},
 		},
 		{
-			pattern: "a*c",
+			//pattern: "a*c",
+			items: []item{
+				item{item_text, "a"},
+				item{item_any, "*"},
+				item{item_text, "c"},
+				item{item_eof, ""},
+			},
 			tree: &nodePattern{
 				nodeImpl: nodeImpl{
 					desc: []node{
@@ -34,7 +44,13 @@ func TestParseString(t *testing.T) {
 			},
 		},
 		{
-			pattern: "a**c",
+			//pattern: "a**c",
+			items: []item{
+				item{item_text, "a"},
+				item{item_super, "**"},
+				item{item_text, "c"},
+				item{item_eof, ""},
+			},
 			tree: &nodePattern{
 				nodeImpl: nodeImpl{
 					desc: []node{
@@ -46,7 +62,13 @@ func TestParseString(t *testing.T) {
 			},
 		},
 		{
-			pattern: "a?c",
+			//pattern: "a?c",
+			items: []item{
+				item{item_text, "a"},
+				item{item_single, "?"},
+				item{item_text, "c"},
+				item{item_eof, ""},
+			},
 			tree: &nodePattern{
 				nodeImpl: nodeImpl{
 					desc: []node{
@@ -58,7 +80,16 @@ func TestParseString(t *testing.T) {
 			},
 		},
 		{
-			pattern: "[!a-z]",
+			//pattern: "[!a-z]",
+			items: []item{
+				item{item_range_open, "["},
+				item{item_not, "!"},
+				item{item_range_lo, "a"},
+				item{item_range_between, "-"},
+				item{item_range_hi, "z"},
+				item{item_range_close, "]"},
+				item{item_eof, ""},
+			},
 			tree: &nodePattern{
 				nodeImpl: nodeImpl{
 					desc: []node{
@@ -68,7 +99,13 @@ func TestParseString(t *testing.T) {
 			},
 		},
 		{
-			pattern: "[az]",
+			//pattern: "[az]",
+			items: []item{
+				item{item_range_open, "["},
+				item{item_text, "az"},
+				item{item_range_close, "]"},
+				item{item_eof, ""},
+			},
 			tree: &nodePattern{
 				nodeImpl: nodeImpl{
 					desc: []node{
@@ -78,7 +115,15 @@ func TestParseString(t *testing.T) {
 			},
 		},
 		{
-			pattern: "{a,z}",
+			//pattern: "{a,z}",
+			items: []item{
+				item{item_terms_open, "{"},
+				item{item_text, "a"},
+				item{item_separator, ","},
+				item{item_text, "z"},
+				item{item_terms_close, "}"},
+				item{item_eof, ""},
+			},
 			tree: &nodePattern{
 				nodeImpl: nodeImpl{
 					desc: []node{
@@ -99,7 +144,65 @@ func TestParseString(t *testing.T) {
 			},
 		},
 		{
-			pattern: "{a,{x,y},?,[a-z],[!qwe]}",
+			//pattern: "/{z,ab}*",
+			items: []item{
+				item{item_text, "/"},
+				item{item_terms_open, "{"},
+				item{item_text, "z"},
+				item{item_separator, ","},
+				item{item_text, "ab"},
+				item{item_terms_close, "}"},
+				item{item_any, "*"},
+				item{item_eof, ""},
+			},
+			tree: &nodePattern{
+				nodeImpl: nodeImpl{
+					desc: []node{
+						&nodeText{text: "/"},
+						&nodeAnyOf{nodeImpl: nodeImpl{desc: []node{
+							&nodePattern{
+								nodeImpl: nodeImpl{desc: []node{
+									&nodeText{text: "z"},
+								}},
+							},
+							&nodePattern{
+								nodeImpl: nodeImpl{desc: []node{
+									&nodeText{text: "ab"},
+								}},
+							},
+						}}},
+						&nodeAny{},
+					},
+				},
+			},
+		},
+		{
+			//pattern: "{a,{x,y},?,[a-z],[!qwe]}",
+			items: []item{
+				item{item_terms_open, "{"},
+				item{item_text, "a"},
+				item{item_separator, ","},
+				item{item_terms_open, "{"},
+				item{item_text, "x"},
+				item{item_separator, ","},
+				item{item_text, "y"},
+				item{item_terms_close, "}"},
+				item{item_separator, ","},
+				item{item_single, "?"},
+				item{item_separator, ","},
+				item{item_range_open, "["},
+				item{item_range_lo, "a"},
+				item{item_range_between, "-"},
+				item{item_range_hi, "z"},
+				item{item_range_close, "]"},
+				item{item_separator, ","},
+				item{item_range_open, "["},
+				item{item_not, "!"},
+				item{item_text, "qwe"},
+				item{item_range_close, "]"},
+				item{item_terms_close, "}"},
+				item{item_eof, ""},
+			},
 			tree: &nodePattern{
 				nodeImpl: nodeImpl{
 					desc: []node{
@@ -150,7 +253,9 @@ func TestParseString(t *testing.T) {
 			},
 		},
 	} {
-		pattern, err := parse(newLexer(test.pattern))
+		lexer := &stubLexer{Items: test.items}
+		pattern, err := parse(lexer)
+
 		if err != nil {
 			t.Errorf("#%d %s", id, err)
 			continue
