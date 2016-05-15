@@ -136,7 +136,9 @@ func (s *stubLexer) nextItem() (ret item) {
 type items []item
 
 func (i *items) shift() (ret item) {
-	ret, *i = (*i)[0], (*i)[1:]
+	ret = (*i)[0]
+	copy(*i, (*i)[1:])
+	*i = (*i)[:len(*i)-1]
 	return
 }
 
@@ -165,7 +167,8 @@ type lexer struct {
 
 func newLexer(source string) *lexer {
 	l := &lexer{
-		data: source,
+		data:  source,
+		items: items(make([]item, 0, 4)),
 	}
 	return l
 }
@@ -242,6 +245,9 @@ func (l *lexer) nextItem() item {
 	return l.nextItem()
 }
 
+var inTextBreakers = []rune{char_single, char_any, char_range_open, char_terms_open}
+var inTermsBreakers = append(inTextBreakers, char_terms_close, char_comma)
+
 func (l *lexer) fetchItem() {
 	r := l.read()
 	switch {
@@ -276,9 +282,12 @@ func (l *lexer) fetchItem() {
 
 	default:
 		l.unread()
-		breakers := []rune{char_single, char_any, char_range_open, char_terms_open}
+
+		var breakers []rune
 		if l.inTerms() {
-			breakers = append(breakers, char_terms_close, char_comma)
+			breakers = inTermsBreakers
+		} else {
+			breakers = inTextBreakers
 		}
 		l.fetchText(breakers)
 	}
