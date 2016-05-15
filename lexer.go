@@ -1,12 +1,9 @@
 package glob
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"github.com/gobwas/glob/runes"
-	"io"
-	"strings"
 	"unicode/utf8"
 )
 
@@ -36,8 +33,6 @@ var specials = []byte{
 func special(c byte) bool {
 	return bytes.IndexByte(specials, c) != -1
 }
-
-var eof rune = 0
 
 type itemType int
 
@@ -121,7 +116,7 @@ type item struct {
 }
 
 func (i item) String() string {
-	return fmt.Sprintf("%v<%s>", i.t, i.s)
+	return fmt.Sprintf("%v<%q>", i.t, i.s)
 }
 
 type stubLexer struct {
@@ -138,40 +133,89 @@ func (s *stubLexer) nextItem() (ret item) {
 	return
 }
 
+type items []item
+
+func (i *items) shift() (ret item) {
+	ret, *i = (*i)[0], (*i)[1:]
+	return
+}
+
+func (i *items) push(v item) {
+	*i = append(*i, v)
+}
+
+func (i *items) empty() bool {
+	return len(*i) == 0
+}
+
+var eof rune = 0
+
 type lexer struct {
-	data       string
-	start      int
-	pos        int
-	current    rune
-	items      []item
+	data string
+	pos  int
+	err  error
+
+	items      items
 	termsLevel int
-	r          *bufio.Reader
+
+	lastRune     rune
+	lastRuneSize int
+	hasRune      bool
 }
 
 func newLexer(source string) *lexer {
 	l := &lexer{
-		r:    bufio.NewReader(strings.NewReader(source)),
 		data: source,
 	}
 	return l
 }
 
-func (l *lexer) shiftItem() (ret item) {
-	ret, l.items = l.items[0], l.items[1:]
+func (l *lexer) peek() (r rune, w int) {
+	if l.pos == len(l.data) {
+		return eof, 0
+	}
+
+	r, w = utf8.DecodeRuneInString(l.data[l.pos:])
+	if r == utf8.RuneError {
+		l.errorf("could not read rune")
+		r = eof
+		w = 0
+	}
+
 	return
 }
 
-func (l *lexer) pushItem(i item) {
-	l.items = append(l.items, i)
-}
+func (l *lexer) read() rune {
+	if l.hasRune {
+		l.hasRune = false
+		l.seek(l.lastRuneSize)
+		return l.lastRune
+	}
 
-func (l *lexer) hasItem() bool {
-	return len(l.items) > 0
-}
+	r, s := l.peek()
+	l.seek(s)
 
-func (l *lexer) peekRune() rune {
-	r, _ := utf8.DecodeRuneInString(l.data[l.start:])
+	l.lastRune = r
+	l.lastRuneSize = s
+
 	return r
+}
+
+func (l *lexer) seek(w int) {
+	l.pos += w
+}
+
+func (l *lexer) unread() {
+	if l.hasRune {
+		l.errorf("could not unread rune")
+		return
+	}
+	l.seek(-l.lastRuneSize)
+	l.hasRune = true
+}
+
+func (l *lexer) errorf(f string, v ...interface{}) {
+	l.err = fmt.Errorf(f, v...)
 }
 
 func (l *lexer) inTerms() bool {
@@ -187,60 +231,57 @@ func (l *lexer) termsLeave() {
 }
 
 func (l *lexer) nextItem() item {
-	if l.hasItem() {
-		return l.shiftItem()
+	if l.err != nil {
+		return item{item_error, l.err.Error()}
+	}
+	if !l.items.empty() {
+		return l.items.shift()
 	}
 
-	r, _, err := l.r.ReadRune()
-	if err != nil {
-		switch err {
-		case io.EOF:
-			return item{item_eof, ""}
-		default:
-			return item{item_error, err.Error()}
-		}
-	}
-
-	switch r {
-	case char_terms_open:
-		l.termsEnter()
-		return item{item_terms_open, string(r)}
-
-	case char_comma:
-		if l.inTerms() {
-			return item{item_separator, string(r)}
-		}
-
-	case char_terms_close:
-		if l.inTerms() {
-			l.termsLeave()
-			return item{item_terms_close, string(r)}
-		}
-
-	case char_range_open:
-		l.fetchRange()
-		return item{item_range_open, string(r)}
-
-	case char_single:
-		return item{item_single, string(r)}
-
-	case char_any:
-		b, err := l.r.Peek(1)
-		if err == nil && b[0] == char_any {
-			l.r.ReadRune()
-			return item{item_super, string(r) + string(r)}
-		}
-		return item{item_any, string(r)}
-	}
-
-	l.r.UnreadRune()
-	breakers := []rune{char_single, char_any, char_range_open, char_terms_open}
-	if l.inTerms() {
-		breakers = append(breakers, char_terms_close, char_comma)
-	}
-	l.fetchText(breakers)
-
+	l.fetchItem()
 	return l.nextItem()
+}
+
+func (l *lexer) fetchItem() {
+	r := l.read()
+	switch {
+	case r == eof:
+		l.items.push(item{item_eof, ""})
+
+	case r == char_terms_open:
+		l.termsEnter()
+		l.items.push(item{item_terms_open, string(r)})
+
+	case r == char_comma && l.inTerms():
+		l.items.push(item{item_separator, string(r)})
+
+	case r == char_terms_close && l.inTerms():
+		l.items.push(item{item_terms_close, string(r)})
+		l.termsLeave()
+
+	case r == char_range_open:
+		l.items.push(item{item_range_open, string(r)})
+		l.fetchRange()
+
+	case r == char_single:
+		l.items.push(item{item_single, string(r)})
+
+	case r == char_any:
+		if l.read() == char_any {
+			l.items.push(item{item_super, string(r) + string(r)})
+		} else {
+			l.unread()
+			l.items.push(item{item_any, string(r)})
+		}
+
+	default:
+		l.unread()
+		breakers := []rune{char_single, char_any, char_range_open, char_terms_open}
+		if l.inTerms() {
+			breakers = append(breakers, char_terms_close, char_comma)
+		}
+		l.fetchText(breakers)
+	}
 }
 
 func (l *lexer) fetchRange() {
@@ -248,43 +289,42 @@ func (l *lexer) fetchRange() {
 	var wantClose bool
 	var seenNot bool
 	for {
-		r, _, err := l.r.ReadRune()
-		if err != nil {
-			l.pushItem(item{item_error, err.Error()})
+		r := l.read()
+		if r == eof {
+			l.errorf("unexpected end of input")
 			return
 		}
 
 		if wantClose {
 			if r != char_range_close {
-				l.pushItem(item{item_error, "expecting close range character"})
+				l.errorf("expected close range character")
 			} else {
-				l.pushItem(item{item_range_close, string(r)})
+				l.items.push(item{item_range_close, string(r)})
 			}
 			return
 		}
 
 		if wantHi {
-			l.pushItem(item{item_range_hi, string(r)})
+			l.items.push(item{item_range_hi, string(r)})
 			wantClose = true
 			continue
 		}
 
 		if !seenNot && r == char_range_not {
-			l.pushItem(item{item_not, string(r)})
+			l.items.push(item{item_not, string(r)})
 			seenNot = true
 			continue
 		}
 
-		b, err := l.r.Peek(1)
-		if err == nil && b[0] == char_range_between {
-			l.pushItem(item{item_range_lo, string(r)})
-			l.r.ReadRune()
-			l.pushItem(item{item_range_between, string(char_range_between)})
+		if n, w := l.peek(); n == char_range_between {
+			l.seek(w)
+			l.items.push(item{item_range_lo, string(r)})
+			l.items.push(item{item_range_between, string(n)})
 			wantHi = true
 			continue
 		}
 
-		l.r.UnreadRune()
+		l.unread() // unread first peek and fetch as text
 		l.fetchText([]rune{char_range_close})
 		wantClose = true
 	}
@@ -296,8 +336,8 @@ func (l *lexer) fetchText(breakers []rune) {
 
 reading:
 	for {
-		r, _, err := l.r.ReadRune()
-		if err != nil {
+		r := l.read()
+		if r == eof {
 			break
 		}
 
@@ -308,7 +348,7 @@ reading:
 			}
 
 			if runes.IndexRune(breakers, r) != -1 {
-				l.r.UnreadRune()
+				l.unread()
 				break reading
 			}
 		}
@@ -318,6 +358,6 @@ reading:
 	}
 
 	if len(data) > 0 {
-		l.pushItem(item{item_text, string(data)})
+		l.items.push(item{item_text, string(data)})
 	}
 }
