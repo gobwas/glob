@@ -66,12 +66,24 @@ type lexer struct {
 	hasRune      bool
 }
 
-func newLexer(source string) *lexer {
+func NewLexer(source string) *lexer {
 	l := &lexer{
 		data:   source,
 		tokens: tokens(make([]Token, 0, 4)),
 	}
 	return l
+}
+
+func (l *lexer) Next() Token {
+	if l.err != nil {
+		return Token{Error, l.err.Error()}
+	}
+	if !l.tokens.empty() {
+		return l.tokens.shift()
+	}
+
+	l.fetchItem()
+	return l.Next()
 }
 
 func (l *lexer) peek() (r rune, w int) {
@@ -132,18 +144,6 @@ func (l *lexer) termsEnter() {
 
 func (l *lexer) termsLeave() {
 	l.termsLevel--
-}
-
-func (l *lexer) nextItem() Token {
-	if l.err != nil {
-		return Token{Error, l.err.Error()}
-	}
-	if !l.tokens.empty() {
-		return l.tokens.shift()
-	}
-
-	l.fetchItem()
-	return l.nextItem()
 }
 
 var inTextBreakers = []rune{char_single, char_any, char_range_open, char_terms_open}

@@ -1,9 +1,9 @@
-package parser
+package ast
 
 import (
 	"errors"
 	"fmt"
-	"github.com/gobwas/glob/lexer"
+	"github.com/gobwas/glob/syntax/lexer"
 	"unicode/utf8"
 )
 
@@ -11,15 +11,15 @@ type Lexer interface {
 	Next() lexer.Token
 }
 
-type parseFn func(Node, Lexer) (parseFn, Node, error)
+type parseFn func(*Node, Lexer) (parseFn, *Node, error)
 
-func Parse(lexer Lexer) (*PatternNode, error) {
+func Parse(lexer Lexer) (*Node, error) {
 	var parser parseFn
 
-	root := &PatternNode{}
+	root := NewNode(KindPattern, nil)
 
 	var (
-		tree Node
+		tree *Node
 		err  error
 	)
 	for parser, tree = parserMain, root; parser != nil; {
@@ -32,7 +32,7 @@ func Parse(lexer Lexer) (*PatternNode, error) {
 	return root, nil
 }
 
-func parserMain(tree Node, lex Lexer) (parseFn, Node, error) {
+func parserMain(tree *Node, lex Lexer) (parseFn, *Node, error) {
 	for {
 		token := lex.Next()
 		switch token.Type {
@@ -43,28 +43,41 @@ func parserMain(tree Node, lex Lexer) (parseFn, Node, error) {
 			return nil, tree, errors.New(token.Raw)
 
 		case lexer.Text:
-			return parserMain, tree.append(&TextNode{Text: token.Raw}), nil
+			Insert(tree, NewNode(KindText, &Text{token.Raw}))
+			return parserMain, tree, nil
 
 		case lexer.Any:
-			return parserMain, tree.append(&AnyNode{}), nil
+			Insert(tree, NewNode(KindAny, nil))
+			return parserMain, tree, nil
 
 		case lexer.Super:
-			return parserMain, tree.append(&SuperNode{}), nil
+			Insert(tree, NewNode(KindSuper, nil))
+			return parserMain, tree, nil
 
 		case lexer.Single:
-			return parserMain, tree.append(&SingleNode{}), nil
+			Insert(tree, NewNode(KindSingle, nil))
+			return parserMain, tree, nil
 
 		case lexer.RangeOpen:
 			return parserRange, tree, nil
 
 		case lexer.TermsOpen:
-			return parserMain, tree.append(&AnyOfNode{}).append(&PatternNode{}), nil
+			a := NewNode(KindAnyOf, nil)
+			Insert(tree, a)
+
+			p := NewNode(KindPattern, nil)
+			Insert(a, p)
+
+			return parserMain, p, nil
 
 		case lexer.Separator:
-			return parserMain, tree.Parent().append(&PatternNode{}), nil
+			p := NewNode(KindPattern, nil)
+			Insert(tree.Parent, p)
+
+			return parserMain, p, nil
 
 		case lexer.TermsClose:
-			return parserMain, tree.Parent().Parent(), nil
+			return parserMain, tree.Parent.Parent, nil
 
 		default:
 			return nil, tree, fmt.Errorf("unexpected token: %s", token)
@@ -73,7 +86,7 @@ func parserMain(tree Node, lex Lexer) (parseFn, Node, error) {
 	return nil, tree, fmt.Errorf("unknown error")
 }
 
-func parserRange(tree Node, lex Lexer) (parseFn, Node, error) {
+func parserRange(tree *Node, lex Lexer) (parseFn, *Node, error) {
 	var (
 		not   bool
 		lo    rune
@@ -126,16 +139,16 @@ func parserRange(tree Node, lex Lexer) (parseFn, Node, error) {
 			}
 
 			if isRange {
-				tree = tree.append(&RangeNode{
+				Insert(tree, NewNode(KindRange, &Range{
 					Lo:  lo,
 					Hi:  hi,
 					Not: not,
-				})
+				}))
 			} else {
-				tree = tree.append(&ListNode{
+				Insert(tree, NewNode(KindList, &List{
 					Chars: chars,
 					Not:   not,
-				})
+				}))
 			}
 
 			return parserMain, tree, nil

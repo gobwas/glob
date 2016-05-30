@@ -178,9 +178,9 @@ func TestLexGood(t *testing.T) {
 			},
 		},
 	} {
-		lexer := newLexer(test.pattern)
+		lexer := NewLexer(test.pattern)
 		for i, exp := range test.items {
-			act := lexer.nextItem()
+			act := lexer.Next()
 			if act.Type != exp.Type {
 				t.Errorf("#%d %q: wrong %d-th item type: exp: %q; act: %q\n\t(%s vs %s)", id, test.pattern, i, exp.Type, act.Type, exp, act)
 			}
