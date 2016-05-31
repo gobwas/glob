@@ -67,6 +67,7 @@ func TestGlob(t *testing.T) {
 		glob(true, "", ""),
 		glob(false, "", "b"),
 
+		glob(true, "*ä", "åä"),
 		glob(true, "abc", "abc"),
 		glob(true, "a*c", "abc"),
 		glob(true, "a*c", "a12345c"),
@@ -169,7 +170,7 @@ func TestQuoteMeta(t *testing.T) {
 	}{
 		{
 			in:  `[foo*]`,
-			out: `\[foo\*]`,
+			out: `\[foo\*\]`,
 		},
 		{
 			in:  `{foo*}`,
