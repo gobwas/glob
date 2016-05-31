@@ -350,22 +350,32 @@ func minimizeTreeAnyOf(tree *ast.Node) *ast.Node {
 }
 
 func commonChildren(nodes []*ast.Node) (commonLeft, commonRight []*ast.Node) {
+	if len(nodes) <= 1 {
+		return
+	}
+
 	// find node that has least number of children
 	idx := leastChildren(nodes)
 	if idx == -1 {
-		return nil, nil
+		return
 	}
 	tree := nodes[idx]
+	treeLength := len(tree.Children)
+
+	// allocate max able size for rightCommon slice
+	// to get ability insert elements in reverse order (from end to start)
+	// without sorting
+	commonRight = make([]*ast.Node, treeLength)
+	lastRight := treeLength // will use this to get results as commonRight[lastRight:]
 
 	var (
-		breakLeft  bool
-		breakRight bool
+		breakLeft   bool
+		breakRight  bool
+		commonTotal int
 	)
-	for i, j := 0, len(tree.Children)-1; j >= 0 && !(breakLeft && breakLeft); i, j = i+1, j-1 {
+	for i, j := 0, treeLength-1; commonTotal < treeLength && j >= 0 && !(breakLeft && breakLeft); i, j = i+1, j-1 {
 		treeLeft := tree.Children[i]
 		treeRight := tree.Children[j]
-
-		fmt.Println(i, j)
 
 		for k := 0; k < len(nodes) && !(breakLeft && breakLeft); k++ {
 			// skip least children node
@@ -374,7 +384,7 @@ func commonChildren(nodes []*ast.Node) (commonLeft, commonRight []*ast.Node) {
 			}
 
 			restLeft := nodes[k].Children[i]
-			restRight := nodes[k].Children[j+len(nodes[k].Children)-len(tree.Children)]
+			restRight := nodes[k].Children[j+len(nodes[k].Children)-treeLength]
 
 			breakLeft = breakLeft || !treeLeft.Equal(restLeft)
 
@@ -382,15 +392,20 @@ func commonChildren(nodes []*ast.Node) (commonLeft, commonRight []*ast.Node) {
 			breakRight = breakRight || (!breakLeft && j <= i)
 			breakRight = breakRight || !treeRight.Equal(restRight)
 		}
+
 		if !breakLeft {
-			fmt.Println("left app")
+			commonTotal++
 			commonLeft = append(commonLeft, treeLeft)
 		}
 		if !breakRight {
-			fmt.Println("right app")
-			commonRight = append(commonRight, treeRight)
+			commonTotal++
+			lastRight = j
+			commonRight[j] = treeRight
 		}
 	}
+
+	commonRight = commonRight[lastRight:]
+
 	return
 }
 

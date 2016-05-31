@@ -159,12 +159,6 @@ func TestGlob(t *testing.T) {
 }
 
 func TestQuoteMeta(t *testing.T) {
-	specialsQuoted := make([]byte, len(specials)*2)
-	for i, j := 0, 0; i < len(specials); i, j = i+1, j+2 {
-		specialsQuoted[j] = '\\'
-		specialsQuoted[j+1] = specials[i]
-	}
-
 	for id, test := range []struct {
 		in, out string
 	}{
@@ -177,12 +171,12 @@ func TestQuoteMeta(t *testing.T) {
 			out: `\{foo\*\}`,
 		},
 		{
-			in:  string(specials),
-			out: string(specialsQuoted),
+			in:  `*?\[]{}`,
+			out: `\*\?\\\[\]\{\}`,
 		},
 		{
-			in:  string(append([]byte("some text and"), specials...)),
-			out: string(append([]byte("some text and"), specialsQuoted...)),
+			in:  `some text and *?\[]{}`,
+			out: `some text and \*\?\\\[\]\{\}`,
 		},
 	} {
 		act := QuoteMeta(test.in)

@@ -1,7 +1,7 @@
 package glob
 
 import (
-	"github.com/gobwas/glob/parser"
+	"github.com/gobwas/glob/compiler"
 	"github.com/gobwas/glob/syntax"
 )
 
@@ -42,7 +42,7 @@ func Compile(pattern string, separators ...rune) (Glob, error) {
 		return nil, err
 	}
 
-	matcher, err := compile(ast, separators)
+	matcher, err := compiler.Compile(ast, separators)
 	if err != nil {
 		return nil, err
 	}

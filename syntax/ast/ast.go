@@ -1,18 +1,5 @@
 package ast
 
-type Visitor interface {
-	Visit(*Node) Visitor
-}
-
-func Walk(v Visitor, n *Node) {
-	if v = v.Visit(n); v == nil {
-		return
-	}
-	for _, c := range n.Children {
-		Walk(v, c)
-	}
-}
-
 type Node struct {
 	Parent   *Node
 	Children []*Node

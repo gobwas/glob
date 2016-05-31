@@ -43,7 +43,7 @@ func parserMain(tree *Node, lex Lexer) (parseFn, *Node, error) {
 			return nil, tree, errors.New(token.Raw)
 
 		case lexer.Text:
-			Insert(tree, NewNode(KindText, &Text{token.Raw}))
+			Insert(tree, NewNode(KindText, Text{token.Raw}))
 			return parserMain, tree, nil
 
 		case lexer.Any:
@@ -139,13 +139,13 @@ func parserRange(tree *Node, lex Lexer) (parseFn, *Node, error) {
 			}
 
 			if isRange {
-				Insert(tree, NewNode(KindRange, &Range{
+				Insert(tree, NewNode(KindRange, Range{
 					Lo:  lo,
 					Hi:  hi,
 					Not: not,
 				}))
 			} else {
-				Insert(tree, NewNode(KindList, &List{
+				Insert(tree, NewNode(KindList, List{
 					Chars: chars,
 					Not:   not,
 				}))
