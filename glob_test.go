@@ -105,6 +105,10 @@ func TestGlob(t *testing.T) {
 		glob(true, "???", "abc"),
 		glob(true, "?*?", "abc"),
 		glob(true, "?*?", "ac"),
+		glob(false, "sta", "stagnation"),
+		glob(true, "sta*", "stagnation"),
+		glob(false, "sta?", "stagnation"),
+		glob(false, "sta?n", "stagnation"),
 
 		glob(true, "{abc,def}ghi", "defghi"),
 		glob(true, "{abc,abcd}a", "abcda"),
