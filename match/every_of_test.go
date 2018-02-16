@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestEveryOfIndex(t *testing.T) {
+func TestIndexedEveryOf(t *testing.T) {
 	for id, test := range []struct {
 		matchers Matchers
 		fixture  string
@@ -33,7 +33,7 @@ func TestEveryOfIndex(t *testing.T) {
 			[]int{2},
 		},
 	} {
-		everyOf := NewEveryOf(test.matchers...)
+		everyOf := NewEveryOf(test.matchers).(IndexedEveryOf)
 		index, segments := everyOf.Index(test.fixture)
 		if index != test.index {
 			t.Errorf("#%d unexpected index: exp: %d, act: %d", id, test.index, index)

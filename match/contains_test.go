@@ -42,7 +42,7 @@ func TestContainsIndex(t *testing.T) {
 			[]int{0, 1, 2, 3},
 		},
 	} {
-		p := NewContains(test.prefix, test.not)
+		p := Contains{test.prefix, test.not}
 		index, segments := p.Index(test.fixture)
 		if index != test.index {
 			t.Errorf("#%d unexpected index: exp: %d, act: %d", id, test.index, index)
@@ -54,8 +54,7 @@ func TestContainsIndex(t *testing.T) {
 }
 
 func BenchmarkIndexContains(b *testing.B) {
-	m := NewContains(string(bench_separators), true)
-
+	m := Contains{string(bench_separators), true}
 	for i := 0; i < b.N; i++ {
 		_, s := m.Index(bench_pattern)
 		releaseSegments(s)
@@ -63,8 +62,7 @@ func BenchmarkIndexContains(b *testing.B) {
 }
 
 func BenchmarkIndexContainsParallel(b *testing.B) {
-	m := NewContains(string(bench_separators), true)
-
+	m := Contains{string(bench_separators), true}
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			_, s := m.Index(bench_pattern)

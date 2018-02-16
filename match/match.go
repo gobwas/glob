@@ -7,15 +7,50 @@ import (
 	"strings"
 )
 
-const lenOne = 1
-const lenZero = 0
-const lenNo = -1
-
 type Matcher interface {
 	Match(string) bool
+	MinLen() int
+}
+
+type Indexer interface {
 	Index(string) (int, []int)
-	Len() int
-	String() string
+}
+
+type Sizer interface {
+	RunesCount() int
+}
+
+type MatchIndexer interface {
+	Matcher
+	Indexer
+}
+
+type MatchSizer interface {
+	Matcher
+	Sizer
+}
+
+type MatchIndexSizer interface {
+	Matcher
+	Indexer
+	Sizer
+}
+
+type Container interface {
+	Content() []Matcher
+}
+
+func MatchIndexers(ms []Matcher) ([]MatchIndexer, bool) {
+	for _, m := range ms {
+		if _, ok := m.(Indexer); !ok {
+			return nil, false
+		}
+	}
+	mis := make([]MatchIndexer, len(ms))
+	for i := range mis {
+		mis[i] = ms[i].(MatchIndexer)
+	}
+	return mis, true
 }
 
 type Matchers []Matcher

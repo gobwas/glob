@@ -2,76 +2,72 @@ package match
 
 import (
 	"fmt"
+	"unicode/utf8"
+
+	"github.com/gobwas/glob/util/runes"
 )
 
 type Row struct {
-	Matchers    Matchers
-	RunesLength int
-	Segments    []int
+	ms    []MatchIndexSizer
+	runes int
+	seg   []int
 }
 
-func NewRow(len int, m ...Matcher) Row {
+func NewRow(ms []MatchIndexSizer) Row {
+	var r int
+	for _, m := range ms {
+		r += m.RunesCount()
+	}
 	return Row{
-		Matchers:    Matchers(m),
-		RunesLength: len,
-		Segments:    []int{len},
+		ms:    ms,
+		runes: r,
+		seg:   []int{r},
 	}
 }
 
-func (self Row) matchAll(s string) bool {
-	var idx int
-	for _, m := range self.Matchers {
-		length := m.Len()
-
-		var next, i int
-		for next = range s[idx:] {
-			i++
-			if i == length {
-				break
-			}
-		}
-
-		if i < length || !m.Match(s[idx:idx+next+1]) {
-			return false
-		}
-
-		idx += next + 1
+func (r Row) Match(s string) bool {
+	if !runes.ExactlyRunesCount(s, r.runes) {
+		return false
 	}
-
-	return true
+	return r.matchAll(s)
 }
 
-func (self Row) lenOk(s string) bool {
-	var i int
-	for range s {
-		i++
-		if i > self.RunesLength {
-			return false
+func (r Row) MinLen() int {
+	return r.runes
+}
+
+func (r Row) RunesCount() int {
+	return r.runes
+}
+
+func (r Row) Index(s string) (int, []int) {
+	for j := 0; j < len(s)-r.runes; {
+		i, _ := r.ms[0].Index(s[j:])
+		if i == -1 {
+			return -1, nil
 		}
-	}
-	return self.RunesLength == i
-}
-
-func (self Row) Match(s string) bool {
-	return self.lenOk(s) && self.matchAll(s)
-}
-
-func (self Row) Len() (l int) {
-	return self.RunesLength
-}
-
-func (self Row) Index(s string) (int, []int) {
-	for i := range s {
-		if len(s[i:]) < self.RunesLength {
-			break
+		if r.matchAll(s[i:]) {
+			return j + i, r.seg
 		}
-		if self.matchAll(s[i:]) {
-			return i, self.Segments
-		}
+		_, x := utf8.DecodeRuneInString(s[i:])
+		j += x
 	}
 	return -1, nil
 }
 
-func (self Row) String() string {
-	return fmt.Sprintf("<row_%d:[%s]>", self.RunesLength, self.Matchers)
+func (r Row) String() string {
+	return fmt.Sprintf("<row_%d:[%s]>", r.runes, r.ms)
+}
+
+func (r Row) matchAll(s string) bool {
+	var i int
+	for _, m := range r.ms {
+		n := m.RunesCount()
+		sub := runes.Head(s[i:], n)
+		if !m.Match(sub) {
+			return false
+		}
+		i += len(sub)
+	}
+	return true
 }

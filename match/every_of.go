@@ -5,31 +5,41 @@ import (
 )
 
 type EveryOf struct {
-	Matchers Matchers
+	ms  []Matcher
+	min int
 }
 
-func NewEveryOf(m ...Matcher) EveryOf {
-	return EveryOf{Matchers(m)}
+func NewEveryOf(ms []Matcher) Matcher {
+	e := EveryOf{ms, minLen(ms)}
+	if mis, ok := MatchIndexers(ms); ok {
+		return IndexedEveryOf{e, mis}
+	}
+	return e
 }
 
-func (self *EveryOf) Add(m Matcher) error {
-	self.Matchers = append(self.Matchers, m)
-	return nil
+func (e EveryOf) MinLen() (n int) {
+	return e.min
 }
 
-func (self EveryOf) Len() (l int) {
-	for _, m := range self.Matchers {
-		if ml := m.Len(); l > 0 {
-			l += ml
-		} else {
-			return -1
+func (e EveryOf) Match(s string) bool {
+	for _, m := range e.ms {
+		if !m.Match(s) {
+			return false
 		}
 	}
-
-	return
+	return true
 }
 
-func (self EveryOf) Index(s string) (int, []int) {
+func (e EveryOf) String() string {
+	return fmt.Sprintf("<every_of:[%s]>", e.ms)
+}
+
+type IndexedEveryOf struct {
+	EveryOf
+	ms []MatchIndexer
+}
+
+func (e IndexedEveryOf) Index(s string) (int, []int) {
 	var index int
 	var offset int
 
@@ -39,7 +49,7 @@ func (self EveryOf) Index(s string) (int, []int) {
 	current := acquireSegments(len(s))
 
 	sub := s
-	for i, m := range self.Matchers {
+	for i, m := range e.ms {
 		idx, seg := m.Index(sub)
 		if idx == -1 {
 			releaseSegments(next)
@@ -84,16 +94,6 @@ func (self EveryOf) Index(s string) (int, []int) {
 	return index, current
 }
 
-func (self EveryOf) Match(s string) bool {
-	for _, m := range self.Matchers {
-		if !m.Match(s) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (self EveryOf) String() string {
-	return fmt.Sprintf("<every_of:[%s]>", self.Matchers)
+func (e IndexedEveryOf) String() string {
+	return fmt.Sprintf("<indexed_every_of:[%s]>", e.ms)
 }

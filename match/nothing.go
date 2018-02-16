@@ -18,8 +18,12 @@ func (self Nothing) Index(s string) (int, []int) {
 	return 0, segments0
 }
 
-func (self Nothing) Len() int {
-	return lenZero
+func (self Nothing) MinLen() int {
+	return 0
+}
+
+func (self Nothing) RunesCount() int {
+	return 0
 }
 
 func (self Nothing) String() string {

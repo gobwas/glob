@@ -3,12 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/gobwas/glob"
-	"github.com/gobwas/glob/match"
-	"github.com/gobwas/glob/match/debug"
 	"os"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/gobwas/glob"
+	"github.com/gobwas/glob/match"
 )
 
 func main() {
@@ -40,5 +40,5 @@ func main() {
 	}
 
 	matcher := glob.(match.Matcher)
-	fmt.Fprint(os.Stdout, debug.Graphviz(*pattern, matcher))
+	fmt.Fprint(os.Stdout, match.Graphviz(*pattern, matcher))
 }

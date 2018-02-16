@@ -14,8 +14,8 @@ func NewRange(lo, hi rune, not bool) Range {
 	return Range{lo, hi, not}
 }
 
-func (self Range) Len() int {
-	return lenOne
+func (self Range) MinLen() int {
+	return 1
 }
 
 func (self Range) Match(s string) bool {

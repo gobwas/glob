@@ -10,24 +10,23 @@ func NewSuper() Super {
 	return Super{}
 }
 
-func (self Super) Match(s string) bool {
+func (s Super) Match(_ string) bool {
 	return true
 }
 
-func (self Super) Len() int {
-	return lenNo
+func (s Super) MinLen() int {
+	return 0
 }
 
-func (self Super) Index(s string) (int, []int) {
-	segments := acquireSegments(len(s) + 1)
-	for i := range s {
-		segments = append(segments, i)
+func (s Super) Index(v string) (int, []int) {
+	seg := acquireSegments(len(v) + 1)
+	for i := range v {
+		seg = append(seg, i)
 	}
-	segments = append(segments, len(s))
-
-	return 0, segments
+	seg = append(seg, len(v))
+	return 0, seg
 }
 
-func (self Super) String() string {
+func (s Super) String() string {
 	return fmt.Sprintf("<super>")
 }

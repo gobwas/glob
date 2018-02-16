@@ -3,33 +3,34 @@ package match
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 type Suffix struct {
-	Suffix string
+	s      string
+	minLen int
 }
 
 func NewSuffix(s string) Suffix {
-	return Suffix{s}
+	return Suffix{s, utf8.RuneCountInString(s)}
 }
 
-func (self Suffix) Len() int {
-	return lenNo
+func (s Suffix) MinLen() int {
+	return s.minLen
 }
 
-func (self Suffix) Match(s string) bool {
-	return strings.HasSuffix(s, self.Suffix)
+func (s Suffix) Match(v string) bool {
+	return strings.HasSuffix(v, s.s)
 }
 
-func (self Suffix) Index(s string) (int, []int) {
-	idx := strings.Index(s, self.Suffix)
+func (s Suffix) Index(v string) (int, []int) {
+	idx := strings.Index(v, s.s)
 	if idx == -1 {
 		return -1, nil
 	}
-
-	return 0, []int{idx + len(self.Suffix)}
+	return 0, []int{idx + len(s.s)}
 }
 
-func (self Suffix) String() string {
-	return fmt.Sprintf("<suffix:%s>", self.Suffix)
+func (s Suffix) String() string {
+	return fmt.Sprintf("<suffix:%s>", s.s)
 }

@@ -1,5 +1,98 @@
 package runes
 
+import (
+	"strings"
+	"unicode/utf8"
+)
+
+func Head(s string, r int) string {
+	var i, m int
+	for i < len(s) {
+		_, n := utf8.DecodeRuneInString(s[i:])
+		i += n
+		m += 1
+		if m == r {
+			break
+		}
+	}
+	return s[:i]
+}
+
+func Tail(s string, r int) string {
+	var i, n int
+	for i = len(s); i >= 0; {
+		var ok bool
+		for j := 1; j <= 4 && i-j >= 0; j++ {
+			v, _ := utf8.DecodeRuneInString(s[i-j:])
+			if v != utf8.RuneError {
+				i -= j
+				n++
+				ok = true
+				break
+			}
+		}
+		if !ok || n == r {
+			return s[i:]
+		}
+	}
+	return s[i:]
+}
+
+func ExactlyRunesCount(s string, n int) bool {
+	var m int
+	for range s {
+		m++
+		if m > n {
+			return false
+		}
+	}
+	return m == n
+}
+
+func AtLeastRunesCount(s string, n int) bool {
+	var m int
+	for range s {
+		m++
+		if m >= n {
+			return true
+		}
+	}
+	return false
+}
+
+func IndexAnyRune(s string, rs []rune) int {
+	for _, r := range rs {
+		if i := strings.IndexRune(s, r); i != -1 {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func LastIndexAnyRune(s string, rs []rune) int {
+	for _, r := range rs {
+		i := -1
+		if 0 <= r && r < utf8.RuneSelf {
+			i = strings.LastIndexByte(s, byte(r))
+		} else {
+			sub := s
+			for len(sub) > 0 {
+				j := strings.IndexRune(s, r)
+				if j == -1 {
+					break
+				}
+				i = j
+				sub = sub[i+1:]
+			}
+		}
+		if i != -1 {
+			return i
+		}
+	}
+	return -1
+}
+
 func Index(s, needle []rune) int {
 	ls, ln := len(s), len(needle)
 
@@ -130,6 +223,7 @@ func IndexLastRune(s []rune, r rune) int {
 }
 
 func Equal(a, b []rune) bool {
+	// TODO use bytes.Equal with unsafe.
 	if len(a) == len(b) {
 		for i := 0; i < len(a); i++ {
 			if a[i] != b[i] {

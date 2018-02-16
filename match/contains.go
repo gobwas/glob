@@ -6,29 +6,29 @@ import (
 )
 
 type Contains struct {
-	Needle string
-	Not    bool
+	s   string
+	not bool
 }
 
-func NewContains(needle string, not bool) Contains {
-	return Contains{needle, not}
+func NewContains(needle string) Contains {
+	return Contains{needle, false}
 }
 
-func (self Contains) Match(s string) bool {
-	return strings.Contains(s, self.Needle) != self.Not
+func (c Contains) Match(s string) bool {
+	return strings.Contains(s, c.s) != c.not
 }
 
-func (self Contains) Index(s string) (int, []int) {
+func (c Contains) Index(s string) (int, []int) {
 	var offset int
 
-	idx := strings.Index(s, self.Needle)
+	idx := strings.Index(s, c.s)
 
-	if !self.Not {
+	if !c.not {
 		if idx == -1 {
 			return -1, nil
 		}
 
-		offset = idx + len(self.Needle)
+		offset = idx + len(c.s)
 		if len(s) <= offset {
 			return 0, []int{offset}
 		}
@@ -45,14 +45,14 @@ func (self Contains) Index(s string) (int, []int) {
 	return 0, append(segments, offset+len(s))
 }
 
-func (self Contains) Len() int {
-	return lenNo
+func (c Contains) MinLen() int {
+	return 0
 }
 
-func (self Contains) String() string {
+func (c Contains) String() string {
 	var not string
-	if self.Not {
+	if c.not {
 		not = "!"
 	}
-	return fmt.Sprintf("<contains:%s[%s]>", not, self.Needle)
+	return fmt.Sprintf("<contains:%s[%s]>", not, c.s)
 }

@@ -1,139 +1,15 @@
 package compiler
 
 import (
+	"reflect"
+	"testing"
+
 	"github.com/gobwas/glob/match"
 	"github.com/gobwas/glob/match/debug"
 	"github.com/gobwas/glob/syntax/ast"
-	"reflect"
-	"testing"
 )
 
 var separators = []rune{'.'}
-
-func TestCommonChildren(t *testing.T) {
-	for i, test := range []struct {
-		nodes []*ast.Node
-		left  []*ast.Node
-		right []*ast.Node
-	}{
-		{
-			nodes: []*ast.Node{
-				ast.NewNode(ast.KindNothing, nil,
-					ast.NewNode(ast.KindText, ast.Text{"a"}),
-					ast.NewNode(ast.KindText, ast.Text{"z"}),
-					ast.NewNode(ast.KindText, ast.Text{"c"}),
-				),
-			},
-		},
-		{
-			nodes: []*ast.Node{
-				ast.NewNode(ast.KindNothing, nil,
-					ast.NewNode(ast.KindText, ast.Text{"a"}),
-					ast.NewNode(ast.KindText, ast.Text{"z"}),
-					ast.NewNode(ast.KindText, ast.Text{"c"}),
-				),
-				ast.NewNode(ast.KindNothing, nil,
-					ast.NewNode(ast.KindText, ast.Text{"a"}),
-					ast.NewNode(ast.KindText, ast.Text{"b"}),
-					ast.NewNode(ast.KindText, ast.Text{"c"}),
-				),
-			},
-			left: []*ast.Node{
-				ast.NewNode(ast.KindText, ast.Text{"a"}),
-			},
-			right: []*ast.Node{
-				ast.NewNode(ast.KindText, ast.Text{"c"}),
-			},
-		},
-		{
-			nodes: []*ast.Node{
-				ast.NewNode(ast.KindNothing, nil,
-					ast.NewNode(ast.KindText, ast.Text{"a"}),
-					ast.NewNode(ast.KindText, ast.Text{"b"}),
-					ast.NewNode(ast.KindText, ast.Text{"c"}),
-					ast.NewNode(ast.KindText, ast.Text{"d"}),
-				),
-				ast.NewNode(ast.KindNothing, nil,
-					ast.NewNode(ast.KindText, ast.Text{"a"}),
-					ast.NewNode(ast.KindText, ast.Text{"b"}),
-					ast.NewNode(ast.KindText, ast.Text{"c"}),
-					ast.NewNode(ast.KindText, ast.Text{"c"}),
-					ast.NewNode(ast.KindText, ast.Text{"d"}),
-				),
-			},
-			left: []*ast.Node{
-				ast.NewNode(ast.KindText, ast.Text{"a"}),
-				ast.NewNode(ast.KindText, ast.Text{"b"}),
-			},
-			right: []*ast.Node{
-				ast.NewNode(ast.KindText, ast.Text{"c"}),
-				ast.NewNode(ast.KindText, ast.Text{"d"}),
-			},
-		},
-		{
-			nodes: []*ast.Node{
-				ast.NewNode(ast.KindNothing, nil,
-					ast.NewNode(ast.KindText, ast.Text{"a"}),
-					ast.NewNode(ast.KindText, ast.Text{"b"}),
-					ast.NewNode(ast.KindText, ast.Text{"c"}),
-				),
-				ast.NewNode(ast.KindNothing, nil,
-					ast.NewNode(ast.KindText, ast.Text{"a"}),
-					ast.NewNode(ast.KindText, ast.Text{"b"}),
-					ast.NewNode(ast.KindText, ast.Text{"b"}),
-					ast.NewNode(ast.KindText, ast.Text{"c"}),
-				),
-			},
-			left: []*ast.Node{
-				ast.NewNode(ast.KindText, ast.Text{"a"}),
-				ast.NewNode(ast.KindText, ast.Text{"b"}),
-			},
-			right: []*ast.Node{
-				ast.NewNode(ast.KindText, ast.Text{"c"}),
-			},
-		},
-		{
-			nodes: []*ast.Node{
-				ast.NewNode(ast.KindNothing, nil,
-					ast.NewNode(ast.KindText, ast.Text{"a"}),
-					ast.NewNode(ast.KindText, ast.Text{"d"}),
-				),
-				ast.NewNode(ast.KindNothing, nil,
-					ast.NewNode(ast.KindText, ast.Text{"a"}),
-					ast.NewNode(ast.KindText, ast.Text{"d"}),
-				),
-				ast.NewNode(ast.KindNothing, nil,
-					ast.NewNode(ast.KindText, ast.Text{"a"}),
-					ast.NewNode(ast.KindText, ast.Text{"e"}),
-				),
-			},
-			left: []*ast.Node{
-				ast.NewNode(ast.KindText, ast.Text{"a"}),
-			},
-			right: []*ast.Node{},
-		},
-	} {
-		left, right := commonChildren(test.nodes)
-		if !nodesEqual(left, test.left) {
-			t.Errorf("[%d] left, right := commonChildren(); left = %v; want %v", i, left, test.left)
-		}
-		if !nodesEqual(right, test.right) {
-			t.Errorf("[%d] left, right := commonChildren(); right = %v; want %v", i, right, test.right)
-		}
-	}
-}
-
-func nodesEqual(a, b []*ast.Node) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, av := range a {
-		if !av.Equal(b[i]) {
-			return false
-		}
-	}
-	return true
-}
 
 func TestGlueMatchers(t *testing.T) {
 	for id, test := range []struct {

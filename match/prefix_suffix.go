@@ -3,23 +3,27 @@ package match
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 type PrefixSuffix struct {
-	Prefix, Suffix string
+	p, s   string
+	minLen int
 }
 
 func NewPrefixSuffix(p, s string) PrefixSuffix {
-	return PrefixSuffix{p, s}
+	pn := utf8.RuneCountInString(p)
+	sn := utf8.RuneCountInString(s)
+	return PrefixSuffix{p, s, pn + sn}
 }
 
-func (self PrefixSuffix) Index(s string) (int, []int) {
-	prefixIdx := strings.Index(s, self.Prefix)
+func (ps PrefixSuffix) Index(s string) (int, []int) {
+	prefixIdx := strings.Index(s, ps.p)
 	if prefixIdx == -1 {
 		return -1, nil
 	}
 
-	suffixLen := len(self.Suffix)
+	suffixLen := len(ps.s)
 	if suffixLen <= 0 {
 		return prefixIdx, []int{len(s) - prefixIdx}
 	}
@@ -30,7 +34,7 @@ func (self PrefixSuffix) Index(s string) (int, []int) {
 
 	segments := acquireSegments(len(s) - prefixIdx)
 	for sub := s[prefixIdx:]; ; {
-		suffixIdx := strings.LastIndex(sub, self.Suffix)
+		suffixIdx := strings.LastIndex(sub, ps.s)
 		if suffixIdx == -1 {
 			break
 		}
@@ -49,14 +53,14 @@ func (self PrefixSuffix) Index(s string) (int, []int) {
 	return prefixIdx, segments
 }
 
-func (self PrefixSuffix) Len() int {
-	return lenNo
+func (ps PrefixSuffix) Match(s string) bool {
+	return strings.HasPrefix(s, ps.p) && strings.HasSuffix(s, ps.s)
 }
 
-func (self PrefixSuffix) Match(s string) bool {
-	return strings.HasPrefix(s, self.Prefix) && strings.HasSuffix(s, self.Suffix)
+func (ps PrefixSuffix) MinLen() int {
+	return ps.minLen
 }
 
-func (self PrefixSuffix) String() string {
-	return fmt.Sprintf("<prefix_suffix:[%s,%s]>", self.Prefix, self.Suffix)
+func (ps PrefixSuffix) String() string {
+	return fmt.Sprintf("<prefix_suffix:[%s,%s]>", ps.p, ps.s)
 }

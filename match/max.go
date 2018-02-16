@@ -6,32 +6,31 @@ import (
 )
 
 type Max struct {
-	Limit int
+	n int
 }
 
-func NewMax(l int) Max {
-	return Max{l}
+func NewMax(n int) Max {
+	return Max{n}
 }
 
-func (self Max) Match(s string) bool {
-	var l int
+func (m Max) Match(s string) bool {
+	var n int
 	for range s {
-		l += 1
-		if l > self.Limit {
+		n += 1
+		if n > m.n {
 			return false
 		}
 	}
-
 	return true
 }
 
-func (self Max) Index(s string) (int, []int) {
-	segments := acquireSegments(self.Limit + 1)
+func (m Max) Index(s string) (int, []int) {
+	segments := acquireSegments(m.n + 1)
 	segments = append(segments, 0)
 	var count int
 	for i, r := range s {
 		count++
-		if count > self.Limit {
+		if count > m.n {
 			break
 		}
 		segments = append(segments, i+utf8.RuneLen(r))
@@ -40,10 +39,10 @@ func (self Max) Index(s string) (int, []int) {
 	return 0, segments
 }
 
-func (self Max) Len() int {
-	return lenNo
+func (m Max) MinLen() int {
+	return 0
 }
 
-func (self Max) String() string {
-	return fmt.Sprintf("<max:%d>", self.Limit)
+func (m Max) String() string {
+	return fmt.Sprintf("<max:%d>", m.n)
 }

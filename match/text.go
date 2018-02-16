@@ -8,38 +8,45 @@ import (
 
 // raw represents raw string to match
 type Text struct {
-	Str         string
-	RunesLength int
-	BytesLength int
-	Segments    []int
+	s     string
+	runes int
+	bytes int
+	seg   []int
 }
 
 func NewText(s string) Text {
 	return Text{
-		Str:         s,
-		RunesLength: utf8.RuneCountInString(s),
-		BytesLength: len(s),
-		Segments:    []int{len(s)},
+		s:     s,
+		runes: utf8.RuneCountInString(s),
+		bytes: len(s),
+		seg:   []int{len(s)},
 	}
 }
 
-func (self Text) Match(s string) bool {
-	return self.Str == s
+func (t Text) Match(s string) bool {
+	return t.s == s
 }
 
-func (self Text) Len() int {
-	return self.RunesLength
-}
-
-func (self Text) Index(s string) (int, []int) {
-	index := strings.Index(s, self.Str)
-	if index == -1 {
+func (t Text) Index(s string) (int, []int) {
+	i := strings.Index(s, t.s)
+	if i == -1 {
 		return -1, nil
 	}
-
-	return index, self.Segments
+	return i, t.seg
 }
 
-func (self Text) String() string {
-	return fmt.Sprintf("<text:`%v`>", self.Str)
+func (t Text) MinLen() int {
+	return t.runes
+}
+
+func (t Text) BytesCount() int {
+	return t.bytes
+}
+
+func (t Text) RunesCount() int {
+	return t.runes
+}
+
+func (t Text) String() string {
+	return fmt.Sprintf("<text:`%v`>", t.s)
 }

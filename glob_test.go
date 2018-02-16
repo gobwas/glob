@@ -60,6 +60,24 @@ func glob(s bool, p, m string, d ...rune) test {
 	return test{p, m, s, d}
 }
 
+func globc(p string, d ...rune) test {
+	return test{pattern: p, delimiters: d}
+}
+
+func TestCompilation(t *testing.T) {
+	for _, test := range []test{
+		globc("{*,**,?}", '.'),
+		globc("{*.google.*,yandex.*}", '.'),
+	} {
+		t.Run("", func(t *testing.T) {
+			_, err := Compile(test.pattern, test.delimiters...)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
 func TestGlob(t *testing.T) {
 	for _, test := range []test{
 		glob(true, "* ?at * eyes", "my cat has very bright eyes"),
@@ -164,6 +182,11 @@ func TestGlob(t *testing.T) {
 		glob(false, pattern_prefix_suffix, fixture_prefix_suffix_mismatch),
 	} {
 		t.Run("", func(t *testing.T) {
+			defer func() {
+				if thePanic := recover(); thePanic != nil {
+					t.Fatalf("panic recovered: %v", thePanic)
+				}
+			}()
 			g := MustCompile(test.pattern, test.delimiters...)
 			result := g.Match(test.match)
 			if result != test.should {

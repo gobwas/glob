@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestAnyOfIndex(t *testing.T) {
+func TestIndexedAnyOf(t *testing.T) {
 	for id, test := range []struct {
 		matchers Matchers
 		fixture  string
@@ -41,8 +41,8 @@ func TestAnyOfIndex(t *testing.T) {
 			[]int{1},
 		},
 	} {
-		everyOf := NewAnyOf(test.matchers...)
-		index, segments := everyOf.Index(test.fixture)
+		a := NewAnyOf(test.matchers...).(IndexedAnyOf)
+		index, segments := a.Index(test.fixture)
 		if index != test.index {
 			t.Errorf("#%d unexpected index: exp: %d, act: %d", id, test.index, index)
 		}
