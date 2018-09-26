@@ -83,7 +83,6 @@ func parserMain(tree *Node, lex Lexer) (parseFn, *Node, error) {
 			return nil, tree, fmt.Errorf("unexpected token: %s", token)
 		}
 	}
-	return nil, tree, fmt.Errorf("unknown error")
 }
 
 func parserRange(tree *Node, lex Lexer) (parseFn, *Node, error) {
