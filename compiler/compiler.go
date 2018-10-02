@@ -5,10 +5,8 @@ package compiler
 
 import (
 	"fmt"
-	"os"
-	"strings"
-	"sync/atomic"
 
+	"github.com/gobwas/glob/internal/debug"
 	"github.com/gobwas/glob/match"
 	"github.com/gobwas/glob/syntax/ast"
 )
@@ -35,23 +33,30 @@ func compileNodes(ns []*ast.Node, sep []rune) ([]match.Matcher, error) {
 }
 
 func compile(tree *ast.Node, sep []rune) (m match.Matcher, err error) {
-	enter()
-	logf("compiling %s", tree)
-	defer func() {
-		logf("result %s", m)
-		leave()
-	}()
+	if debug.Enabled {
+		debug.Enter()
+		debug.Logf("compiler: compiling %s", tree)
+		defer func() {
+			debug.Logf("compiler: result %s", m)
+			debug.Leave()
+		}()
+	}
 
 	// todo this could be faster on pattern_alternatives_combine_lite (see glob_test.go)
 	if n := ast.Minimize(tree); n != nil {
-		logf("minimized tree")
-		logf("\t%s", tree)
-		logf("\t%s", n)
 		r, err := compile(n, sep)
+		if debug.Enabled {
+			if err != nil {
+				debug.Logf("compiler: compile minimized tree failed: %v", err)
+			} else {
+				debug.Logf("compiler: minimized tree")
+				debug.Logf("compiler: \t%s", tree)
+				debug.Logf("compiler: \t%s", n)
+			}
+		}
 		if err == nil {
 			return r, nil
 		}
-		logf("compile minimized tree failed: %v", err)
 	}
 
 	switch tree.Kind {
@@ -104,24 +109,4 @@ func compile(tree *ast.Node, sep []rune) (m match.Matcher, err error) {
 	}
 
 	return match.Optimize(m), nil
-}
-
-var i = new(int32)
-
-func logf(f string, args ...interface{}) {
-	n := int(atomic.LoadInt32(i))
-	fmt.Fprint(os.Stderr,
-		strings.Repeat("  ", n),
-		fmt.Sprintf("(%d) ", n),
-		fmt.Sprintf(f, args...),
-		"\n",
-	)
-}
-
-func enter() {
-	atomic.AddInt32(i, 1)
-}
-
-func leave() {
-	atomic.AddInt32(i, -1)
 }

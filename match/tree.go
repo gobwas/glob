@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"unicode/utf8"
 
+	"github.com/gobwas/glob/internal/debug"
 	"github.com/gobwas/glob/util/runes"
 )
 
@@ -74,21 +75,28 @@ func (t Tree) MinLen() int {
 }
 
 func (t Tree) Match(s string) (ok bool) {
-	enter()
-	logf("matching %q: %v", s, t)
-	defer func(s string) {
-		logf("result: %q -> %v", s, ok)
-		leave()
-	}(s)
+	if debug.Enabled {
+		debug.Enter()
+		debug.Logf("tree: matching %q: %v", s, t)
+		defer func(s string) {
+			debug.Logf("tree: result: %q -> %v", s, ok)
+			debug.Leave()
+		}(s)
+	}
 
 	offset, limit := t.offsetLimit(s)
 	q := s[offset : len(s)-limit]
-	logf("OFFSET/LIMIT: %d/%d %q of %q", offset, limit, q, s)
+
+	if debug.Enabled {
+		debug.Logf("tree: offset/limit: %d/%d %q of %q", offset, limit, q, s)
+	}
 
 	for len(q) >= t.vrunes {
 		// search for matching part in substring
 		index, segments := t.value.Index(q)
-		logf("INDEX #%d %q (%v)", index, q, t.value)
+		if debug.Enabled {
+			debug.Logf("tree: index #%d %q (%v)", index, q, t.value)
+		}
 		if index == -1 {
 			releaseSegments(segments)
 			return false
@@ -101,7 +109,9 @@ func (t Tree) Match(s string) (ok bool) {
 		} else {
 			left = l == ""
 		}
-		logf("LEFT %q %v", l, left)
+		if debug.Enabled {
+			debug.Logf("tree: left %q %v", l, left)
+		}
 		if left {
 			for _, seg := range segments {
 				var (
@@ -113,7 +123,9 @@ func (t Tree) Match(s string) (ok bool) {
 				} else {
 					right = r == ""
 				}
-				logf("RIGHT %q %v", r, right)
+				if debug.Enabled {
+					debug.Logf("tree: right %q %v", r, right)
+				}
 				if right {
 					releaseSegments(segments)
 					return true
@@ -125,7 +137,9 @@ func (t Tree) Match(s string) (ok bool) {
 		releaseSegments(segments)
 		q = q[x:]
 		offset += x
-		logf("SLICED TO %q", q)
+		if debug.Enabled {
+			debug.Logf("tree: sliced to %q", q)
+		}
 	}
 
 	return false
