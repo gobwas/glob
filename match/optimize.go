@@ -3,7 +3,7 @@ package match
 import (
 	"fmt"
 
-	"gopkg.in/readline.v1/runes"
+	"github.com/gobwas/glob/util/runes"
 )
 
 func Optimize(m Matcher) Matcher {

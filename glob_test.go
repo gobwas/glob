@@ -152,6 +152,8 @@ func TestGlob(t *testing.T) {
 		glob(true, "*//{,*.}example.com", "http://example.com"),
 		glob(false, "*//{,*.}example.com", "http://example.com.net"),
 
+		glob(true, "{a*,b}c", "abc", '.'),
+
 		glob(true, pattern_all, fixture_all_match),
 		glob(false, pattern_all, fixture_all_mismatch),
 
