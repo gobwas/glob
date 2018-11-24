@@ -5,189 +5,10 @@ import (
 	"testing"
 
 	"github.com/gobwas/glob/match"
-	"github.com/gobwas/glob/match/debug"
 	"github.com/gobwas/glob/syntax/ast"
 )
 
 var separators = []rune{'.'}
-
-func TestGlueMatchers(t *testing.T) {
-	for id, test := range []struct {
-		in  []match.Matcher
-		exp match.Matcher
-	}{
-		{
-			[]match.Matcher{
-				match.NewSuper(),
-				match.NewSingle(nil),
-			},
-			match.NewMin(1),
-		},
-		{
-			[]match.Matcher{
-				match.NewAny(separators),
-				match.NewSingle(separators),
-			},
-			match.EveryOf{match.Matchers{
-				match.NewMin(1),
-				match.NewContains(string(separators), true),
-			}},
-		},
-		{
-			[]match.Matcher{
-				match.NewSingle(nil),
-				match.NewSingle(nil),
-				match.NewSingle(nil),
-			},
-			match.EveryOf{match.Matchers{
-				match.NewMin(3),
-				match.NewMax(3),
-			}},
-		},
-		{
-			[]match.Matcher{
-				match.NewList([]rune{'a'}, true),
-				match.NewAny([]rune{'a'}),
-			},
-			match.EveryOf{match.Matchers{
-				match.NewMin(1),
-				match.NewContains("a", true),
-			}},
-		},
-	} {
-		act, err := compileMatchers(test.in)
-		if err != nil {
-			t.Errorf("#%d convert matchers error: %s", id, err)
-			continue
-		}
-
-		if !reflect.DeepEqual(act, test.exp) {
-			t.Errorf("#%d unexpected convert matchers result:\nact: %#v;\nexp: %#v", id, act, test.exp)
-			continue
-		}
-	}
-}
-
-func TestCompileMatchers(t *testing.T) {
-	for id, test := range []struct {
-		in  []match.Matcher
-		exp match.Matcher
-	}{
-		{
-			[]match.Matcher{
-				match.NewSuper(),
-				match.NewSingle(separators),
-				match.NewText("c"),
-			},
-			match.NewBTree(
-				match.NewText("c"),
-				match.NewBTree(
-					match.NewSingle(separators),
-					match.NewSuper(),
-					nil,
-				),
-				nil,
-			),
-		},
-		{
-			[]match.Matcher{
-				match.NewAny(nil),
-				match.NewText("c"),
-				match.NewAny(nil),
-			},
-			match.NewBTree(
-				match.NewText("c"),
-				match.NewAny(nil),
-				match.NewAny(nil),
-			),
-		},
-		{
-			[]match.Matcher{
-				match.NewRange('a', 'c', true),
-				match.NewList([]rune{'z', 't', 'e'}, false),
-				match.NewText("c"),
-				match.NewSingle(nil),
-			},
-			match.NewRow(
-				4,
-				match.Matchers{
-					match.NewRange('a', 'c', true),
-					match.NewList([]rune{'z', 't', 'e'}, false),
-					match.NewText("c"),
-					match.NewSingle(nil),
-				}...,
-			),
-		},
-	} {
-		act, err := compileMatchers(test.in)
-		if err != nil {
-			t.Errorf("#%d convert matchers error: %s", id, err)
-			continue
-		}
-
-		if !reflect.DeepEqual(act, test.exp) {
-			t.Errorf("#%d unexpected convert matchers result:\nact: %#v\nexp: %#v", id, act, test.exp)
-			continue
-		}
-	}
-}
-
-func TestConvertMatchers(t *testing.T) {
-	for id, test := range []struct {
-		in, exp []match.Matcher
-	}{
-		{
-			[]match.Matcher{
-				match.NewRange('a', 'c', true),
-				match.NewList([]rune{'z', 't', 'e'}, false),
-				match.NewText("c"),
-				match.NewSingle(nil),
-				match.NewAny(nil),
-			},
-			[]match.Matcher{
-				match.NewRow(
-					4,
-					[]match.Matcher{
-						match.NewRange('a', 'c', true),
-						match.NewList([]rune{'z', 't', 'e'}, false),
-						match.NewText("c"),
-						match.NewSingle(nil),
-					}...,
-				),
-				match.NewAny(nil),
-			},
-		},
-		{
-			[]match.Matcher{
-				match.NewRange('a', 'c', true),
-				match.NewList([]rune{'z', 't', 'e'}, false),
-				match.NewText("c"),
-				match.NewSingle(nil),
-				match.NewAny(nil),
-				match.NewSingle(nil),
-				match.NewSingle(nil),
-				match.NewAny(nil),
-			},
-			[]match.Matcher{
-				match.NewRow(
-					3,
-					match.Matchers{
-						match.NewRange('a', 'c', true),
-						match.NewList([]rune{'z', 't', 'e'}, false),
-						match.NewText("c"),
-					}...,
-				),
-				match.NewMin(3),
-			},
-		},
-	} {
-		act := minimizeMatchers(test.in)
-		if !reflect.DeepEqual(act, test.exp) {
-			t.Errorf("#%d unexpected convert matchers 2 result:\nact: %#v\nexp: %#v", id, act, test.exp)
-			continue
-		}
-	}
-}
 
 func TestCompiler(t *testing.T) {
 	for id, test := range []struct {
@@ -254,10 +75,10 @@ func TestCompiler(t *testing.T) {
 				ast.NewNode(ast.KindSingle, nil),
 			),
 			sep: separators,
-			result: match.EveryOf{Matchers: match.Matchers{
+			result: match.NewEveryOf([]match.Matcher{
 				match.NewMin(3),
-				match.NewContains(string(separators), true),
-			}},
+				match.NewAny(separators),
+			}),
 		},
 		{
 			ast: ast.NewNode(ast.KindPattern, nil,
@@ -275,14 +96,11 @@ func TestCompiler(t *testing.T) {
 				ast.NewNode(ast.KindSingle, nil),
 			),
 			sep: separators,
-			result: match.NewBTree(
-				match.NewRow(
-					4,
-					match.Matchers{
-						match.NewText("abc"),
-						match.NewSingle(separators),
-					}...,
-				),
+			result: match.NewTree(
+				match.NewRow([]match.MatchIndexSizer{
+					match.NewText("abc"),
+					match.NewSingle(separators),
+				}),
 				match.NewAny(separators),
 				nil,
 			),
@@ -297,11 +115,14 @@ func TestCompiler(t *testing.T) {
 				ast.NewNode(ast.KindSuper, nil),
 			),
 			sep: separators,
-			result: match.NewBTree(
+			result: match.NewTree(
 				match.NewText("/"),
 				nil,
-				match.NewBTree(
-					match.NewAnyOf(match.NewText("z"), match.NewText("ab")),
+				match.NewTree(
+					match.MustIndexedAnyOf(
+						match.NewText("z"),
+						match.NewText("ab"),
+					),
 					nil,
 					match.NewSuper(),
 				),
@@ -315,15 +136,12 @@ func TestCompiler(t *testing.T) {
 				ast.NewNode(ast.KindSingle, nil),
 			),
 			sep: separators,
-			result: match.NewBTree(
-				match.NewRow(
-					5,
-					match.Matchers{
-						match.NewSingle(separators),
-						match.NewText("abc"),
-						match.NewSingle(separators),
-					}...,
-				),
+			result: match.NewTree(
+				match.NewRow([]match.MatchIndexSizer{
+					match.NewSingle(separators),
+					match.NewText("abc"),
+					match.NewSingle(separators),
+				}),
 				match.NewSuper(),
 				nil,
 			),
@@ -359,7 +177,7 @@ func TestCompiler(t *testing.T) {
 				ast.NewNode(ast.KindAny, nil),
 				ast.NewNode(ast.KindAny, nil),
 			),
-			result: match.NewContains("abc", false),
+			result: match.NewContains("abc"),
 		},
 		{
 			ast: ast.NewNode(ast.KindPattern, nil,
@@ -371,13 +189,14 @@ func TestCompiler(t *testing.T) {
 				ast.NewNode(ast.KindAny, nil),
 			),
 			sep: separators,
-			result: match.NewBTree(
+			result: match.NewTree(
 				match.NewText("abc"),
 				match.NewAny(separators),
 				match.NewAny(separators),
 			),
 		},
 		{
+			// TODO: THIS!
 			ast: ast.NewNode(ast.KindPattern, nil,
 				ast.NewNode(ast.KindSuper, nil),
 				ast.NewNode(ast.KindSingle, nil),
@@ -385,7 +204,7 @@ func TestCompiler(t *testing.T) {
 				ast.NewNode(ast.KindSuper, nil),
 				ast.NewNode(ast.KindSingle, nil),
 			),
-			result: match.NewBTree(
+			result: match.NewTree(
 				match.NewText("abc"),
 				match.NewMin(1),
 				match.NewMin(1),
@@ -430,14 +249,14 @@ func TestCompiler(t *testing.T) {
 					),
 				),
 			),
-			result: match.NewBTree(
+			result: match.NewTree(
 				match.NewText("abc"),
 				nil,
-				match.AnyOf{Matchers: match.Matchers{
+				match.NewAnyOf(
 					match.NewSingle(nil),
 					match.NewList([]rune{'d', 'e', 'f'}, false),
 					match.NewNothing(),
-				}},
+				),
 			),
 		},
 		{
@@ -446,14 +265,11 @@ func TestCompiler(t *testing.T) {
 				ast.NewNode(ast.KindRange, ast.Range{Lo: 'a', Hi: 'x', Not: true}),
 				ast.NewNode(ast.KindAny, nil),
 			),
-			result: match.NewBTree(
-				match.NewRow(
-					2,
-					match.Matchers{
-						match.NewRange('a', 'z', false),
-						match.NewRange('a', 'x', true),
-					}...,
-				),
+			result: match.NewTree(
+				match.NewRow([]match.MatchIndexSizer{
+					match.NewRange('a', 'z', false),
+					match.NewRange('a', 'x', true),
+				}),
 				nil,
 				match.NewSuper(),
 			),
@@ -473,17 +289,14 @@ func TestCompiler(t *testing.T) {
 					),
 				),
 			),
-			result: match.NewRow(
-				7,
-				match.Matchers{
-					match.NewText("abc"),
-					match.AnyOf{Matchers: match.Matchers{
-						match.NewList([]rune{'a', 'b', 'c'}, false),
-						match.NewList([]rune{'d', 'e', 'f'}, false),
-					}},
-					match.NewText("ghi"),
-				}...,
-			),
+			result: match.NewRow([]match.MatchIndexSizer{
+				match.NewText("abc"),
+				match.MustIndexedSizedAnyOf(
+					match.NewList([]rune{'a', 'b', 'c'}, false),
+					match.NewList([]rune{'d', 'e', 'f'}, false),
+				),
+				match.NewText("ghi"),
+			}),
 		},
 	} {
 		m, err := Compile(test.ast, test.sep)
@@ -493,7 +306,7 @@ func TestCompiler(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(m, test.result) {
-			t.Errorf("[%d] Compile():\nexp: %#v\nact: %#v\n\ngraphviz:\nexp:\n%s\nact:\n%s\n", id, test.result, m, debug.Graphviz("", test.result.(match.Matcher)), debug.Graphviz("", m.(match.Matcher)))
+			t.Errorf("[%d] Compile():\nexp: %#v\nact: %#v\n\ngraphviz:\nexp:\n%s\nact:\n%s\n", id, test.result, m, match.Graphviz("", test.result.(match.Matcher)), match.Graphviz("", m.(match.Matcher)))
 			continue
 		}
 	}

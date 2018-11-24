@@ -14,6 +14,10 @@ func NewContains(needle string) Contains {
 	return Contains{needle, false}
 }
 
+func NewNotContains(needle string) Contains {
+	return Contains{needle, true}
+}
+
 func (c Contains) Match(s string) bool {
 	return strings.Contains(s, c.s) != c.not
 }

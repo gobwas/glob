@@ -42,15 +42,28 @@ type Container interface {
 
 func MatchIndexers(ms []Matcher) ([]MatchIndexer, bool) {
 	for _, m := range ms {
-		if _, ok := m.(Indexer); !ok {
+		if _, ok := m.(MatchIndexer); !ok {
 			return nil, false
 		}
 	}
-	mis := make([]MatchIndexer, len(ms))
-	for i := range mis {
-		mis[i] = ms[i].(MatchIndexer)
+	r := make([]MatchIndexer, len(ms))
+	for i := range r {
+		r[i] = ms[i].(MatchIndexer)
 	}
-	return mis, true
+	return r, true
+}
+
+func MatchIndexSizers(ms []Matcher) ([]MatchIndexSizer, bool) {
+	for _, m := range ms {
+		if _, ok := m.(MatchIndexSizer); !ok {
+			return nil, false
+		}
+	}
+	r := make([]MatchIndexSizer, len(ms))
+	for i := range r {
+		r[i] = ms[i].(MatchIndexSizer)
+	}
+	return r, true
 }
 
 type Matchers []Matcher

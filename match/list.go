@@ -30,6 +30,10 @@ func (l List) MinLen() int {
 	return 1
 }
 
+func (l List) RunesCount() int {
+	return 1
+}
+
 func (l List) Index(s string) (int, []int) {
 	for i, r := range s {
 		if l.not == (runes.IndexRune(l.rs, r) == -1) {

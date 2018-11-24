@@ -12,9 +12,33 @@ type AnyOf struct {
 func NewAnyOf(ms ...Matcher) Matcher {
 	a := AnyOf{ms, minLen(ms)}
 	if mis, ok := MatchIndexers(ms); ok {
-		return IndexedAnyOf{a, mis}
+		x := IndexedAnyOf{a, mis}
+		if msz, ok := MatchIndexSizers(ms); ok {
+			sz := -1
+			for _, m := range msz {
+				n := m.RunesCount()
+				if sz == -1 {
+					sz = n
+				} else if sz != n {
+					sz = -1
+					break
+				}
+			}
+			if sz != -1 {
+				return IndexedSizedAnyOf{x, sz}
+			}
+		}
+		return x
 	}
 	return a
+}
+
+func MustIndexedAnyOf(ms ...Matcher) MatchIndexer {
+	return NewAnyOf(ms...).(MatchIndexer)
+}
+
+func MustIndexedSizedAnyOf(ms ...Matcher) MatchIndexSizer {
+	return NewAnyOf(ms...).(MatchIndexSizer)
 }
 
 func (a AnyOf) Match(s string) bool {
@@ -71,4 +95,13 @@ func (a IndexedAnyOf) Index(s string) (int, []int) {
 
 func (a IndexedAnyOf) String() string {
 	return fmt.Sprintf("<indexed_any_of:[%s]>", a.ms)
+}
+
+type IndexedSizedAnyOf struct {
+	IndexedAnyOf
+	runes int
+}
+
+func (a IndexedSizedAnyOf) RunesCount() int {
+	return a.runes
 }

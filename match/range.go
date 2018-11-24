@@ -18,6 +18,10 @@ func (self Range) MinLen() int {
 	return 1
 }
 
+func (self Range) RunesCount() int {
+	return 1
+}
+
 func (self Range) Match(s string) bool {
 	r, w := utf8.DecodeRuneInString(s)
 	if len(s) > w {
