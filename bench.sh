@@ -1,14 +1,13 @@
 #! /bin/bash
 
-tmp=$(mktemp -d /tmp/globbench.XXXXXX)
-echo "temp dir is $tmp";
+rnd=$(head -c4 </dev/urandom|xxd -p -u)
 
 bench() {
 	local exp=".*"
     if [[ ! -z $2 ]]; then
     	$exp = $2
     fi
-    filename="$tmp/$1.bench"
+    filename=$(echo "$rnd-$1.bench" | tr "/" "_")
     if test -e "${filename}";
     then
         echo "Already exists ${filename}"
@@ -30,4 +29,4 @@ current=`git rev-parse --abbrev-ref HEAD`
 bench ${to} $2
 bench ${current} $2
 
-benchcmp $3 "$tmp/${to}.bench" "$tmp/${current}.bench"
+benchcmp $3 "$rnd-${to}.bench" "$rnd-${current}.bench"
