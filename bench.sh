@@ -1,7 +1,10 @@
 #! /bin/bash
 
 bench() {
-    filename="/tmp/$1-$2.bench"
+    if [[ -z $2 ]]; then
+    	$2 = ".*"
+    fi
+    filename="/tmp/$1.bench"
     if test -e "${filename}";
     then
         echo "Already exists ${filename}"
@@ -23,4 +26,4 @@ current=`git rev-parse --abbrev-ref HEAD`
 bench ${to} $2
 bench ${current} $2
 
-benchcmp $3 "/tmp/${to}-$2.bench" "/tmp/${current}-$2.bench"
+benchcmp $3 "/tmp/${to}.bench" "/tmp/${current}.bench"
