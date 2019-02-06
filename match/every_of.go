@@ -10,7 +10,10 @@ type EveryOf struct {
 }
 
 func NewEveryOf(ms []Matcher) Matcher {
-	e := EveryOf{ms, minLen(ms)}
+	e := EveryOf{
+		ms:  ms,
+		min: maxLen(ms),
+	}
 	if mis, ok := MatchIndexers(ms); ok {
 		return IndexedEveryOf{e, mis}
 	}
@@ -28,6 +31,12 @@ func (e EveryOf) Match(s string) bool {
 		}
 	}
 	return true
+}
+
+func (e EveryOf) Content(cb func(Matcher)) {
+	for _, m := range e.ms {
+		cb(m)
+	}
 }
 
 func (e EveryOf) String() string {

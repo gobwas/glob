@@ -74,29 +74,32 @@ func (t Tree) MinLen() int {
 	return t.minLen
 }
 
+func (t Tree) Content(cb func(Matcher)) {
+	if t.left != nil {
+		cb(t.left)
+	}
+	cb(t.value)
+	if t.right != nil {
+		cb(t.right)
+	}
+}
+
 func (t Tree) Match(s string) (ok bool) {
 	if debug.Enabled {
-		debug.Enter()
-		debug.Logf("tree: matching %q: %v", s, t)
-		defer func(s string) {
-			debug.Logf("tree: result: %q -> %v", s, ok)
-			debug.Leave()
-		}(s)
+		done := debug.Matching("tree", s)
+		defer func() { done(ok) }()
 	}
 
 	offset, limit := t.offsetLimit(s)
 	q := s[offset : len(s)-limit]
 
 	if debug.Enabled {
-		debug.Logf("tree: offset/limit: %d/%d %q of %q", offset, limit, q, s)
+		debug.Logf("offset/limit: %d/%d: %q of %q", offset, limit, q, s)
 	}
 
 	for len(q) >= t.vrunes {
 		// search for matching part in substring
 		index, segments := t.value.Index(q)
-		if debug.Enabled {
-			debug.Logf("tree: index #%d %q (%v)", index, q, t.value)
-		}
 		if index == -1 {
 			releaseSegments(segments)
 			return false
@@ -110,7 +113,7 @@ func (t Tree) Match(s string) (ok bool) {
 			left = l == ""
 		}
 		if debug.Enabled {
-			debug.Logf("tree: left %q %v", l, left)
+			debug.Logf("left %q: -> %t", l, left)
 		}
 		if left {
 			for _, seg := range segments {
@@ -124,7 +127,7 @@ func (t Tree) Match(s string) (ok bool) {
 					right = r == ""
 				}
 				if debug.Enabled {
-					debug.Logf("tree: right %q %v", r, right)
+					debug.Logf("right %q: -> %t", r, right)
 				}
 				if right {
 					releaseSegments(segments)

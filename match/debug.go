@@ -54,20 +54,12 @@ func graphviz(m Matcher, id string) string {
 		}
 
 	case Container:
-		fmt.Fprintf(buf, `"%s"[label="*AnyOf"];`, id)
-		for _, m := range v.Content() {
+		fmt.Fprintf(buf, `"%s"[label="Container(%T)"];`, id, m)
+		v.Content(func(m Matcher) {
 			rnd := rand.Int63()
 			fmt.Fprintf(buf, graphviz(m, fmt.Sprintf("%x", rnd)))
 			fmt.Fprintf(buf, `"%s"->"%x";`, id, rnd)
-		}
-
-	case EveryOf:
-		fmt.Fprintf(buf, `"%s"[label="EveryOf"];`, id)
-		for _, m := range v.ms {
-			rnd := rand.Int63()
-			fmt.Fprintf(buf, graphviz(m, fmt.Sprintf("%x", rnd)))
-			fmt.Fprintf(buf, `"%s"->"%x";`, id, rnd)
-		}
+		})
 
 	default:
 		fmt.Fprintf(buf, `"%s"[label="%s"];`, id, m)

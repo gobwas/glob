@@ -42,5 +42,8 @@ func (s Single) Index(v string) (int, []int) {
 }
 
 func (s Single) String() string {
+	if len(s.sep) == 0 {
+		return "<single>"
+	}
 	return fmt.Sprintf("<single:![%s]>", string(s.sep))
 }

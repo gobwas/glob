@@ -3,22 +3,26 @@ package match
 import (
 	"fmt"
 
+	"github.com/gobwas/glob/internal/debug"
 	"github.com/gobwas/glob/util/runes"
 )
 
-func Optimize(m Matcher) Matcher {
+func Optimize(m Matcher) (opt Matcher) {
+	if debug.Enabled {
+		defer func() {
+			a := fmt.Sprintf("%s", m)
+			b := fmt.Sprintf("%s", opt)
+			if a != b {
+				debug.EnterPrefix("optimized %s: -> %s", a, b)
+				debug.LeavePrefix()
+			}
+		}()
+	}
 	switch v := m.(type) {
 	case Any:
 		if len(v.sep) == 0 {
 			return NewSuper()
 		}
-
-	case Container:
-		ms := v.Content()
-		if len(ms) == 1 {
-			return ms[0]
-		}
-		return m
 
 	case List:
 		if v.not == false && len(v.rs) == 1 {
@@ -73,12 +77,33 @@ func Optimize(m Matcher) Matcher {
 		case leftNil && rightAny:
 			return NewPrefixAny(txt.s, ra.sep)
 		}
+
+	case Container:
+		var (
+			first Matcher
+			n     int
+		)
+		v.Content(func(m Matcher) {
+			first = m
+			n++
+		})
+		if n == 1 {
+			return first
+		}
+		return m
 	}
 
 	return m
 }
 
-func Compile(ms []Matcher) (Matcher, error) {
+func Compile(ms []Matcher) (m Matcher, err error) {
+	if debug.Enabled {
+		debug.EnterPrefix("compiling %s", ms)
+		defer func() {
+			debug.Logf("-> %s, %v", m, err)
+			debug.LeavePrefix()
+		}()
+	}
 	if len(ms) == 0 {
 		return nil, fmt.Errorf("compile error: need at least one matcher")
 	}
@@ -90,33 +115,40 @@ func Compile(ms []Matcher) (Matcher, error) {
 	}
 
 	var (
-		idx     = -1
-		maxLen  = -2
-		indexer MatchIndexer
+		x   = -1
+		max = -2
+
+		wantText bool
+		indexer  MatchIndexer
 	)
 	for i, m := range ms {
-		mi, ok := m.(MatchIndexer)
+		mx, ok := m.(MatchIndexer)
 		if !ok {
 			continue
 		}
-		if n := m.MinLen(); n > maxLen {
-			maxLen = n
-			idx = i
-			indexer = mi
+		_, isText := m.(Text)
+		if wantText && !isText {
+			continue
+		}
+		n := m.MinLen()
+		if (!wantText && isText) || n > max {
+			max = n
+			x = i
+			indexer = mx
+			wantText = isText
 		}
 	}
 	if indexer == nil {
 		return nil, fmt.Errorf("can not index on matchers")
 	}
 
-	left := ms[:idx]
+	left := ms[:x]
 	var right []Matcher
-	if len(ms) > idx+1 {
-		right = ms[idx+1:]
+	if len(ms) > x+1 {
+		right = ms[x+1:]
 	}
 
 	var l, r Matcher
-	var err error
 	if len(left) > 0 {
 		l, err = Compile(left)
 		if err != nil {
@@ -239,40 +271,139 @@ func glueMatchersAsEvery(ms []Matcher) Matcher {
 	return NewEveryOf(every)
 }
 
-func Minimize(ms []Matcher) []Matcher {
-	var (
-		result Matcher
-		left   int
-		right  int
-		count  int
-	)
-	for l := 0; l < len(ms); l++ {
-		for r := len(ms); r > l; r-- {
-			if glued := glueMatchers(ms[l:r]); glued != nil {
-				var swap bool
-				if result == nil {
-					swap = true
-				} else {
-					swap = glued.MinLen() > result.MinLen() || count < r-l
-				}
-				if swap {
-					result = glued
-					left = l
-					right = r
-					count = r - l
-				}
-			}
+type result struct {
+	ms       []Matcher
+	matchers int
+	minLen   int
+	nesting  int
+}
+
+func compareResult(a, b result) int {
+	if x := len(a.ms) - len(b.ms); x != 0 {
+		return x
+	}
+	if x := a.matchers - b.matchers; x != 0 {
+		return x
+	}
+	if x := b.minLen - a.minLen; x != 0 {
+		return x
+	}
+	if x := a.nesting - b.nesting; x != 0 {
+		return x
+	}
+	return 0
+}
+
+func collapse(ms []Matcher, x Matcher, i, j int) (cp []Matcher) {
+	cp = make([]Matcher, len(ms)-(j-i)+1)
+	copy(cp[0:i], ms[0:i])
+	copy(cp[i+1:], ms[j:])
+	cp[i] = x
+	return cp
+}
+
+func matchersCount(ms []Matcher) (n int) {
+	n = len(ms)
+	for _, m := range ms {
+		n += countNestedMatchers(m)
+	}
+	return n
+}
+
+func countNestedMatchers(m Matcher) (n int) {
+	if c, _ := m.(Container); c != nil {
+		c.Content(func(m Matcher) {
+			n += 1 + countNestedMatchers(m)
+		})
+	}
+	return n
+}
+
+func nestingDepth(m Matcher) (depth int) {
+	c, ok := m.(Container)
+	if !ok {
+		return 0
+	}
+	var max int
+	c.Content(func(m Matcher) {
+		if d := nestingDepth(m); d > max {
+			max = d
+		}
+	})
+	return max + 1
+}
+
+func maxMinLen(ms []Matcher) (max int) {
+	for _, m := range ms {
+		if n := m.MinLen(); n > max {
+			max = n
 		}
 	}
-	if result == nil {
+	return max
+}
+
+func maxNestingDepth(ms []Matcher) (max int) {
+	for _, m := range ms {
+		if n := nestingDepth(m); n > max {
+			max = n
+		}
+	}
+	return
+}
+
+func minimize(ms []Matcher, i, j int, best *result) *result {
+	if j > len(ms) {
+		j = 0
+		i++
+	}
+	if i > len(ms)-2 {
+		return best
+	}
+	if j == 0 {
+		j = i + 2
+	}
+	if g := glueMatchers(ms[i:j]); g != nil {
+		cp := collapse(ms, g, i, j)
+		r := result{
+			ms:       cp,
+			matchers: matchersCount(cp),
+			minLen:   maxMinLen(cp),
+			nesting:  maxNestingDepth(cp),
+		}
+		if debug.Enabled {
+			debug.EnterPrefix(
+				"intermediate: %s (matchers:%d, minlen:%d, nesting:%d)",
+				cp, r.matchers, r.minLen, r.nesting,
+			)
+		}
+		if best == nil {
+			best = new(result)
+		}
+		if best.ms == nil || compareResult(r, *best) < 0 {
+			*best = r
+			if debug.Enabled {
+				debug.Logf("new best result")
+			}
+		}
+		best = minimize(cp, 0, 0, best)
+		if debug.Enabled {
+			debug.LeavePrefix()
+		}
+	}
+	return minimize(ms, i, j+1, best)
+}
+
+func Minimize(ms []Matcher) (m []Matcher) {
+	if debug.Enabled {
+		debug.EnterPrefix("minimizing %s", ms)
+		defer func() {
+			debug.Logf("-> %s", m)
+			debug.LeavePrefix()
+		}()
+	}
+	best := minimize(ms, 0, 0, nil)
+	if best == nil {
 		return ms
 	}
-	next := append(append([]Matcher{}, ms[:left]...), result)
-	if right < len(ms) {
-		next = append(next, ms[right:]...)
-	}
-	if len(next) == len(ms) {
-		return next
-	}
-	return Minimize(next)
+	return best.ms
 }

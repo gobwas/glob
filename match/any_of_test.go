@@ -41,13 +41,15 @@ func TestIndexedAnyOf(t *testing.T) {
 			[]int{1},
 		},
 	} {
-		a := NewAnyOf(test.matchers...).(IndexedAnyOf)
-		index, segments := a.Index(test.fixture)
-		if index != test.index {
-			t.Errorf("#%d unexpected index: exp: %d, act: %d", id, test.index, index)
-		}
-		if !reflect.DeepEqual(segments, test.segments) {
-			t.Errorf("#%d unexpected segments: exp: %v, act: %v", id, test.segments, segments)
-		}
+		t.Run("", func(t *testing.T) {
+			a := NewAnyOf(test.matchers...).(Indexer)
+			index, segments := a.Index(test.fixture)
+			if index != test.index {
+				t.Errorf("#%d unexpected index: exp: %d, act: %d", id, test.index, index)
+			}
+			if !reflect.DeepEqual(segments, test.segments) {
+				t.Errorf("#%d unexpected segments: exp: %v, act: %v", id, test.segments, segments)
+			}
+		})
 	}
 }

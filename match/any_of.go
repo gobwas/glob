@@ -2,6 +2,8 @@ package match
 
 import (
 	"fmt"
+
+	"github.com/gobwas/glob/internal/debug"
 )
 
 type AnyOf struct {
@@ -41,7 +43,11 @@ func MustIndexedSizedAnyOf(ms ...Matcher) MatchIndexSizer {
 	return NewAnyOf(ms...).(MatchIndexSizer)
 }
 
-func (a AnyOf) Match(s string) bool {
+func (a AnyOf) Match(s string) (ok bool) {
+	if debug.Enabled {
+		done := debug.Matching("any_of", s)
+		defer func() { done(ok) }()
+	}
 	for _, m := range a.ms {
 		if m.Match(s) {
 			return true
@@ -54,8 +60,10 @@ func (a AnyOf) MinLen() (n int) {
 	return a.min
 }
 
-func (a AnyOf) Content() []Matcher {
-	return a.ms
+func (a AnyOf) Content(cb func(Matcher)) {
+	for _, m := range a.ms {
+		cb(m)
+	}
 }
 
 func (a AnyOf) String() string {
@@ -67,10 +75,17 @@ type IndexedAnyOf struct {
 	ms []MatchIndexer
 }
 
-func (a IndexedAnyOf) Index(s string) (int, []int) {
-	index := -1
-	segments := acquireSegments(len(s))
+func (a IndexedAnyOf) Index(s string) (index int, segments []int) {
+	if debug.Enabled {
+		done := debug.Indexing("any_of", s)
+		defer func() { done(index, segments) }()
+	}
+	index = -1
+	segments = acquireSegments(len(s))
 	for _, m := range a.ms {
+		if debug.Enabled {
+			debug.Logf("indexing: any_of: trying %s", m)
+		}
 		i, seg := m.Index(s)
 		if i == -1 {
 			continue

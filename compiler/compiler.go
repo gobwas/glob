@@ -16,7 +16,6 @@ func Compile(tree *ast.Node, sep []rune) (match.Matcher, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return m, nil
 }
 
@@ -32,25 +31,29 @@ func compileNodes(ns []*ast.Node, sep []rune) ([]match.Matcher, error) {
 	return matchers, nil
 }
 
-func compile(tree *ast.Node, sep []rune) (m match.Matcher, err error) {
+func compile(node *ast.Node, sep []rune) (m match.Matcher, err error) {
 	if debug.Enabled {
-		debug.Enter()
-		debug.Logf("compiler: compiling %s", tree)
+		debug.EnterPrefix("compiler: compiling %s", node)
 		defer func() {
-			debug.Logf("compiler: result %s", m)
-			debug.Leave()
+			if err != nil {
+				debug.Logf("->! %v", err)
+			} else {
+				debug.Logf("-> %s", m)
+			}
+			debug.LeavePrefix()
 		}()
 	}
 
 	// todo this could be faster on pattern_alternatives_combine_lite (see glob_test.go)
-	if n := ast.Minimize(tree); n != nil {
+	if n := ast.Minimize(node); n != nil {
+		debug.Logf("minimized tree -> %s", node, n)
 		r, err := compile(n, sep)
 		if debug.Enabled {
 			if err != nil {
 				debug.Logf("compiler: compile minimized tree failed: %v", err)
 			} else {
 				debug.Logf("compiler: minimized tree")
-				debug.Logf("compiler: \t%s", tree)
+				debug.Logf("compiler: \t%s", node)
 				debug.Logf("compiler: \t%s", n)
 			}
 		}
@@ -59,19 +62,19 @@ func compile(tree *ast.Node, sep []rune) (m match.Matcher, err error) {
 		}
 	}
 
-	switch tree.Kind {
+	switch node.Kind {
 	case ast.KindAnyOf:
-		matchers, err := compileNodes(tree.Children, sep)
+		matchers, err := compileNodes(node.Children, sep)
 		if err != nil {
 			return nil, err
 		}
 		return match.NewAnyOf(matchers...), nil
 
 	case ast.KindPattern:
-		if len(tree.Children) == 0 {
+		if len(node.Children) == 0 {
 			return match.NewNothing(), nil
 		}
-		matchers, err := compileNodes(tree.Children, sep)
+		matchers, err := compileNodes(node.Children, sep)
 		if err != nil {
 			return nil, err
 		}
@@ -93,15 +96,15 @@ func compile(tree *ast.Node, sep []rune) (m match.Matcher, err error) {
 		m = match.NewNothing()
 
 	case ast.KindList:
-		l := tree.Value.(ast.List)
+		l := node.Value.(ast.List)
 		m = match.NewList([]rune(l.Chars), l.Not)
 
 	case ast.KindRange:
-		r := tree.Value.(ast.Range)
+		r := node.Value.(ast.Range)
 		m = match.NewRange(r.Lo, r.Hi, r.Not)
 
 	case ast.KindText:
-		t := tree.Value.(ast.Text)
+		t := node.Value.(ast.Text)
 		m = match.NewText(t.Text)
 
 	default:

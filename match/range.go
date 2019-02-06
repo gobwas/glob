@@ -3,6 +3,8 @@ package match
 import (
 	"fmt"
 	"unicode/utf8"
+
+	"github.com/gobwas/glob/internal/debug"
 )
 
 type Range struct {
@@ -22,7 +24,11 @@ func (self Range) RunesCount() int {
 	return 1
 }
 
-func (self Range) Match(s string) bool {
+func (self Range) Match(s string) (ok bool) {
+	if debug.Enabled {
+		done := debug.Matching("range", s)
+		defer func() { done(ok) }()
+	}
 	r, w := utf8.DecodeRuneInString(s)
 	if len(s) > w {
 		return false
@@ -33,7 +39,11 @@ func (self Range) Match(s string) bool {
 	return inRange == !self.Not
 }
 
-func (self Range) Index(s string) (int, []int) {
+func (self Range) Index(s string) (index int, segments []int) {
+	if debug.Enabled {
+		done := debug.Indexing("range", s)
+		defer func() { done(index, segments) }()
+	}
 	for i, r := range s {
 		if self.Not != (r >= self.Lo && r <= self.Hi) {
 			return i, segmentsByRuneLength[utf8.RuneLen(r)]

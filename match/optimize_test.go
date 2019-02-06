@@ -3,12 +3,12 @@ package match
 import (
 	"reflect"
 	"testing"
-
-	"github.com/gobwas/glob/match"
 )
 
+var separators = []rune{'.'}
+
 func TestCompile(t *testing.T) {
-	for id, test := range []struct {
+	for _, test := range []struct {
 		in  []Matcher
 		exp Matcher
 	}{
@@ -26,7 +26,7 @@ func TestCompile(t *testing.T) {
 			},
 			NewEveryOf([]Matcher{
 				NewMin(1),
-				NewContains(string(separators)),
+				NewAny(separators),
 			}),
 		},
 		{
@@ -47,7 +47,7 @@ func TestCompile(t *testing.T) {
 			},
 			NewEveryOf([]Matcher{
 				NewMin(1),
-				NewContains("a"),
+				NewAny([]rune{'a'}),
 			}),
 		},
 		{
@@ -58,7 +58,7 @@ func TestCompile(t *testing.T) {
 			},
 			NewTree(
 				NewText("c"),
-				NewBTree(
+				NewTree(
 					NewSingle(separators),
 					NewSuper(),
 					nil,
@@ -93,71 +93,73 @@ func TestCompile(t *testing.T) {
 			}),
 		},
 	} {
-		act, err := Compile(test.in)
-		if err != nil {
-			t.Errorf("#%d compile matchers error: %s", id, err)
-			continue
-		}
-		if !reflect.DeepEqual(act, test.exp) {
-			t.Errorf("#%d unexpected compile matchers result:\nact: %#v;\nexp: %#v", id, act, test.exp)
-			continue
-		}
+		t.Run("", func(t *testing.T) {
+			act, err := Compile(test.in)
+			if err != nil {
+				t.Fatalf("Compile() error: %s", err)
+			}
+			if !reflect.DeepEqual(act, test.exp) {
+				t.Errorf(
+					"Compile():\nact: %#v;\nexp: %#v;\ngraphviz:\n%s\n%s",
+					act, test.exp,
+					Graphviz("act", act), Graphviz("exp", test.exp),
+				)
+			}
+		})
 	}
 }
 
 func TestMinimize(t *testing.T) {
-	for id, test := range []struct {
-		in, exp []match.Matcher
+	for _, test := range []struct {
+		in, exp []Matcher
 	}{
 		{
-			[]match.Matcher{
-				match.NewRange('a', 'c', true),
-				match.NewList([]rune{'z', 't', 'e'}, false),
-				match.NewText("c"),
-				match.NewSingle(nil),
-				match.NewAny(nil),
+			in: []Matcher{
+				NewRange('a', 'c', true),
+				NewList([]rune{'z', 't', 'e'}, false),
+				NewText("c"),
+				NewSingle(nil),
+				NewAny(nil),
 			},
-			[]match.Matcher{
-				match.NewRow(
-					4,
-					[]match.Matcher{
-						match.NewRange('a', 'c', true),
-						match.NewList([]rune{'z', 't', 'e'}, false),
-						match.NewText("c"),
-						match.NewSingle(nil),
-					}...,
-				),
-				match.NewAny(nil),
+			exp: []Matcher{
+				NewRow([]MatchIndexSizer{
+					NewRange('a', 'c', true),
+					NewList([]rune{'z', 't', 'e'}, false),
+					NewText("c"),
+				}),
+				NewMin(1),
 			},
 		},
 		{
-			[]match.Matcher{
-				match.NewRange('a', 'c', true),
-				match.NewList([]rune{'z', 't', 'e'}, false),
-				match.NewText("c"),
-				match.NewSingle(nil),
-				match.NewAny(nil),
-				match.NewSingle(nil),
-				match.NewSingle(nil),
-				match.NewAny(nil),
+			in: []Matcher{
+				NewRange('a', 'c', true),
+				NewList([]rune{'z', 't', 'e'}, false),
+				NewText("c"),
+				NewSingle(nil),
+				NewAny(nil),
+				NewSingle(nil),
+				NewSingle(nil),
+				NewAny(nil),
 			},
-			[]match.Matcher{
-				match.NewRow(
-					3,
-					match.Matchers{
-						match.NewRange('a', 'c', true),
-						match.NewList([]rune{'z', 't', 'e'}, false),
-						match.NewText("c"),
-					}...,
-				),
-				match.NewMin(3),
+			exp: []Matcher{
+				NewRow([]MatchIndexSizer{
+					NewRange('a', 'c', true),
+					NewList([]rune{'z', 't', 'e'}, false),
+					NewText("c"),
+				}),
+				NewMin(3),
 			},
 		},
 	} {
-		act := minimizeMatchers(test.in)
-		if !reflect.DeepEqual(act, test.exp) {
-			t.Errorf("#%d unexpected convert matchers 2 result:\nact: %#v\nexp: %#v", id, act, test.exp)
-			continue
-		}
+		t.Run("", func(t *testing.T) {
+			act := Minimize(test.in)
+
+			if !reflect.DeepEqual(act, test.exp) {
+				t.Errorf(
+					"Minimize():\nact: %#v;\nexp: %#v",
+					act, test.exp,
+				)
+			}
+		})
 	}
 }

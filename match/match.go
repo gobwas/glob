@@ -37,7 +37,7 @@ type MatchIndexSizer interface {
 }
 
 type Container interface {
-	Content() []Matcher
+	Content(func(Matcher))
 }
 
 func MatchIndexers(ms []Matcher) ([]MatchIndexer, bool) {
