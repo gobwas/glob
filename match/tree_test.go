@@ -12,6 +12,16 @@ func TestTree(t *testing.T) {
 		exp  bool
 	}{
 		{
+			NewTree(NewText("x"), NewText("y"), NewText("z")),
+			"0000x1111",
+			false,
+		},
+		{
+			NewTree(NewText("a"), NewSingle(nil), NewSingle(nil)),
+			"aaa",
+			false,
+		},
+		{
 			NewTree(NewText("abc"), NewSuper(), NewSuper()),
 			"abc",
 			true,

@@ -1,6 +1,6 @@
 #! /bin/bash
 
-rnd=$(head -c4 </dev/urandom|xxd -p -u)
+rnd=$(head -c4 </dev/urandom|xxd -p)
 
 bench() {
 	local exp=".*"

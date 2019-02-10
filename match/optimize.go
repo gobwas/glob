@@ -148,21 +148,22 @@ func Compile(ms []Matcher) (m Matcher, err error) {
 		right = ms[x+1:]
 	}
 
-	var l, r Matcher
+	var (
+		l Matcher = Nothing{}
+		r Matcher = Nothing{}
+	)
 	if len(left) > 0 {
 		l, err = Compile(left)
 		if err != nil {
 			return nil, err
 		}
 	}
-
 	if len(right) > 0 {
 		r, err = Compile(right)
 		if err != nil {
 			return nil, err
 		}
 	}
-
 	return NewTree(indexer, l, r), nil
 }
 
@@ -279,16 +280,16 @@ type result struct {
 }
 
 func compareResult(a, b result) int {
-	if x := len(a.ms) - len(b.ms); x != 0 {
+	if x := b.minLen - a.minLen; x != 0 {
 		return x
 	}
 	if x := a.matchers - b.matchers; x != 0 {
 		return x
 	}
-	if x := b.minLen - a.minLen; x != 0 {
+	if x := a.nesting - b.nesting; x != 0 {
 		return x
 	}
-	if x := a.nesting - b.nesting; x != 0 {
+	if x := len(a.ms) - len(b.ms); x != 0 {
 		return x
 	}
 	return 0

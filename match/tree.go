@@ -25,6 +25,12 @@ type SizedTree struct {
 	Tree
 }
 
+type IndexedTree struct {
+	value MatchIndexer
+	left  MatchIndexer
+	right MatchIndexer
+}
+
 func (st SizedTree) RunesCount() int {
 	return st.Tree.runes
 }
@@ -49,24 +55,19 @@ func NewTree(v MatchIndexer, l, r Matcher) Matcher {
 	)
 	if lsz {
 		tree.lrunes = ls.RunesCount()
-	} else {
-		tree.lrunes = -1
 	}
 	if rsz {
 		tree.rrunes = rs.RunesCount()
-	} else {
-		tree.rrunes = -1
 	}
 	if vsz {
 		tree.vrunes = vs.RunesCount()
-	} else {
-		tree.vrunes = -1
 	}
+	//li, lix := l.(MatchIndexer)
+	//ri, rix := r.(MatchIndexer)
 	if vsz && lsz && rsz {
 		tree.runes = tree.vrunes + tree.lrunes + tree.rrunes
 		return SizedTree{tree}
 	}
-	tree.runes = -1
 	return tree
 }
 
@@ -90,44 +91,44 @@ func (t Tree) Match(s string) (ok bool) {
 		defer func() { done(ok) }()
 	}
 
+	n := len(s)
 	offset, limit := t.offsetLimit(s)
-	q := s[offset : len(s)-limit]
 
-	if debug.Enabled {
-		debug.Logf("offset/limit: %d/%d: %q of %q", offset, limit, q, s)
-	}
-
-	for len(q) >= t.vrunes {
-		// search for matching part in substring
-		index, segments := t.value.Index(q)
+	for len(s)-offset-limit >= t.vrunes {
+		if debug.Enabled {
+			debug.Logf(
+				"value %s indexing: %q (offset=%d; limit=%d)",
+				t.value, s[offset:n-limit], offset, limit,
+			)
+		}
+		index, segments := t.value.Index(s[offset : n-limit])
+		if debug.Enabled {
+			debug.Logf(
+				"value %s index: %d; %v",
+				t.value, index, segments,
+			)
+		}
 		if index == -1 {
 			releaseSegments(segments)
 			return false
 		}
 
-		l := s[:offset+index]
-		var left bool
-		if t.left != nil {
-			left = t.left.Match(l)
-		} else {
-			left = l == ""
-		}
 		if debug.Enabled {
-			debug.Logf("left %q: -> %t", l, left)
+			debug.Logf("matching left: %q", s[:offset+index])
 		}
+		left := t.left.Match(s[:offset+index])
+		if debug.Enabled {
+			debug.Logf("matching left: -> %t", left)
+		}
+
 		if left {
 			for _, seg := range segments {
-				var (
-					right bool
-				)
-				r := s[offset+index+seg:]
-				if t.right != nil {
-					right = t.right.Match(r)
-				} else {
-					right = r == ""
-				}
 				if debug.Enabled {
-					debug.Logf("right %q: -> %t", r, right)
+					debug.Logf("matching right: %q", s[offset+index+seg:])
+				}
+				right := t.right.Match(s[offset+index+seg:])
+				if debug.Enabled {
+					debug.Logf("matching right: -> %t", right)
 				}
 				if right {
 					releaseSegments(segments)
@@ -136,13 +137,14 @@ func (t Tree) Match(s string) (ok bool) {
 			}
 		}
 
-		_, x := utf8.DecodeRuneInString(q[index:])
 		releaseSegments(segments)
-		q = q[x:]
-		offset += x
-		if debug.Enabled {
-			debug.Logf("tree: sliced to %q", q)
+
+		_, x := utf8.DecodeRuneInString(s[offset+index:])
+		if x == 0 {
+			// No progress.
+			break
 		}
+		offset = offset + index + x
 	}
 
 	return false
