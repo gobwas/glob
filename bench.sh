@@ -1,15 +1,21 @@
 #! /bin/bash
 
+rnd=$(head -c4 </dev/urandom|xxd -p)
+
 bench() {
-    filename="/tmp/$1-$2.bench"
+	local exp=".*"
+    if [[ ! -z $2 ]]; then
+    	$exp = $2
+    fi
+    filename=$(echo "$rnd-$1.bench" | tr "/" "_")
     if test -e "${filename}";
     then
         echo "Already exists ${filename}"
     else
         backup=`git rev-parse --abbrev-ref HEAD`
-        git checkout $1
+        git checkout "$1"
         echo -n "Creating ${filename}... "
-        go test ./... -run=NONE -bench=$2 > "${filename}" -benchmem
+        go test ./... -run=NONE -bench="$exp" > "${filename}" -benchmem
         echo "OK"
         git checkout ${backup}
         sleep 5
@@ -23,4 +29,4 @@ current=`git rev-parse --abbrev-ref HEAD`
 bench ${to} $2
 bench ${current} $2
 
-benchcmp $3 "/tmp/${to}-$2.bench" "/tmp/${current}-$2.bench"
+benchcmp $3 "$rnd-${to}.bench" "$rnd-${current}.bench"

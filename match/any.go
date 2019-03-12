@@ -2,23 +2,24 @@ package match
 
 import (
 	"fmt"
-	"github.com/gobwas/glob/util/strings"
+
+	"github.com/gobwas/glob/util/runes"
 )
 
 type Any struct {
-	Separators []rune
+	sep []rune
 }
 
 func NewAny(s []rune) Any {
 	return Any{s}
 }
 
-func (self Any) Match(s string) bool {
-	return strings.IndexAnyRunes(s, self.Separators) == -1
+func (a Any) Match(s string) bool {
+	return runes.IndexAnyRune(s, a.sep) == -1
 }
 
-func (self Any) Index(s string) (int, []int) {
-	found := strings.IndexAnyRunes(s, self.Separators)
+func (a Any) Index(s string) (int, []int) {
+	found := runes.IndexAnyRune(s, a.sep)
 	switch found {
 	case -1:
 	case 0:
@@ -36,10 +37,10 @@ func (self Any) Index(s string) (int, []int) {
 	return 0, segments
 }
 
-func (self Any) Len() int {
-	return lenNo
+func (a Any) MinLen() int {
+	return 0
 }
 
-func (self Any) String() string {
-	return fmt.Sprintf("<any:![%s]>", string(self.Separators))
+func (a Any) String() string {
+	return fmt.Sprintf("<any:![%s]>", string(a.sep))
 }

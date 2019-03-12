@@ -1,8 +1,11 @@
 package glob
 
 import (
+	"fmt"
 	"regexp"
 	"testing"
+
+	"github.com/gobwas/glob/match"
 )
 
 const (
@@ -57,7 +60,30 @@ type test struct {
 }
 
 func glob(s bool, p, m string, d ...rune) test {
-	return test{p, m, s, d}
+	return test{
+		should:     s,
+		pattern:    p,
+		match:      m,
+		delimiters: d,
+	}
+}
+
+func globc(p string, d ...rune) test {
+	return test{pattern: p, delimiters: d}
+}
+
+func TestCompilation(t *testing.T) {
+	for _, test := range []test{
+		globc("{*,**,?}", '.'),
+		globc("{*.google.*,yandex.*}", '.'),
+	} {
+		t.Run("", func(t *testing.T) {
+			_, err := Compile(test.pattern, test.delimiters...)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
 }
 
 func TestGlob(t *testing.T) {
@@ -134,6 +160,8 @@ func TestGlob(t *testing.T) {
 		glob(true, "*//{,*.}example.com", "http://example.com"),
 		glob(false, "*//{,*.}example.com", "http://example.com.net"),
 
+		glob(true, "{a*,b}c", "abc", '.'),
+
 		glob(true, pattern_all, fixture_all_match),
 		glob(false, pattern_all, fixture_all_mismatch),
 
@@ -164,6 +192,11 @@ func TestGlob(t *testing.T) {
 		glob(false, pattern_prefix_suffix, fixture_prefix_suffix_mismatch),
 	} {
 		t.Run("", func(t *testing.T) {
+			defer func() {
+				if thePanic := recover(); thePanic != nil {
+					t.Fatalf("panic recovered: %v", thePanic)
+				}
+			}()
 			g := MustCompile(test.pattern, test.delimiters...)
 			result := g.Match(test.match)
 			if result != test.should {
@@ -220,19 +253,9 @@ func BenchmarkParseRegexp(b *testing.B) {
 
 func BenchmarkAllGlobMatch(b *testing.B) {
 	m, _ := Compile(pattern_all)
-
 	for i := 0; i < b.N; i++ {
 		_ = m.Match(fixture_all_match)
 	}
-}
-func BenchmarkAllGlobMatchParallel(b *testing.B) {
-	m, _ := Compile(pattern_all)
-
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = m.Match(fixture_all_match)
-		}
-	})
 }
 
 func BenchmarkAllRegexpMatch(b *testing.B) {
@@ -243,22 +266,16 @@ func BenchmarkAllRegexpMatch(b *testing.B) {
 		_ = m.Match(f)
 	}
 }
+
 func BenchmarkAllGlobMismatch(b *testing.B) {
-	m, _ := Compile(pattern_all)
+	m := MustCompile(pattern_all)
+	fmt.Println(match.Graphviz(pattern_all, m.(match.Matcher)))
 
 	for i := 0; i < b.N; i++ {
 		_ = m.Match(fixture_all_mismatch)
 	}
 }
-func BenchmarkAllGlobMismatchParallel(b *testing.B) {
-	m, _ := Compile(pattern_all)
 
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = m.Match(fixture_all_mismatch)
-		}
-	})
-}
 func BenchmarkAllRegexpMismatch(b *testing.B) {
 	m := regexp.MustCompile(regexp_all)
 	f := []byte(fixture_all_mismatch)

@@ -1,10 +1,9 @@
 language: go
 go:
-  - "1.7.X"
-  - "1.8.X"
-  - "1.9.X"
-  - "1.10.X"
-  - master
+  - 1.7.x
+  - 1.8.x
+  - 1.9.x
+  - 1.x
 
 matrix:
   allow_failures:

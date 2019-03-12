@@ -3,41 +3,43 @@ package match
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
-	sutil "github.com/gobwas/glob/util/strings"
+	"github.com/gobwas/glob/util/runes"
 )
 
 type SuffixAny struct {
-	Suffix     string
-	Separators []rune
+	s      string
+	sep    []rune
+	minLen int
 }
 
 func NewSuffixAny(s string, sep []rune) SuffixAny {
-	return SuffixAny{s, sep}
+	return SuffixAny{s, sep, utf8.RuneCountInString(s)}
 }
 
-func (self SuffixAny) Index(s string) (int, []int) {
-	idx := strings.Index(s, self.Suffix)
+func (s SuffixAny) Index(v string) (int, []int) {
+	idx := strings.Index(v, s.s)
 	if idx == -1 {
 		return -1, nil
 	}
 
-	i := sutil.LastIndexAnyRunes(s[:idx], self.Separators) + 1
+	i := runes.LastIndexAnyRune(v[:idx], s.sep) + 1
 
-	return i, []int{idx + len(self.Suffix) - i}
+	return i, []int{idx + len(s.s) - i}
 }
 
-func (self SuffixAny) Len() int {
-	return lenNo
+func (s SuffixAny) MinLen() int {
+	return s.minLen
 }
 
-func (self SuffixAny) Match(s string) bool {
-	if !strings.HasSuffix(s, self.Suffix) {
+func (s SuffixAny) Match(v string) bool {
+	if !strings.HasSuffix(v, s.s) {
 		return false
 	}
-	return sutil.IndexAnyRunes(s[:len(s)-len(self.Suffix)], self.Separators) == -1
+	return runes.IndexAnyRune(v[:len(v)-len(s.s)], s.sep) == -1
 }
 
-func (self SuffixAny) String() string {
-	return fmt.Sprintf("<suffix_any:![%s]%s>", string(self.Separators), self.Suffix)
+func (s SuffixAny) String() string {
+	return fmt.Sprintf("<suffix_any:![%s]%s>", string(s.sep), s.s)
 }

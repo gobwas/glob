@@ -7,20 +7,24 @@ import (
 )
 
 type Prefix struct {
-	Prefix string
+	s       string
+	minSize int
 }
 
 func NewPrefix(p string) Prefix {
-	return Prefix{p}
+	return Prefix{
+		s:       p,
+		minSize: utf8.RuneCountInString(p),
+	}
 }
 
-func (self Prefix) Index(s string) (int, []int) {
-	idx := strings.Index(s, self.Prefix)
+func (p Prefix) Index(s string) (int, []int) {
+	idx := strings.Index(s, p.s)
 	if idx == -1 {
 		return -1, nil
 	}
 
-	length := len(self.Prefix)
+	length := len(p.s)
 	var sub string
 	if len(s) > idx+length {
 		sub = s[idx+length:]
@@ -37,14 +41,14 @@ func (self Prefix) Index(s string) (int, []int) {
 	return idx, segments
 }
 
-func (self Prefix) Len() int {
-	return lenNo
+func (p Prefix) MinLen() int {
+	return p.minSize
 }
 
-func (self Prefix) Match(s string) bool {
-	return strings.HasPrefix(s, self.Prefix)
+func (p Prefix) Match(s string) bool {
+	return strings.HasPrefix(s, p.s)
 }
 
-func (self Prefix) String() string {
-	return fmt.Sprintf("<prefix:%s>", self.Prefix)
+func (p Prefix) String() string {
+	return fmt.Sprintf("<prefix:%s>", p.s)
 }

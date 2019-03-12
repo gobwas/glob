@@ -5,27 +5,28 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	sutil "github.com/gobwas/glob/util/strings"
+	"github.com/gobwas/glob/util/runes"
 )
 
 type PrefixAny struct {
-	Prefix     string
-	Separators []rune
+	s      string
+	sep    []rune
+	minLen int
 }
 
 func NewPrefixAny(s string, sep []rune) PrefixAny {
-	return PrefixAny{s, sep}
+	return PrefixAny{s, sep, utf8.RuneCountInString(s)}
 }
 
-func (self PrefixAny) Index(s string) (int, []int) {
-	idx := strings.Index(s, self.Prefix)
+func (p PrefixAny) Index(s string) (int, []int) {
+	idx := strings.Index(s, p.s)
 	if idx == -1 {
 		return -1, nil
 	}
 
-	n := len(self.Prefix)
+	n := len(p.s)
 	sub := s[idx+n:]
-	i := sutil.IndexAnyRunes(sub, self.Separators)
+	i := runes.IndexAnyRune(sub, p.sep)
 	if i > -1 {
 		sub = sub[:i]
 	}
@@ -39,17 +40,17 @@ func (self PrefixAny) Index(s string) (int, []int) {
 	return idx, seg
 }
 
-func (self PrefixAny) Len() int {
-	return lenNo
+func (p PrefixAny) MinLen() int {
+	return p.minLen
 }
 
-func (self PrefixAny) Match(s string) bool {
-	if !strings.HasPrefix(s, self.Prefix) {
+func (p PrefixAny) Match(s string) bool {
+	if !strings.HasPrefix(s, p.s) {
 		return false
 	}
-	return sutil.IndexAnyRunes(s[len(self.Prefix):], self.Separators) == -1
+	return runes.IndexAnyRune(s[len(p.s):], p.sep) == -1
 }
 
-func (self PrefixAny) String() string {
-	return fmt.Sprintf("<prefix_any:%s![%s]>", self.Prefix, string(self.Separators))
+func (p PrefixAny) String() string {
+	return fmt.Sprintf("<prefix_any:%s![%s]>", p.s, string(p.sep))
 }

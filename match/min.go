@@ -6,52 +6,48 @@ import (
 )
 
 type Min struct {
-	Limit int
+	n int
 }
 
-func NewMin(l int) Min {
-	return Min{l}
+func NewMin(n int) Min {
+	return Min{n}
 }
 
-func (self Min) Match(s string) bool {
-	var l int
+func (m Min) Match(s string) bool {
+	var n int
 	for range s {
-		l += 1
-		if l >= self.Limit {
+		n += 1
+		if n >= m.n {
 			return true
 		}
 	}
-
 	return false
 }
 
-func (self Min) Index(s string) (int, []int) {
+func (m Min) Index(s string) (int, []int) {
 	var count int
 
-	c := len(s) - self.Limit + 1
+	c := len(s) - m.n + 1
 	if c <= 0 {
 		return -1, nil
 	}
-
 	segments := acquireSegments(c)
 	for i, r := range s {
 		count++
-		if count >= self.Limit {
+		if count >= m.n {
 			segments = append(segments, i+utf8.RuneLen(r))
 		}
 	}
-
 	if len(segments) == 0 {
 		return -1, nil
 	}
-
 	return 0, segments
 }
 
-func (self Min) Len() int {
-	return lenNo
+func (m Min) MinLen() int {
+	return m.n
 }
 
-func (self Min) String() string {
-	return fmt.Sprintf("<min:%d>", self.Limit)
+func (m Min) String() string {
+	return fmt.Sprintf("<min:%d>", m.n)
 }
