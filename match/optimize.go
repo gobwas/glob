@@ -40,8 +40,8 @@ func Optimize(m Matcher) (opt Matcher) {
 		}
 
 		var (
-			leftNil  = v.left == nil
-			rightNil = v.right == nil
+			leftNil  = v.left == nil || v.left == Nothing{}
+			rightNil = v.right == nil || v.right == Nothing{}
 		)
 		if leftNil && rightNil {
 			return NewText(txt.s)

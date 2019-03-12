@@ -113,7 +113,7 @@ func TestCompiler(t *testing.T) {
 					match.NewSingle(separators),
 				}),
 				match.NewAny(separators),
-				nil,
+				match.Nothing{},
 			),
 		},
 		{
@@ -129,13 +129,13 @@ func TestCompiler(t *testing.T) {
 			sep: separators,
 			exp: match.NewTree(
 				match.NewText("/"),
-				nil,
+				match.Nothing{},
 				match.NewTree(
 					match.MustIndexedAnyOf(
 						match.NewText("z"),
 						match.NewText("ab"),
 					),
-					nil,
+					match.Nothing{},
 					match.NewSuper(),
 				),
 			),
@@ -156,7 +156,7 @@ func TestCompiler(t *testing.T) {
 					match.NewSingle(separators),
 				}),
 				match.NewSuper(),
-				nil,
+				match.Nothing{},
 			),
 		},
 		{
@@ -273,7 +273,7 @@ func TestCompiler(t *testing.T) {
 			),
 			exp: match.NewTree(
 				match.NewText("abc"),
-				nil,
+				match.Nothing{},
 				match.NewAnyOf(
 					match.NewSingle(nil),
 					match.NewList([]rune{'d', 'e', 'f'}, false),
@@ -293,7 +293,7 @@ func TestCompiler(t *testing.T) {
 					match.NewRange('a', 'z', false),
 					match.NewRange('a', 'x', true),
 				}),
-				nil,
+				match.Nothing{},
 				match.NewSuper(),
 			),
 		},

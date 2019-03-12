@@ -54,7 +54,7 @@ func main() {
 		for _, c := range strings.Split(*sep, ",") {
 			r, w := utf8.DecodeRuneInString(c)
 			if len(c) > w {
-				fmt.Println("only single charactered separators are allowed: %+q", c)
+				fmt.Printf("only single charactered separators are allowed: %+q\n", c)
 				os.Exit(1)
 			}
 			separators = append(separators, r)
