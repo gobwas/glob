@@ -19,7 +19,7 @@ func TestTree(t *testing.T) {
 		{
 			NewTree(NewText("a"), NewSingle(nil), NewSingle(nil)),
 			"aaa",
-			false,
+			true,
 		},
 		{
 			NewTree(NewText("abc"), NewSuper(), NewSuper()),
@@ -32,7 +32,7 @@ func TestTree(t *testing.T) {
 			true,
 		},
 		{
-			NewTree(NewText("b"), NewSingle(nil), nil),
+			NewTree(NewText("b"), NewSingle(nil), Nothing{}),
 			"bbb",
 			false,
 		},
@@ -42,9 +42,9 @@ func TestTree(t *testing.T) {
 				NewTree(
 					NewSingle(nil),
 					NewSuper(),
-					nil,
+					Nothing{},
 				),
-				nil,
+				Nothing{},
 			),
 			"abc",
 			true,

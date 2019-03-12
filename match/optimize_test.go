@@ -61,9 +61,9 @@ func TestCompile(t *testing.T) {
 				NewTree(
 					NewSingle(separators),
 					NewSuper(),
-					nil,
+					Nothing{},
 				),
-				nil,
+				Nothing{},
 			),
 		},
 		{

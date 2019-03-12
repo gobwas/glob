@@ -267,14 +267,6 @@ func BenchmarkAllRegexpMatch(b *testing.B) {
 	}
 }
 
-func TestAllGlobMismatch(t *testing.T) {
-	m := MustCompile(pattern_all)
-	fmt.Println("====")
-	fmt.Println(match.Graphviz(pattern_all, m.(match.Matcher)))
-	fmt.Println("====")
-	m.Match(fixture_all_mismatch)
-}
-
 func BenchmarkAllGlobMismatch(b *testing.B) {
 	m := MustCompile(pattern_all)
 	fmt.Println(match.Graphviz(pattern_all, m.(match.Matcher)))

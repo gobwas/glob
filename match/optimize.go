@@ -273,23 +273,27 @@ func glueMatchersAsEvery(ms []Matcher) Matcher {
 }
 
 type result struct {
-	ms       []Matcher
-	matchers int
-	minLen   int
-	nesting  int
+	ms        []Matcher
+	matchers  int
+	maxMinLen int
+	sumMinLen int
+	nesting   int
 }
 
 func compareResult(a, b result) int {
-	if x := b.minLen - a.minLen; x != 0 {
+	if x := b.sumMinLen - a.sumMinLen; x != 0 {
 		return x
 	}
-	if x := a.matchers - b.matchers; x != 0 {
+	if x := len(a.ms) - len(b.ms); x != 0 {
 		return x
 	}
 	if x := a.nesting - b.nesting; x != 0 {
 		return x
 	}
-	if x := len(a.ms) - len(b.ms); x != 0 {
+	if x := a.matchers - b.matchers; x != 0 {
+		return x
+	}
+	if x := b.maxMinLen - a.maxMinLen; x != 0 {
 		return x
 	}
 	return 0
@@ -343,6 +347,13 @@ func maxMinLen(ms []Matcher) (max int) {
 	return max
 }
 
+func sumMinLen(ms []Matcher) (sum int) {
+	for _, m := range ms {
+		sum += m.MinLen()
+	}
+	return sum
+}
+
 func maxNestingDepth(ms []Matcher) (max int) {
 	for _, m := range ms {
 		if n := nestingDepth(m); n > max {
@@ -366,15 +377,16 @@ func minimize(ms []Matcher, i, j int, best *result) *result {
 	if g := glueMatchers(ms[i:j]); g != nil {
 		cp := collapse(ms, g, i, j)
 		r := result{
-			ms:       cp,
-			matchers: matchersCount(cp),
-			minLen:   maxMinLen(cp),
-			nesting:  maxNestingDepth(cp),
+			ms:        cp,
+			matchers:  matchersCount(cp),
+			sumMinLen: sumMinLen(cp),
+			maxMinLen: maxMinLen(cp),
+			nesting:   maxNestingDepth(cp),
 		}
 		if debug.Enabled {
 			debug.EnterPrefix(
-				"intermediate: %s (matchers:%d, minlen:%d, nesting:%d)",
-				cp, r.matchers, r.minLen, r.nesting,
+				"intermediate: %s (matchers:%d, summinlen:%d, maxminlen:%d, nesting:%d)",
+				cp, r.matchers, r.sumMinLen, r.maxMinLen, r.nesting,
 			)
 		}
 		if best == nil {
