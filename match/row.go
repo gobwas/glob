@@ -2,6 +2,7 @@ package match
 
 import (
 	"fmt"
+	"unicode/utf8"
 )
 
 type Row struct {
@@ -23,19 +24,21 @@ func (self Row) matchAll(s string) bool {
 	for _, m := range self.Matchers {
 		length := m.Len()
 
-		var next, i int
-		for next = range s[idx:] {
-			i++
-			if i == length {
+		var runeCount, byteIdx int
+		var r rune
+		for _, r = range s[idx:] {
+			runeCount++
+			byteIdx += utf8.RuneLen(r)
+			if runeCount == length {
 				break
 			}
 		}
 
-		if i < length || !m.Match(s[idx:idx+next+1]) {
+		if runeCount < length || !m.Match(s[idx:idx+byteIdx]) {
 			return false
 		}
 
-		idx += next + 1
+		idx += byteIdx
 	}
 
 	return true
