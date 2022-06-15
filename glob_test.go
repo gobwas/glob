@@ -162,6 +162,16 @@ func TestGlob(t *testing.T) {
 
 		glob(true, pattern_prefix_suffix, fixture_prefix_suffix_match),
 		glob(false, pattern_prefix_suffix, fixture_prefix_suffix_mismatch),
+
+		glob(true, "155ö", "155ö"),
+		glob(true, "1?5ö", "155ö"), // <-
+		glob(true, "1?ö5", "15ö5"),
+		glob(true, "155helloö", "155helloö"),
+		glob(true, "1?5helloö", "155helloö"), // <-
+		glob(true, "1?ö5hello", "15ö5hello"),
+		glob(true, "1?5heöllo", "155heöllo"),
+		glob(true, "1ö?5", "1ö55"), // <-
+		glob(true, "ö1?5", "ö155"),
 	} {
 		t.Run("", func(t *testing.T) {
 			g := MustCompile(test.pattern, test.delimiters...)
