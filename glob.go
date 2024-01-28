@@ -61,7 +61,7 @@ func MustCompile(pattern string, separators ...rune) Glob {
 }
 
 // QuoteMeta returns a string that quotes all glob pattern meta characters
-// inside the argument text; For example, QuoteMeta(`{foo*}`) returns `\[foo\*\]`.
+// inside the argument text; For example, QuoteMeta(`{foo*}`) returns `\{foo\*\}`.
 func QuoteMeta(s string) string {
 	b := make([]byte, 2*len(s))
 
