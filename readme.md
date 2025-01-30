@@ -144,5 +144,6 @@ Pattern | Fixture | Match | Speed (ns/op)
 
 ## Syntax
 
-Syntax is inspired by [standard wildcards](http://tldp.org/LDP/GNU-Linux-Tools-Summary/html/x11655.htm),
-except that `**` is aka super-asterisk, that do not sensitive for separators.
+Syntax is inspired by [standard wildcards](http://tldp.org/LDP/GNU-Linux-Tools-Summary/html/x11655.htm).
+
+Note that the behaviour of `**` is different from typical glob implementations. It does not have the special behaviour of things like the `ls` terminal command. In tools like `ls`, a double-asterisk matches _zero or more directories deep_, in this library it matches _1+ directories deep_.
