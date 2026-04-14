@@ -31,11 +31,12 @@ func (self Row) matchAll(s string) bool {
 			}
 		}
 
-		if i < length || !m.Match(s[idx:idx+next+1]) {
+		end := idx + next + 1
+		if i < length || end > len(s) || !m.Match(s[idx:end]) {
 			return false
 		}
 
-		idx += next + 1
+		idx = end
 	}
 
 	return true
