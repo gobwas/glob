@@ -154,6 +154,16 @@ func TestGlob(t *testing.T) {
 
 		glob(true, pattern_alternatives_combine_lite, fixture_alternatives_combine_lite),
 
+		// Two-alternative brace expansion with variable-length matchers (regression for
+		// AnyOf.Len incorrectly returning a non-(-1) length when one matcher has unknown
+		// length and another has a known length).
+		glob(true, "{**/daxing,daxing}/**/*dev*.yaml", "playground/daxing/generated/dev.yaml", '/'),
+		glob(true, "{**/daxing,daxing}/**/*dev*.yaml", "daxing/generated/dev.yaml", '/'),
+		glob(false, "{**/daxing,daxing}/**/*dev*.yaml", "playground/other/generated/dev.yaml", '/'),
+		glob(true, "{**/a,a}", "x/y/a", '/'),
+		glob(true, "{**/a,a}", "a", '/'),
+		glob(false, "{**/a,a}", "x/y/b", '/'),
+
 		glob(true, pattern_prefix, fixture_prefix_suffix_match),
 		glob(false, pattern_prefix, fixture_prefix_suffix_mismatch),
 

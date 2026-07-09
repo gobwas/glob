@@ -5,6 +5,55 @@ import (
 	"testing"
 )
 
+func TestAnyOfLen(t *testing.T) {
+	for id, test := range []struct {
+		matchers Matchers
+		want     int
+	}{
+		{
+			// all matchers have the same known length
+			Matchers{NewText("abc"), NewText("xyz")},
+			3,
+		},
+		{
+			// matchers have different known lengths
+			Matchers{NewText("ab"), NewText("xyz")},
+			-1,
+		},
+		{
+			// first matcher has unknown length, second has known length
+			Matchers{NewSuffix("/daxing"), NewText("daxing")},
+			-1,
+		},
+		{
+			// first matcher has known length, second has unknown length
+			Matchers{NewText("daxing"), NewSuffix("/daxing")},
+			-1,
+		},
+		{
+			// all matchers have unknown length
+			Matchers{NewSuffix("/a"), NewPrefix("b/")},
+			-1,
+		},
+		{
+			// single matcher with known length
+			Matchers{NewText("hello")},
+			5,
+		},
+		{
+			// single matcher with unknown length
+			Matchers{NewSuffix("hello")},
+			-1,
+		},
+	} {
+		anyOf := NewAnyOf(test.matchers...)
+		got := anyOf.Len()
+		if got != test.want {
+			t.Errorf("#%d AnyOf.Len() = %d, want %d", id, got, test.want)
+		}
+	}
+}
+
 func TestAnyOfIndex(t *testing.T) {
 	for id, test := range []struct {
 		matchers Matchers

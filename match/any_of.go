@@ -59,17 +59,16 @@ func (self AnyOf) Index(s string) (int, []int) {
 
 func (self AnyOf) Len() (l int) {
 	l = -1
-	for _, m := range self.Matchers {
+	for i, m := range self.Matchers {
 		ml := m.Len()
-		switch {
-		case l == -1:
+		if ml == -1 {
+			return -1
+		}
+		if i == 0 {
 			l = ml
 			continue
-
-		case ml == -1:
-			return -1
-
-		case l != ml:
+		}
+		if l != ml {
 			return -1
 		}
 	}
