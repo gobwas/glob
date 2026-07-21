@@ -51,3 +51,38 @@ func TestAnyOfIndex(t *testing.T) {
 		}
 	}
 }
+
+func TestAnyOfLen(t *testing.T) {
+	for id, test := range []struct {
+		matchers Matchers
+		length   int
+	}{
+		{
+			Matchers{NewText("ab"), NewText("cd")},
+			2,
+		},
+		{
+			Matchers{NewText("ab"), NewText("c")},
+			-1,
+		},
+		{
+			// Leading variable-length alternative must keep Len() == -1
+			// (regression for brace patterns like "{**/x,y}").
+			Matchers{NewSuffix("/daxing"), NewText("daxing")},
+			-1,
+		},
+		{
+			Matchers{NewSuffix("/daxing"), NewText("daxing"), NewText("x")},
+			-1,
+		},
+		{
+			Matchers{NewText("daxing"), NewSuffix("/daxing")},
+			-1,
+		},
+	} {
+		anyOf := NewAnyOf(test.matchers...)
+		if l := anyOf.Len(); l != test.length {
+			t.Errorf("#%d unexpected length: exp: %d, act: %d", id, test.length, l)
+		}
+	}
+}
