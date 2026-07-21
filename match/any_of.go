@@ -58,23 +58,23 @@ func (self AnyOf) Index(s string) (int, []int) {
 }
 
 func (self AnyOf) Len() (l int) {
-	l = -1
-	for _, m := range self.Matchers {
+	if len(self.Matchers) == 0 {
+		return 0
+	}
+
+	// Use an explicit "seen" flag. Previously l started at -1, which is also
+	// the variable-length sentinel, so a leading variable-length alternative
+	// (e.g. Suffix) was treated as "unset" and overwritten by a later fixed
+	// length. That made "{**/x,y}" report a fixed length and get compiled into
+	// a Row that can never match longer prefixes.
+	l = self.Matchers[0].Len()
+	for _, m := range self.Matchers[1:] {
 		ml := m.Len()
-		switch {
-		case l == -1:
-			l = ml
-			continue
-
-		case ml == -1:
-			return -1
-
-		case l != ml:
+		if l == -1 || ml == -1 || l != ml {
 			return -1
 		}
 	}
-
-	return
+	return l
 }
 
 func (self AnyOf) String() string {

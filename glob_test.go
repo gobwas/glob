@@ -529,3 +529,23 @@ func BenchmarkPrefixSuffixRegexpMismatch(b *testing.B) {
 		_ = m.Match(f)
 	}
 }
+
+func TestBraceTwoAlternativesWithSuper(t *testing.T) {
+	// Regression: exactly two brace alternatives where the first is variable
+	// length used to report a fixed AnyOf.Len and fail to match.
+	input := "playground/daxing/generated/dev.yaml"
+	for id, pattern := range []string{
+		"{**/daxing}/**/*dev*.yaml",
+		"{**/daxing,daxing}/**/*dev*.yaml",
+		"{**/daxing,daxing,x}/**/*dev*.yaml",
+		"{**/daxing,daxing,x,y}/**/*dev*.yaml",
+	} {
+		g, err := Compile(pattern)
+		if err != nil {
+			t.Fatalf("#%d compile %q: %v", id, pattern, err)
+		}
+		if !g.Match(input) {
+			t.Errorf("#%d pattern %q should match %q", id, pattern, input)
+		}
+	}
+}
