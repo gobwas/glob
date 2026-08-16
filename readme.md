@@ -100,6 +100,16 @@ _, err := glob.Compile("{a,b")
 // err: glob: syntax error at 4: unclosed `{`
 ```
 
+A compiled `Pattern` captures what it was compiled from, so it can be passed
+around instead of the raw arguments and inspected when needed (`String()` makes
+it a `fmt.Stringer`, like `regexp.Regexp`):
+
+```go
+g := glob.MustCompile("*.github.com", '.')
+g.String()     // "*.github.com"
+g.Separators() // []rune{'.'}
+```
+
 ## Syntax
 
 Syntax is inspired by [standard wildcards](http://tldp.org/LDP/GNU-Linux-Tools-Summary/html/x11655.htm),

@@ -40,6 +40,12 @@ func (s *SyntaxError) Error() string {
 //
 // Matching is a backtracking walk over that tree; see Pattern.Match().
 type Pattern struct {
+	// str is the pattern text the Pattern was compiled from; see String().
+	str string
+
+	// sep are the separators the Pattern was compiled with; see Separators().
+	sep []rune
+
 	m matcher
 
 	// state tells whether matching m needs the backtracking state, that
@@ -392,6 +398,24 @@ func resetCheckpoints(s *[]checkpoint) {
 	full := (*s)[:cap(*s)]
 	clear(full)
 	*s = full[:0]
+}
+
+// String returns the source text used to compile the pattern, the same way
+// regexp.Regexp.String() does.
+//
+// Note that separators are not part of String: they are given to Compile
+// alongside the pattern text.
+func (p *Pattern) String() string {
+	return p.str
+}
+
+// Separators returns the separators the pattern was compiled with, in the
+// order they were given to Compile; nil when there are none.
+//
+// The returned slice is the very one given to Compile, sharing its backing
+// array: it is not copied on the way in or out. Matching does not use it.
+func (p *Pattern) Separators() []rune {
+	return p.sep
 }
 
 func (p *Pattern) Match(s string) bool {
@@ -1046,11 +1070,21 @@ func (*voidMatcher) Match(matchContext, string) (int, bool) {
 // *a* -> contains<a>
 // *a  -> suffix<a>
 // a*  -> prefix<a>
-func compile(s string, sep []rune) (*Pattern, error) {
+func compile(str string, sep []rune) (*Pattern, error) {
 	if debug.Enabled {
-		debug.Printf("compiling %#q\n", s)
+		debug.Printf("compiling %#q\n", str)
 	}
-	lex := syntax.NewLexer(s)
+	// The matchers keep sep and read it while matching, and the variadic slice
+	// may alias an array owned by the caller: give them a copy of their own.
+	//
+	// The pattern itself keeps the slice as given, to return it from
+	// Separators() without cloning.
+	var (
+		sepCopy = slices.Clone(sep)
+		sepStr  = string(sep)
+	)
+
+	lex := syntax.NewLexer(str)
 
 	type operator struct {
 		kind  int
@@ -1090,7 +1124,7 @@ parsing:
 
 		case syntax.Single:
 			stack = append(stack, &charMatcher{
-				Sep: sep,
+				Sep: sepCopy,
 			})
 
 		case syntax.Text:
@@ -1107,8 +1141,8 @@ parsing:
 
 		case syntax.Any:
 			stack = append(stack, &starMatcher{
-				Sep:    sep,
-				SepStr: string(sep),
+				Sep:    sepCopy,
+				SepStr: sepStr,
 			})
 
 		case syntax.Super:
@@ -1221,9 +1255,11 @@ parsing:
 	m = specialize(m, true)
 	annotateStars(m, true)
 	if debug.Enabled {
-		debug.Printf("compiled %#q: %s\n", s, m)
+		debug.Printf("compiled %#q: %s\n", str, m)
 	}
 	p := &Pattern{
+		str:   str,
+		sep:   sep,
 		m:     m,
 		state: needsState(m),
 	}
