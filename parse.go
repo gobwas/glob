@@ -34,9 +34,9 @@ func (s *SyntaxError) Error() string {
 //
 // A pattern is compiled into a tree of matchers:
 //
-//	`a`      => text<a>
-//	`a*`     => [a·*]
-//	`{a*,b}` => {[a·*]|b}
+//	`a`      => "a"
+//	`a*`     => ["a"·*]
+//	`{a*,b}` => {["a"·*]|"b"}
 //
 // Matching is a backtracking walk over that tree; see Pattern.Match().
 type Pattern struct {
@@ -86,7 +86,7 @@ type prefixMatcher struct {
 }
 
 func (m *prefixMatcher) String() string {
-	return "prefix<" + m.Text + ">"
+	return "prefix(" + strconv.Quote(m.Text) + ")"
 }
 
 func (m *prefixMatcher) Match(_ matchContext, s string) (int, bool) {
@@ -103,7 +103,7 @@ type suffixMatcher struct {
 }
 
 func (m *suffixMatcher) String() string {
-	return "suffix<" + m.Text + ">"
+	return "suffix(" + strconv.Quote(m.Text) + ")"
 }
 
 func (m *suffixMatcher) Match(_ matchContext, s string) (int, bool) {
@@ -121,7 +121,7 @@ type prefixSuffixMatcher struct {
 }
 
 func (m *prefixSuffixMatcher) String() string {
-	return "prefix_suffix<" + m.Prefix + "," + m.Suffix + ">"
+	return "prefix_suffix(" + strconv.Quote(m.Prefix) + "," + strconv.Quote(m.Suffix) + ")"
 }
 
 func (m *prefixSuffixMatcher) Match(_ matchContext, s string) (int, bool) {
@@ -142,7 +142,7 @@ type containsMatcher struct {
 }
 
 func (m *containsMatcher) String() string {
-	return "contains<" + m.Text + ">"
+	return "contains(" + strconv.Quote(m.Text) + ")"
 }
 
 func (m *containsMatcher) Match(_ matchContext, s string) (int, bool) {
@@ -184,12 +184,12 @@ func specialize(m matcher, tail bool) matcher {
 // foldTail repeatedly folds the two trailing matchers of the terminal
 // sequence ms into a shaped one, while possible:
 //
-//	[..·abc·*]        => [..·prefix<abc>]
-//	[..·*·abc]        => [..·suffix<abc>]
-//	[..·abc·prefix<def>]  => [..·prefix<abcdef>]
-//	[..·*·prefix<abc>]    => [..·contains<abc>]      (separator-free)
-//	[..·abc·suffix<def>]  => [..·prefix_suffix<abc,def>]
-//	[..·*·contains<abc>]  => [..·contains<abc>]      (separator-free)
+//	[..·"abc"·*]              => [..·prefix("abc")]
+//	[..·*·"abc"]              => [..·suffix("abc")]
+//	[..·"abc"·prefix("def")]  => [..·prefix("abcdef")]
+//	[..·*·prefix("abc")]      => [..·contains("abc")]      (separator-free)
+//	[..·"abc"·suffix("def")]  => [..·prefix_suffix("abc","def")]
+//	[..·*·contains("abc")]    => [..·contains("abc")]      (separator-free)
 func foldTail(ms []matcher) []matcher {
 	for len(ms) >= 2 {
 		var (
@@ -418,6 +418,7 @@ func (p *Pattern) Separators() []rune {
 	return p.sep
 }
 
+// Match reports whether s matches the pattern.
 func (p *Pattern) Match(s string) bool {
 	var x matchContext
 	if p.state {
@@ -697,10 +698,10 @@ func simplify(m matcher) matcher {
 // normalizeSequence rewrites a sequence of (already simplified) matchers
 // into a simpler equivalent one:
 //
-//	[a·[b·c]·d] => [a·b·c·d]  inline the nested sequences
-//	[a·<void>]  => [a]        drop the void matchers
-//	[a·b]       => [ab]       merge the adjacent literals
-//	[*·**]      => [**]       coalesce the adjacent stars
+//	["a"·["b"·"c"]·"d"] => ["a"·"b"·"c"·"d"]  inline the nested sequences
+//	["a"·void]          => ["a"]              drop the void matchers
+//	["a"·"b"]           => ["ab"]             merge the adjacent literals
+//	[*·**]              => [**]               coalesce the adjacent stars
 //
 // Longer literals also make better star jumps; see annotateStars().
 func normalizeSequence(ms []matcher) []matcher {
@@ -864,9 +865,7 @@ type textMatcher struct {
 }
 
 func (m *textMatcher) String() string {
-	var sb strings.Builder
-	sb.WriteString(m.Text)
-	return sb.String()
+	return strconv.Quote(m.Text)
 }
 
 func (m *textMatcher) Match(_ matchContext, s string) (int, bool) {
@@ -884,9 +883,9 @@ func (m *charMatcher) String() string {
 	var sb strings.Builder
 	sb.WriteByte('?')
 	if len(m.Sep) > 0 {
-		sb.WriteByte('<')
+		sb.WriteByte('(')
 		formatRunes(&sb, m.Sep)
-		sb.WriteByte('>')
+		sb.WriteByte(')')
 	}
 	return sb.String()
 }
@@ -951,9 +950,9 @@ func (m *starMatcher) String() string {
 	var sb strings.Builder
 	sb.WriteByte('*')
 	if len(m.Sep) > 0 {
-		sb.WriteByte('<')
+		sb.WriteByte('(')
 		formatRunes(&sb, m.Sep)
-		sb.WriteByte('>')
+		sb.WriteByte(')')
 	}
 	return sb.String()
 }
@@ -1036,9 +1035,9 @@ func (m *runeSetMatcher) String() string {
 	if m.Not {
 		sb.WriteByte('!')
 	}
-	sb.WriteByte('(')
+	sb.WriteByte('[')
 	formatRunes(&sb, rs)
-	sb.WriteByte(')')
+	sb.WriteByte(']')
 	return sb.String()
 }
 
@@ -1056,7 +1055,7 @@ func (m *runeSetMatcher) Match(_ matchContext, s string) (int, bool) {
 type voidMatcher struct{}
 
 func (*voidMatcher) String() string {
-	return "<void>"
+	return "void"
 }
 
 func (*voidMatcher) Match(matchContext, string) (int, bool) {
@@ -1067,9 +1066,9 @@ func (*voidMatcher) Match(matchContext, string) (int, bool) {
 // {a,ab} -> a{,b}
 // {ab,b} -> {a,}b
 //
-// *a* -> contains<a>
-// *a  -> suffix<a>
-// a*  -> prefix<a>
+// *a* -> contains("a")
+// *a  -> suffix("a")
+// a*  -> prefix("a")
 func compile(str string, sep []rune) (*Pattern, error) {
 	if debug.Enabled {
 		debug.Printf("compiling %#q\n", str)
