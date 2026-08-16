@@ -418,6 +418,14 @@ func (p *Pattern) Separators() []rune {
 	return p.sep
 }
 
+func init() {
+	// The matcher tree is unexported; hand its rendering to the in-module
+	// tooling (cmd/globtest -v) without widening the public API.
+	debug.Tree = func(p any) string {
+		return p.(*Pattern).m.String()
+	}
+}
+
 // Match reports whether s matches the pattern.
 func (p *Pattern) Match(s string) bool {
 	var x matchContext
