@@ -983,6 +983,98 @@ func BenchmarkCompareGlobAndRegexp(b *testing.B) {
 	}
 }
 
+func TestPatternString(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		str  string
+	}{
+		{
+			str: "",
+		},
+		{
+			str: "foo",
+		},
+		{
+			str: "*.github.com",
+		},
+		{
+			str: "{cat,bat,[fr]at}",
+		},
+		{
+			str: `\*escaped\?`,
+		},
+		{
+			str: "ångstr[ö]m",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			p, err := Compile(test.str, '.', '/')
+			if err != nil {
+				t.Fatalf("Compile(%q): %v", test.str, err)
+			}
+			if act := p.String(); act != test.str {
+				t.Errorf("String() = %q; want %q", act, test.str)
+			}
+			if act := fmt.Sprint(p); act != test.str {
+				t.Errorf("fmt.Sprint() = %q; want %q", act, test.str)
+			}
+		})
+	}
+}
+
+func TestPatternSeparators(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		sep  []rune
+	}{
+		{
+			sep: nil,
+		},
+		{
+			sep: []rune{'.'},
+		},
+		{
+			sep: []rune{'.', '/'},
+		},
+		{
+			sep: []rune{'ö', '/', '.'},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			p := MustCompile("*", test.sep...)
+			act := p.Separators()
+			if !slices.Equal(act, test.sep) {
+				t.Errorf("Separators() = %v; want %v", act, test.sep)
+			}
+			if len(test.sep) == 0 && act != nil {
+				t.Errorf("Separators() = %v; want nil", act)
+			}
+		})
+	}
+}
+
+// TestPatternSeparatorsAliasing checks that Separators() returns the slice
+// given to Compile as is, and that matching does not depend on it.
+func TestPatternSeparatorsAliasing(t *testing.T) {
+	sep := []rune{'.'}
+	p := MustCompile("*", sep...)
+	if got := p.Separators(); &got[0] != &sep[0] {
+		t.Errorf(
+			"Separators() does not share the backing array of the given slice",
+		)
+	}
+	sep[0] = 'x'
+	if got := p.Separators(); !slices.Equal(got, sep) {
+		t.Errorf("Separators() = %v; want %v", got, sep)
+	}
+	if p.Match("a.b") {
+		t.Errorf("Match() picked up the modification of the given slice")
+	}
+	if !p.Match("axb") {
+		t.Errorf("Match() picked up the modification of the given slice")
+	}
+}
+
 func keysInOrder(m map[string]string) []string {
 	keys := make([]string, 0, len(m))
 	for key := range m {
