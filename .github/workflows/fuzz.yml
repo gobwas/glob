@@ -1,0 +1,54 @@
+name: Fuzz
+
+on:
+  schedule:
+    # Nightly; the odd minute avoids the on-the-hour load spikes.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    # Allows manual runs from the Actions tab.
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: locate fuzz cache
+        id: cache-dir
+        run: echo "dir=$(go env GOCACHE)/fuzz" >> "$GITHUB_OUTPUT"
+
+      - name: restore corpus
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ steps.cache-dir.outputs.dir }}
+          # A fresh key every run plus a prefix restore key: the job always
+          # starts from the most recent corpus and always saves the evolved
+          # one, so the coverage exploration accumulates across nights.
+          key: fuzz-corpus-${{ github.run_id }}
+          restore-keys: |
+            fuzz-corpus-
+
+      - name: fuzz
+        run: go test -fuzz=FuzzMatchRegexp -fuzztime=30m .
+
+      - name: save corpus
+        # Save even when the fuzzing found a failure -- especially then.
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ steps.cache-dir.outputs.dir }}
+          key: fuzz-corpus-${{ github.run_id }}
+
+      - name: upload crashers
+        # A found failure is minimized and written into testdata/fuzz/;
+        # keep it as an artifact so it can be committed as a regression.
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crashers
+          path: testdata/fuzz/
