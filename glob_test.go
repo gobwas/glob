@@ -1,184 +1,694 @@
 package glob
 
 import (
+	"fmt"
+	"path/filepath"
 	"regexp"
+	"slices"
+	"strings"
 	"testing"
+	"time"
 )
 
-const (
-	pattern_all          = "[a-z][!a-x]*cat*[h][!b]*eyes*"
-	regexp_all           = `^[a-z][^a-x].*cat.*[h][^b].*eyes.*$`
-	fixture_all_match    = "my cat has very bright eyes"
-	fixture_all_mismatch = "my dog has very bright eyes"
-
-	pattern_plain          = "google.com"
-	regexp_plain           = `^google\.com$`
-	fixture_plain_match    = "google.com"
-	fixture_plain_mismatch = "gobwas.com"
-
-	pattern_multiple          = "https://*.google.*"
-	regexp_multiple           = `^https:\/\/.*\.google\..*$`
-	fixture_multiple_match    = "https://account.google.com"
-	fixture_multiple_mismatch = "https://google.com"
-
-	pattern_alternatives          = "{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}"
-	regexp_alternatives           = `^(https:\/\/.*\.google\..*|.*yandex\..*|.*yahoo\..*|.*mail\.ru)$`
-	fixture_alternatives_match    = "http://yahoo.com"
-	fixture_alternatives_mismatch = "http://google.com"
-
-	pattern_alternatives_suffix                = "{https://*gobwas.com,http://exclude.gobwas.com}"
-	regexp_alternatives_suffix                 = `^(https:\/\/.*gobwas\.com|http://exclude.gobwas.com)$`
-	fixture_alternatives_suffix_first_match    = "https://safe.gobwas.com"
-	fixture_alternatives_suffix_first_mismatch = "http://safe.gobwas.com"
-	fixture_alternatives_suffix_second         = "http://exclude.gobwas.com"
-
-	pattern_prefix                 = "abc*"
-	regexp_prefix                  = `^abc.*$`
-	pattern_suffix                 = "*def"
-	regexp_suffix                  = `^.*def$`
-	pattern_prefix_suffix          = "ab*ef"
-	regexp_prefix_suffix           = `^ab.*ef$`
-	fixture_prefix_suffix_match    = "abcdef"
-	fixture_prefix_suffix_mismatch = "af"
-
-	pattern_alternatives_combine_lite = "{abc*def,abc?def,abc[zte]def}"
-	regexp_alternatives_combine_lite  = `^(abc.*def|abc.def|abc[zte]def)$`
-	fixture_alternatives_combine_lite = "abczdef"
-
-	pattern_alternatives_combine_hard = "{abc*[a-c]def,abc?[d-g]def,abc[zte]?def}"
-	regexp_alternatives_combine_hard  = `^(abc.*[a-c]def|abc.[d-g]def|abc[zte].def)$`
-	fixture_alternatives_combine_hard = "abczqdef"
-)
-
-type test struct {
-	pattern, match string
-	should         bool
-	delimiters     []rune
-}
-
-func glob(s bool, p, m string, d ...rune) test {
-	return test{p, m, s, d}
-}
-
-func TestGlob(t *testing.T) {
-	for _, test := range []test{
-		glob(true, "* ?at * eyes", "my cat has very bright eyes"),
-
-		glob(true, "", ""),
-		glob(false, "", "b"),
-
-		glob(true, "*ä", "åä"),
-		glob(true, "abc", "abc"),
-		glob(true, "a*c", "abc"),
-		glob(true, "a*c", "a12345c"),
-		glob(true, "a?c", "a1c"),
-		glob(true, "a.b", "a.b", '.'),
-		glob(true, "a.*", "a.b", '.'),
-		glob(true, "a.**", "a.b.c", '.'),
-		glob(true, "a.?.c", "a.b.c", '.'),
-		glob(true, "a.?.?", "a.b.c", '.'),
-		glob(true, "?at", "cat"),
-		glob(true, "?at", "fat"),
-		glob(true, "*", "abc"),
-		glob(true, `\*`, "*"),
-		glob(true, "**", "a.b.c", '.'),
-
-		glob(false, "?at", "at"),
-		glob(false, "?at", "fat", 'f'),
-		glob(false, "a.*", "a.b.c", '.'),
-		glob(false, "a.?.c", "a.bb.c", '.'),
-		glob(false, "*", "a.b.c", '.'),
-
-		glob(true, "*test", "this is a test"),
-		glob(true, "this*", "this is a test"),
-		glob(true, "*is *", "this is a test"),
-		glob(true, "*is*a*", "this is a test"),
-		glob(true, "**test**", "this is a test"),
-		glob(true, "**is**a***test*", "this is a test"),
-
-		glob(false, "*is", "this is a test"),
-		glob(false, "*no*", "this is a test"),
-		glob(true, "[!a]*", "this is a test3"),
-
-		glob(true, "*abc", "abcabc"),
-		glob(true, "**abc", "abcabc"),
-		glob(true, "???", "abc"),
-		glob(true, "?*?", "abc"),
-		glob(true, "?*?", "ac"),
-		glob(false, "sta", "stagnation"),
-		glob(true, "sta*", "stagnation"),
-		glob(false, "sta?", "stagnation"),
-		glob(false, "sta?n", "stagnation"),
-
-		glob(true, "{abc,def}ghi", "defghi"),
-		glob(true, "{abc,abcd}a", "abcda"),
-		glob(true, "{a,ab}{bc,f}", "abc"),
-		glob(true, "{*,**}{a,b}", "ab"),
-		glob(false, "{*,**}{a,b}", "ac"),
-
-		glob(true, "/{rate,[a-z][a-z][a-z]}*", "/rate"),
-		glob(true, "/{rate,[0-9][0-9][0-9]}*", "/rate"),
-		glob(true, "/{rate,[a-z][a-z][a-z]}*", "/usd"),
-
-		glob(true, "{*.google.*,*.yandex.*}", "www.google.com", '.'),
-		glob(true, "{*.google.*,*.yandex.*}", "www.yandex.com", '.'),
-		glob(false, "{*.google.*,*.yandex.*}", "yandex.com", '.'),
-		glob(false, "{*.google.*,*.yandex.*}", "google.com", '.'),
-
-		glob(true, "{*.google.*,yandex.*}", "www.google.com", '.'),
-		glob(true, "{*.google.*,yandex.*}", "yandex.com", '.'),
-		glob(false, "{*.google.*,yandex.*}", "www.yandex.com", '.'),
-		glob(false, "{*.google.*,yandex.*}", "google.com", '.'),
-
-		glob(true, "*//{,*.}example.com", "https://www.example.com"),
-		glob(true, "*//{,*.}example.com", "http://example.com"),
-		glob(false, "*//{,*.}example.com", "http://example.com.net"),
-
-		glob(true, pattern_all, fixture_all_match),
-		glob(false, pattern_all, fixture_all_mismatch),
-
-		glob(true, pattern_plain, fixture_plain_match),
-		glob(false, pattern_plain, fixture_plain_mismatch),
-
-		glob(true, pattern_multiple, fixture_multiple_match),
-		glob(false, pattern_multiple, fixture_multiple_mismatch),
-
-		glob(true, pattern_alternatives, fixture_alternatives_match),
-		glob(false, pattern_alternatives, fixture_alternatives_mismatch),
-
-		glob(true, pattern_alternatives_suffix, fixture_alternatives_suffix_first_match),
-		glob(false, pattern_alternatives_suffix, fixture_alternatives_suffix_first_mismatch),
-		glob(true, pattern_alternatives_suffix, fixture_alternatives_suffix_second),
-
-		glob(true, pattern_alternatives_combine_hard, fixture_alternatives_combine_hard),
-
-		glob(true, pattern_alternatives_combine_lite, fixture_alternatives_combine_lite),
-
-		glob(true, pattern_prefix, fixture_prefix_suffix_match),
-		glob(false, pattern_prefix, fixture_prefix_suffix_mismatch),
-
-		glob(true, pattern_suffix, fixture_prefix_suffix_match),
-		glob(false, pattern_suffix, fixture_prefix_suffix_mismatch),
-
-		glob(true, pattern_prefix_suffix, fixture_prefix_suffix_match),
-		glob(false, pattern_prefix_suffix, fixture_prefix_suffix_mismatch),
+func TestCompile(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		pat  string
+		sep  []rune
+	}{
+		{
+			pat: "{*,**,?}",
+			sep: []rune{'.'},
+		},
+		{
+			pat: "{*.google.*,yandex.*}",
+			sep: []rune{'.'},
+		},
 	} {
-		t.Run("", func(t *testing.T) {
-			g := MustCompile(test.pattern, test.delimiters...)
-			result := g.Match(test.match)
-			if result != test.should {
-				t.Errorf(
-					"pattern %q matching %q should be %v but got %v\n%s",
-					test.pattern, test.match, test.should, result, g,
-				)
+		t.Run(test.name, func(t *testing.T) {
+			_, err := Compile(test.pat, test.sep...)
+			if err != nil {
+				t.Fatal(err)
 			}
 		})
 	}
 }
 
+func TestPatternMatch(t *testing.T) {
+	for i, test := range []struct {
+		sep []rune
+		pat string
+		str string
+		exp bool
+	}{
+		{
+			pat: "a*a*a*a*b",
+			str: strings.Repeat("a", 100),
+			exp: false,
+		},
+		{
+			pat: "a*a*a*a*b",
+			str: strings.Repeat("a", 100) + "b",
+			exp: true,
+		},
+		{
+			pat: "{a,ab}c",
+			str: "abc",
+			exp: true,
+		},
+		{
+			pat: "* ?at * eyes",
+			str: "my cat has very bright eyes",
+			exp: true,
+		},
+		{
+			pat: "",
+			str: "",
+			exp: true,
+		},
+		{
+			pat: "",
+			str: "b",
+			exp: false,
+		},
+		{
+			pat: "*ä",
+			str: "åä",
+			exp: true,
+		},
+		{
+			pat: "abc",
+			str: "abc",
+			exp: true,
+		},
+		{
+			pat: "a*c",
+			str: "abc",
+			exp: true,
+		},
+		{
+			pat: "a*c",
+			str: "a12345c",
+			exp: true,
+		},
+		{
+			pat: "a?c",
+			str: "a1c",
+			exp: true,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "a.b",
+			str: "a.b",
+			exp: true,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "a.*",
+			str: "a.b",
+			exp: true,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "a.**",
+			str: "a.b.c",
+			exp: true,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "a.?.c",
+			str: "a.b.c",
+			exp: true,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "a.?.?",
+			str: "a.b.c",
+			exp: true,
+		},
+		{
+			pat: "?at",
+			str: "cat",
+			exp: true,
+		},
+		{
+			pat: "?at",
+			str: "fat",
+			exp: true,
+		},
+		{
+			pat: "*",
+			str: "abc",
+			exp: true,
+		},
+		{
+			pat: "*a*",
+			str: "a",
+			exp: true,
+		},
+		{
+			pat: "\\*",
+			str: "*",
+			exp: true,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "**",
+			str: "a.b.c",
+			exp: true,
+		},
+		{
+			pat: "?at",
+			str: "at",
+			exp: false,
+		},
+		{
+			sep: []rune{'f'},
+			pat: "?at",
+			str: "fat",
+			exp: false,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "a.*",
+			str: "a.b.c",
+			exp: false,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "a.?.c",
+			str: "a.bb.c",
+			exp: false,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "*",
+			str: "a.b.c",
+			exp: false,
+		},
+		{
+			pat: "*test",
+			str: "this is a test",
+			exp: true,
+		},
+		{
+			pat: "this*",
+			str: "this is a test",
+			exp: true,
+		},
+		{
+			pat: "*is *",
+			str: "this is a test",
+			exp: true,
+		},
+		{
+			pat: "*is*a*",
+			str: "this is a test",
+			exp: true,
+		},
+		{
+			pat: "**test**",
+			str: "this is a test",
+			exp: true,
+		},
+		{
+			pat: "**is**a***test*",
+			str: "this is a test",
+			exp: true,
+		},
+		{
+			pat: "*test*",
+			str: "test",
+			exp: true,
+		},
+		{
+			pat: "*is",
+			str: "this is a test",
+			exp: false,
+		},
+		{
+			pat: "*no*",
+			str: "this is a test",
+			exp: false,
+		},
+		{
+			pat: "[!a]*",
+			str: "this is a test3",
+			exp: true,
+		},
+		{
+			pat: "*abc",
+			str: "abcabc",
+			exp: true,
+		},
+		{
+			pat: "**abc",
+			str: "abcabc",
+			exp: true,
+		},
+		{
+			pat: "???",
+			str: "abc",
+			exp: true,
+		},
+		{
+			pat: "?*?",
+			str: "abc",
+			exp: true,
+		},
+		{
+			pat: "?*?",
+			str: "ac",
+			exp: true,
+		},
+		{
+			pat: "sta",
+			str: "stagnation",
+			exp: false,
+		},
+		{
+			pat: "sta*",
+			str: "stagnation",
+			exp: true,
+		},
+		{
+			pat: "sta?",
+			str: "stagnation",
+			exp: false,
+		},
+		{
+			pat: "sta?n",
+			str: "stagnation",
+			exp: false,
+		},
+		{
+			pat: "{abc,def}ghi",
+			str: "defghi",
+			exp: true,
+		},
+		{
+			pat: "{abc,abcd}a",
+			str: "abcda",
+			exp: true,
+		},
+		{
+			pat: "{,a}",
+			str: "",
+			exp: true,
+		},
+		{
+			pat: "{a,}",
+			str: "",
+			exp: true,
+		},
+		{
+			pat: "{a,ab}{bc,f}",
+			str: "abc",
+			exp: true,
+		},
+		{
+			pat: "{*,**}{a,b}",
+			str: "ab",
+			exp: true,
+		},
+		{
+			pat: "{*,**}{a,b}",
+			str: "ac",
+			exp: false,
+		},
+		{
+			pat: "/{rate,[a-z][a-z][a-z]}*",
+			str: "/rate",
+			exp: true,
+		},
+		{
+			pat: "/{rate,[0-9][0-9][0-9]}*",
+			str: "/rate",
+			exp: true,
+		},
+		{
+			pat: "/{rate,[a-z][a-z][a-z]}*",
+			str: "/usd",
+			exp: true,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "{*.google.*,*.yandex.*}",
+			str: "www.google.com",
+			exp: true,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "{*.google.*,*.yandex.*}",
+			str: "www.yandex.com",
+			exp: true,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "{*.google.*,*.yandex.*}",
+			str: "yandex.com",
+			exp: false,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "{*.google.*,*.yandex.*}",
+			str: "google.com",
+			exp: false,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "{*.google.*,yandex.*}",
+			str: "www.google.com",
+			exp: true,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "{*.google.*,yandex.*}",
+			str: "yandex.com",
+			exp: true,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "{*.google.*,yandex.*}",
+			str: "www.yandex.com",
+			exp: false,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "{*.google.*,yandex.*}",
+			str: "google.com",
+			exp: false,
+		},
+		{
+			pat: "*//{,*.}example.com",
+			str: "https://www.example.com",
+			exp: true,
+		},
+		{
+			pat: "*//{,*.}example.com",
+			str: "http://example.com",
+			exp: true,
+		},
+		{
+			pat: "*//{,*.}example.com",
+			str: "http://example.com.net",
+			exp: false,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "{a*,b}c",
+			str: "abc",
+			exp: true,
+		},
+		{
+			// https://github.com/gobwas/glob/issues/62
+			pat: "{a,}{a,}a",
+			str: "a",
+			exp: true,
+		},
+		{
+			// https://github.com/gobwas/glob/issues/61
+			pat: "start*art",
+			str: "start",
+			exp: false,
+		},
+		{
+			pat: "[a-z][!a-x]*cat*[h][!b]*eyes*",
+			str: "my cat has very bright eyes",
+			exp: true,
+		},
+		{
+			pat: "[a-z][!a-x]*cat*[h][!b]*eyes*",
+			str: "my dog has very bright eyes",
+			exp: false,
+		},
+
+		{
+			pat: "google.com",
+			str: "google.com",
+			exp: true,
+		},
+		{
+			pat: "google.com",
+			str: "gobwas.com",
+			exp: false,
+		},
+
+		{
+			pat: "https://*.google.*",
+			str: "https://account.google.com",
+			exp: true,
+		},
+		{
+			pat: "https://*.google.*",
+			str: "https://google.com",
+			exp: false,
+		},
+
+		{
+			pat: "{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}",
+			str: "http://yahoo.com",
+			exp: true,
+		},
+		{
+			pat: "{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}",
+			str: "http://google.com",
+			exp: false,
+		},
+
+		{
+			pat: "{https://*gobwas.com,http://exclude.gobwas.com}",
+			str: "https://safe.gobwas.com",
+			exp: true,
+		},
+		{
+			pat: "{https://*gobwas.com,http://exclude.gobwas.com}",
+			str: "http://safe.gobwas.com",
+			exp: false,
+		},
+		{
+			pat: "{https://*gobwas.com,http://exclude.gobwas.com}",
+			str: "http://exclude.gobwas.com",
+			exp: true,
+		},
+
+		{
+			pat: "{abc*[a-c]def,abc?[d-g]def,abc[zte]?def}",
+			str: "abczqdef",
+			exp: true,
+		},
+
+		{
+			pat: "{abc*def,abc?def,abc[zte]def}",
+			str: "abczdef",
+			exp: true,
+		},
+
+		{
+			pat: "abc*",
+			str: "abcdef",
+			exp: true,
+		},
+		{
+			pat: "abc*",
+			str: "af",
+			exp: false,
+		},
+
+		{
+			pat: "*def",
+			str: "abcdef",
+			exp: true,
+		},
+		{
+			pat: "*def",
+			str: "af",
+			exp: false,
+		},
+
+		{
+			pat: "ab*ef",
+			str: "abcdef",
+			exp: true,
+		},
+		{
+			pat: "ab*ef",
+			str: "af",
+			exp: false,
+		},
+
+		{
+			pat: "{a,ab,abc}",
+			str: "ab",
+			exp: true,
+		},
+		{
+			pat: "{a,ab,abc}",
+			str: "",
+			exp: false,
+		},
+		{
+			pat: "{a,ab,abc,abcd}{b,bc,bcd,bcde}{c,cd,cde,cdef}",
+			str: "abcdbcdecdef",
+			exp: true,
+		},
+		{
+			pat: "{{a,b},c}",
+			str: "a",
+			exp: true,
+		},
+		{
+			pat: "{{a,b},c}",
+			str: "c",
+			exp: true,
+		},
+
+		// A separator-limited `*` following a `**` may get stuck at a
+		// separator; matching must then backtrack to the pending `**`
+		// restart point. See the star checkpoints stack in Pattern.Match().
+		{
+			sep: []rune{'.'},
+			pat: "**a*b",
+			str: ".a.ab", // ** = ".a.", * = ""
+			exp: true,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "**a*b",
+			str: "axc.ab", // ** = "axc.", * = ""
+			exp: true,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "**a*b",
+			str: "a.axb", // ** = "a.", * = "x"
+			exp: true,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "*a**b",
+			str: "xa.b", // * = "x", ** = "."
+			exp: true,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "**.x",
+			str: "a.b.x", // ** = "a.b"
+			exp: true,
+		},
+		{
+			sep: []rune{'.'},
+			pat: "*a**b",
+			str: "x.ab", // `*` can not extend over the first separator.
+			exp: false,
+		},
+
+		// A star inside an alternative must not discard the restart point
+		// of a star outside of it: here the outer `*` must consume "1" and
+		// the empty alternative must be taken. Found by FuzzMatchRegexp;
+		// see the starsFloor handling in matchContext.storeStar().
+		{
+			pat: "*{*0,}",
+			str: "1",
+			exp: true,
+		},
+
+		// Braces without commas hold a single alternative: `{ab*}` is the
+		// pattern `ab*`, not `{ab,*}`. See the opList handling in compile().
+		{
+			pat: "{ab*}x",
+			str: "abzx",
+			exp: true,
+		},
+		{
+			pat: "{ab*}x",
+			str: "zzx",
+			exp: false,
+		},
+		{
+			pat: "{ab*}",
+			str: "ab",
+			exp: true,
+		},
+		{
+			pat: "{a}{b}{c}",
+			str: "abc",
+			exp: true,
+		},
+		{
+			pat: "{**/daxing}/x",
+			str: "a/daxing/x",
+			exp: true,
+		},
+		{
+			pat: "{**/daxing}/x",
+			str: "zz/x",
+			exp: false,
+		},
+	} {
+
+		suffix := fmt.Sprintf("-%02d", i)
+		t.Run("glob"+suffix, func(t *testing.T) {
+			t.Logf("testing pattern=%#q", test.pat)
+			var (
+				pat     = MustCompile(test.pat, test.sep...)
+				start   = time.Now()
+				result  = pat.Match(test.str)
+				latency = time.Since(start)
+			)
+			t.Logf(
+				"delim=%#q pattern=%#q fixture=%#q result=%t want=%t latency=%.4fms",
+				test.sep, test.pat, test.str, result, test.exp,
+				latency.Seconds()*1000,
+			)
+			if result != test.exp {
+				t.Errorf(
+					"pattern %q matching %q should be %v but got %v",
+					test.pat, test.str, test.exp, result,
+				)
+			}
+			if latency > 5*time.Millisecond {
+				t.Errorf("too slow: %.4fms", latency.Seconds()*1000)
+			}
+		})
+		if len(test.sep) == 0 && !strings.ContainsAny(test.pat, "{}") {
+			// NOTE: filepath.Match doesn't support `{}`.
+			t.Run("filepath"+suffix, func(t *testing.T) {
+				// NOTE: filepath.Match negates a character class with `^`
+				// instead of `!`.
+				pat := strings.ReplaceAll(test.pat, "[!", "[^")
+				start := time.Now()
+				result, err := filepath.Match(pat, test.str)
+				latency := time.Since(start)
+				t.Logf(
+					"[filepath] pattern=%#q fixture=%#q result=%t want=%t latency=%.4fms",
+					test.pat, test.str, result, test.exp,
+					latency.Seconds()*1000,
+				)
+				if err != nil {
+					t.Errorf("filepath.Match(%q) failed: %v", test.pat, err)
+				}
+				if result != test.exp {
+					t.Errorf(
+						"filepath.Match(%q, %q) = %t; test expects %t",
+						test.pat, test.str, result, test.exp,
+					)
+				}
+			})
+		}
+	}
+}
+
+func ExampleQuoteMeta() {
+	s := "{foo*}"
+	// Output: \{foo\*\}
+	fmt.Println(QuoteMeta(s))
+}
+
 func TestQuoteMeta(t *testing.T) {
 	for id, test := range []struct {
-		in, out string
+		in  string
+		out string
 	}{
 		{
 			in:  `[foo*]`,
@@ -207,325 +717,277 @@ func TestQuoteMeta(t *testing.T) {
 	}
 }
 
-func BenchmarkParseGlob(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		Compile(pattern_all)
-	}
-}
-func BenchmarkParseRegexp(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		regexp.MustCompile(regexp_all)
-	}
-}
-
-func BenchmarkAllGlobMatch(b *testing.B) {
-	m, _ := Compile(pattern_all)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_all_match)
-	}
-}
-func BenchmarkAllGlobMatchParallel(b *testing.B) {
-	m, _ := Compile(pattern_all)
-
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = m.Match(fixture_all_match)
+func BenchmarkPattern(b *testing.B) {
+	for _, test := range []struct {
+		name  string
+		pat   string
+		input map[string]string
+	}{
+		{
+			name: "segments",
+			pat:  `{a,ab,abc}`,
+			input: map[string]string{
+				"0":     "a",
+				"1":     "ab",
+				"2":     "abc",
+				"empty": "",
+			},
+		},
+		{
+			name: "long_segments",
+			pat:  `{a,ab,abc,abcd}{b,bc,bcd,bcde}{c,cd,cde,cdef}`,
+			input: map[string]string{
+				"long": "abcdbcdecdef",
+			},
+		},
+		{
+			name: "cat",
+			pat:  `[a-z][!a-x]*cat*[h][!b]*eyes*`,
+			input: map[string]string{
+				"match":    "my cat has very bright eyes",
+				"mismatch": "my dog has very bright eyes",
+			},
+		},
+		{
+			name: "wildcard",
+			pat:  `https://*.google.*`,
+			input: map[string]string{
+				"match":    "https://account.google.com",
+				"mismatch": "https://google.com",
+			},
+		},
+		{
+			name: "alternatives",
+			pat:  `{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}`,
+			input: map[string]string{
+				"match":    "http://yahoo.com",
+				"mismatch": "http://google.com",
+			},
+		},
+		{
+			name: "alternatives_suffix_first",
+			pat:  `{https://*gobwas.com,http://exclude.gobwas.com}`,
+			input: map[string]string{
+				"match":    "https://safe.gobwas.com",
+				"mismatch": "http://safe.gobwas.com",
+			},
+		},
+		{
+			name: "alternatives_suffix_second",
+			pat:  `{https://*gobwas.com,http://exclude.gobwas.com}`,
+			input: map[string]string{
+				"match": "http://exclude.gobwas.com",
+				//"mismatch": "",
+			},
+		},
+		{
+			name: "alternatives_combine_lite",
+			pat:  `{abc*def,abc?def,abc[zte]def}`,
+			input: map[string]string{
+				"match": "abczdef",
+				//"mismatch": "",
+			},
+		},
+		{
+			name: "alternatives_combine_hard",
+			pat:  `{abc*[a-c]def,abc?[d-g]def,abc[zte]?def}`,
+			input: map[string]string{
+				"match": "abczqdef",
+				//"mismatch": "",
+			},
+		},
+		{
+			name: "plain",
+			pat:  `google.com`,
+			input: map[string]string{
+				"match":    "google.com",
+				"mismatch": "gobwas.com",
+			},
+		},
+		{
+			name: "prefix",
+			pat:  `abc*`,
+			input: map[string]string{
+				"match":    "abcdef",
+				"mismatch": "af",
+			},
+		},
+		{
+			name: "suffix",
+			pat:  `*def`,
+			input: map[string]string{
+				"match":    "abcdef",
+				"mismatch": "af",
+			},
+		},
+		{
+			name: "prefix_and_suffix",
+			pat:  `ab*ef`,
+			input: map[string]string{
+				"match":    "abcdef",
+				"mismatch": "af",
+			},
+		},
+	} {
+		b.Run(test.name+"-compile", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				MustCompile(test.pat)
+			}
+		})
+		pat := MustCompile(test.pat)
+		for _, key := range keysInOrder(test.input) {
+			str := test.input[key]
+			b.Run(test.name+"-match-"+key, func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					pat.Match(str)
+				}
+			})
 		}
-	})
-}
-
-func BenchmarkAllRegexpMatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_all)
-	f := []byte(fixture_all_match)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
 	}
 }
-func BenchmarkAllGlobMismatch(b *testing.B) {
-	m, _ := Compile(pattern_all)
 
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_all_mismatch)
-	}
-}
-func BenchmarkAllGlobMismatchParallel(b *testing.B) {
-	m, _ := Compile(pattern_all)
-
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = m.Match(fixture_all_mismatch)
+func BenchmarkCompareGlobAndRegexp(b *testing.B) {
+	for _, test := range []struct {
+		name   string
+		glob   string
+		regexp string
+		input  map[string]string
+	}{
+		{
+			name:   "cat",
+			glob:   `[a-z][!a-x]*cat*[h][!b]*eyes*`,
+			regexp: `^[a-z][^a-x].*cat.*[h][^b].*eyes.*$`,
+			input: map[string]string{
+				"match":    "my cat has very bright eyes",
+				"mismatch": "my dog has very bright eyes",
+			},
+		},
+		{
+			name:   "wildcard",
+			glob:   `https://*.google.*`,
+			regexp: `^https://.*.google..*$`,
+			input: map[string]string{
+				"match":    "https://account.google.com",
+				"mismatch": "https://google.com",
+			},
+		},
+		{
+			name:   "alternatives",
+			glob:   `{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}`,
+			regexp: `^(https://.*.google..*|.*yandex..*|.*yahoo..*|.*mail.ru)$`,
+			input: map[string]string{
+				"match":    "http://yahoo.com",
+				"mismatch": "http://google.com",
+			},
+		},
+		{
+			name:   "alternatives_suffix_first",
+			glob:   `{https://*gobwas.com,http://exclude.gobwas.com}`,
+			regexp: `^(https://.*gobwas.com|http://exclude.gobwas.com)$`,
+			input: map[string]string{
+				"match":    "https://safe.gobwas.com",
+				"mismatch": "http://safe.gobwas.com",
+			},
+		},
+		{
+			name:   "alternatives_suffix_second",
+			glob:   `{https://*gobwas.com,http://exclude.gobwas.com}`,
+			regexp: `^(https://.*gobwas.com|http://exclude.gobwas.com)$`,
+			input: map[string]string{
+				"match": "http://exclude.gobwas.com",
+				//"mismatch": "",
+			},
+		},
+		{
+			name:   "alternatives_combine_lite",
+			glob:   `{abc*def,abc?def,abc[zte]def}`,
+			regexp: `^(abc.*def|abc.def|abc[zte]def)$`,
+			input: map[string]string{
+				"match": "abczdef",
+				//"mismatch": "",
+			},
+		},
+		{
+			name:   "alternatives_combine_hard",
+			glob:   `{abc*[a-c]def,abc?[d-g]def,abc[zte]?def}`,
+			regexp: `^(abc.*[a-c]def|abc.[d-g]def|abc[zte].def)$`,
+			input: map[string]string{
+				"match": "abczqdef",
+				//"mismatch": "",
+			},
+		},
+		{
+			name:   "plain",
+			glob:   `google.com`,
+			regexp: `^google.com$`,
+			input: map[string]string{
+				"match":    "google.com",
+				"mismatch": "gobwas.com",
+			},
+		},
+		{
+			name:   "prefix",
+			glob:   `abc*`,
+			regexp: `^abc.*$`,
+			input: map[string]string{
+				"match":    "abcdef",
+				"mismatch": "af",
+			},
+		},
+		{
+			name:   "suffix",
+			glob:   `*def`,
+			regexp: `^.*def$`,
+			input: map[string]string{
+				"match":    "abcdef",
+				"mismatch": "af",
+			},
+		},
+		{
+			name:   "prefix_and_suffix",
+			glob:   `ab*ef`,
+			regexp: `^ab.*ef$`,
+			input: map[string]string{
+				"match":    "abcdef",
+				"mismatch": "af",
+			},
+		},
+	} {
+		b.Run(test.name+"-glob-compile", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				MustCompile(test.glob)
+			}
+		})
+		b.Run(test.name+"-regexp-compile", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				regexp.MustCompile(test.regexp)
+			}
+		})
+		var (
+			pat = MustCompile(test.glob)
+			exp = regexp.MustCompile(test.regexp)
+		)
+		for _, key := range keysInOrder(test.input) {
+			str := test.input[key]
+			b.Run(test.name+"-glob-"+key, func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					pat.Match(str)
+				}
+			})
+			b.Run(test.name+"-regexp-"+key, func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					exp.MatchString(str)
+				}
+			})
 		}
-	})
-}
-func BenchmarkAllRegexpMismatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_all)
-	f := []byte(fixture_all_mismatch)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
 	}
 }
 
-func BenchmarkMultipleGlobMatch(b *testing.B) {
-	m, _ := Compile(pattern_multiple)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_multiple_match)
+func keysInOrder(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
 	}
-}
-func BenchmarkMultipleRegexpMatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_multiple)
-	f := []byte(fixture_multiple_match)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
-	}
-}
-func BenchmarkMultipleGlobMismatch(b *testing.B) {
-	m, _ := Compile(pattern_multiple)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_multiple_mismatch)
-	}
-}
-func BenchmarkMultipleRegexpMismatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_multiple)
-	f := []byte(fixture_multiple_mismatch)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
-	}
-}
-
-func BenchmarkAlternativesGlobMatch(b *testing.B) {
-	m, _ := Compile(pattern_alternatives)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_alternatives_match)
-	}
-}
-func BenchmarkAlternativesGlobMismatch(b *testing.B) {
-	m, _ := Compile(pattern_alternatives)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_alternatives_mismatch)
-	}
-}
-func BenchmarkAlternativesRegexpMatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_alternatives)
-	f := []byte(fixture_alternatives_match)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
-	}
-}
-func BenchmarkAlternativesRegexpMismatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_alternatives)
-	f := []byte(fixture_alternatives_mismatch)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
-	}
-}
-
-func BenchmarkAlternativesSuffixFirstGlobMatch(b *testing.B) {
-	m, _ := Compile(pattern_alternatives_suffix)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_alternatives_suffix_first_match)
-	}
-}
-func BenchmarkAlternativesSuffixFirstGlobMismatch(b *testing.B) {
-	m, _ := Compile(pattern_alternatives_suffix)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_alternatives_suffix_first_mismatch)
-	}
-}
-func BenchmarkAlternativesSuffixSecondGlobMatch(b *testing.B) {
-	m, _ := Compile(pattern_alternatives_suffix)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_alternatives_suffix_second)
-	}
-}
-func BenchmarkAlternativesCombineLiteGlobMatch(b *testing.B) {
-	m, _ := Compile(pattern_alternatives_combine_lite)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_alternatives_combine_lite)
-	}
-}
-func BenchmarkAlternativesCombineHardGlobMatch(b *testing.B) {
-	m, _ := Compile(pattern_alternatives_combine_hard)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_alternatives_combine_hard)
-	}
-}
-func BenchmarkAlternativesSuffixFirstRegexpMatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_alternatives_suffix)
-	f := []byte(fixture_alternatives_suffix_first_match)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
-	}
-}
-func BenchmarkAlternativesSuffixFirstRegexpMismatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_alternatives_suffix)
-	f := []byte(fixture_alternatives_suffix_first_mismatch)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
-	}
-}
-func BenchmarkAlternativesSuffixSecondRegexpMatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_alternatives_suffix)
-	f := []byte(fixture_alternatives_suffix_second)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
-	}
-}
-func BenchmarkAlternativesCombineLiteRegexpMatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_alternatives_combine_lite)
-	f := []byte(fixture_alternatives_combine_lite)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
-	}
-}
-func BenchmarkAlternativesCombineHardRegexpMatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_alternatives_combine_hard)
-	f := []byte(fixture_alternatives_combine_hard)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
-	}
-}
-
-func BenchmarkPlainGlobMatch(b *testing.B) {
-	m, _ := Compile(pattern_plain)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_plain_match)
-	}
-}
-func BenchmarkPlainRegexpMatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_plain)
-	f := []byte(fixture_plain_match)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
-	}
-}
-func BenchmarkPlainGlobMismatch(b *testing.B) {
-	m, _ := Compile(pattern_plain)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_plain_mismatch)
-	}
-}
-func BenchmarkPlainRegexpMismatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_plain)
-	f := []byte(fixture_plain_mismatch)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
-	}
-}
-
-func BenchmarkPrefixGlobMatch(b *testing.B) {
-	m, _ := Compile(pattern_prefix)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_prefix_suffix_match)
-	}
-}
-func BenchmarkPrefixRegexpMatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_prefix)
-	f := []byte(fixture_prefix_suffix_match)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
-	}
-}
-func BenchmarkPrefixGlobMismatch(b *testing.B) {
-	m, _ := Compile(pattern_prefix)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_prefix_suffix_mismatch)
-	}
-}
-func BenchmarkPrefixRegexpMismatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_prefix)
-	f := []byte(fixture_prefix_suffix_mismatch)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
-	}
-}
-
-func BenchmarkSuffixGlobMatch(b *testing.B) {
-	m, _ := Compile(pattern_suffix)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_prefix_suffix_match)
-	}
-}
-func BenchmarkSuffixRegexpMatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_suffix)
-	f := []byte(fixture_prefix_suffix_match)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
-	}
-}
-func BenchmarkSuffixGlobMismatch(b *testing.B) {
-	m, _ := Compile(pattern_suffix)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_prefix_suffix_mismatch)
-	}
-}
-func BenchmarkSuffixRegexpMismatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_suffix)
-	f := []byte(fixture_prefix_suffix_mismatch)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
-	}
-}
-
-func BenchmarkPrefixSuffixGlobMatch(b *testing.B) {
-	m, _ := Compile(pattern_prefix_suffix)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_prefix_suffix_match)
-	}
-}
-func BenchmarkPrefixSuffixRegexpMatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_prefix_suffix)
-	f := []byte(fixture_prefix_suffix_match)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
-	}
-}
-func BenchmarkPrefixSuffixGlobMismatch(b *testing.B) {
-	m, _ := Compile(pattern_prefix_suffix)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(fixture_prefix_suffix_mismatch)
-	}
-}
-func BenchmarkPrefixSuffixRegexpMismatch(b *testing.B) {
-	m := regexp.MustCompile(regexp_prefix_suffix)
-	f := []byte(fixture_prefix_suffix_mismatch)
-
-	for i := 0; i < b.N; i++ {
-		_ = m.Match(f)
-	}
+	slices.Sort(keys)
+	return keys
 }

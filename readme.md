@@ -1,6 +1,6 @@
 # glob.[go](https://golang.org)
 
-[![GoDoc][godoc-image]][godoc-url] [![Build Status][travis-image]][travis-url]
+[![GoDoc][godoc-image]][godoc-url] [![CI][ci-image]][ci-url]
 
 > Go Globbing Library.
 
@@ -19,130 +19,199 @@ package main
 import "github.com/gobwas/glob"
 
 func main() {
-    var g glob.Glob
-    
+    var g *glob.Pattern
+
     // create simple glob
     g = glob.MustCompile("*.github.com")
     g.Match("api.github.com") // true
-    
-    // quote meta characters and then create simple glob 
+
+    // quote meta characters and then create simple glob
     g = glob.MustCompile(glob.QuoteMeta("*.github.com"))
     g.Match("*.github.com") // true
-    
+
     // create new glob with set of delimiters as ["."]
     g = glob.MustCompile("api.*.com", '.')
     g.Match("api.github.com") // true
     g.Match("api.gi.hub.com") // false
-    
+
     // create new glob with set of delimiters as ["."]
     // but now with super wildcard
     g = glob.MustCompile("api.**.com", '.')
     g.Match("api.github.com") // true
     g.Match("api.gi.hub.com") // true
-        
+
     // create glob with single symbol wildcard
     g = glob.MustCompile("?at")
     g.Match("cat") // true
     g.Match("fat") // true
     g.Match("at") // false
-    
+
     // create glob with single symbol wildcard and delimiters ['f']
     g = glob.MustCompile("?at", 'f')
     g.Match("cat") // true
     g.Match("fat") // false
-    g.Match("at") // false 
-    
-    // create glob with character-list matchers 
+    g.Match("at") // false
+
+    // create glob with character-list matchers
     g = glob.MustCompile("[abc]at")
     g.Match("cat") // true
     g.Match("bat") // true
     g.Match("fat") // false
     g.Match("at") // false
-    
-    // create glob with character-list matchers 
+
+    // create glob with character-list matchers
     g = glob.MustCompile("[!abc]at")
     g.Match("cat") // false
     g.Match("bat") // false
     g.Match("fat") // true
-    g.Match("at") // false 
-    
-    // create glob with character-range matchers 
+    g.Match("at") // false
+
+    // create glob with character-range matchers
     g = glob.MustCompile("[a-c]at")
     g.Match("cat") // true
     g.Match("bat") // true
     g.Match("fat") // false
     g.Match("at") // false
-    
-    // create glob with character-range matchers 
+
+    // create glob with character-range matchers
     g = glob.MustCompile("[!a-c]at")
     g.Match("cat") // false
     g.Match("bat") // false
     g.Match("fat") // true
-    g.Match("at") // false 
-    
-    // create glob with pattern-alternatives list 
+    g.Match("at") // false
+
+    // create glob with pattern-alternatives list
     g = glob.MustCompile("{cat,bat,[fr]at}")
     g.Match("cat") // true
     g.Match("bat") // true
     g.Match("fat") // true
     g.Match("rat") // true
-    g.Match("at") // false 
-    g.Match("zat") // false 
+    g.Match("at") // false
+    g.Match("zat") // false
 }
 
 ```
 
-## Performance
+`Compile` reports malformed patterns with a `*glob.SyntaxError` carrying the
+byte offset and the reason:
 
-This library is created for compile-once patterns. This means, that compilation could take time, but 
-strings matching is done faster, than in case when always parsing template.
-
-If you will not use compiled `glob.Glob` object, and do `g := glob.MustCompile(pattern); g.Match(...)` every time, then your code will be much more slower.
-
-Run `go test -bench=.` from source root to see the benchmarks:
-
-Pattern | Fixture | Match | Speed (ns/op)
---------|---------|-------|--------------
-`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my cat has very bright eyes` | `true` | 432
-`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my dog has very bright eyes` | `false` | 199
-`https://*.google.*` | `https://account.google.com` | `true` | 96
-`https://*.google.*` | `https://google.com` | `false` | 66
-`{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://yahoo.com` | `true` | 163
-`{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://google.com` | `false` | 197
-`{https://*gobwas.com,http://exclude.gobwas.com}` | `https://safe.gobwas.com` | `true` | 22
-`{https://*gobwas.com,http://exclude.gobwas.com}` | `http://safe.gobwas.com` | `false` | 24
-`abc*` | `abcdef` | `true` | 8.15
-`abc*` | `af` | `false` | 5.68
-`*def` | `abcdef` | `true` | 8.84
-`*def` | `af` | `false` | 5.74
-`ab*ef` | `abcdef` | `true` | 15.2
-`ab*ef` | `af` | `false` | 10.4
-
-The same things with `regexp` package:
-
-Pattern | Fixture | Match | Speed (ns/op)
---------|---------|-------|--------------
-`^[a-z][^a-x].*cat.*[h][^b].*eyes.*$` | `my cat has very bright eyes` | `true` | 2553
-`^[a-z][^a-x].*cat.*[h][^b].*eyes.*$` | `my dog has very bright eyes` | `false` | 1383
-`^https:\/\/.*\.google\..*$` | `https://account.google.com` | `true` | 1205
-`^https:\/\/.*\.google\..*$` | `https://google.com` | `false` | 767
-`^(https:\/\/.*\.google\..*\|.*yandex\..*\|.*yahoo\..*\|.*mail\.ru)$` | `http://yahoo.com` | `true` | 1435
-`^(https:\/\/.*\.google\..*\|.*yandex\..*\|.*yahoo\..*\|.*mail\.ru)$` | `http://google.com` | `false` | 1674
-`^(https:\/\/.*gobwas\.com\|http://exclude.gobwas.com)$` | `https://safe.gobwas.com` | `true` | 1039
-`^(https:\/\/.*gobwas\.com\|http://exclude.gobwas.com)$` | `http://safe.gobwas.com` | `false` | 272
-`^abc.*$` | `abcdef` | `true` | 237
-`^abc.*$` | `af` | `false` | 100
-`^.*def$` | `abcdef` | `true` | 464
-`^.*def$` | `af` | `false` | 265
-`^ab.*ef$` | `abcdef` | `true` | 375
-`^ab.*ef$` | `af` | `false` | 145
-
-[godoc-image]: https://godoc.org/github.com/gobwas/glob?status.svg
-[godoc-url]: https://godoc.org/github.com/gobwas/glob
-[travis-image]: https://travis-ci.org/gobwas/glob.svg?branch=master
-[travis-url]: https://travis-ci.org/gobwas/glob
+```go
+_, err := glob.Compile("{a,b")
+// err: glob: syntax error at 4: unclosed `{`
+```
 
 ## Syntax
 
 Syntax is inspired by [standard wildcards](http://tldp.org/LDP/GNU-Linux-Tools-Summary/html/x11655.htm),
 except that `**` is aka super-asterisk, that do not sensitive for separators.
+
+```
+pattern:
+    { term }
+
+term:
+    `*`         matches any sequence of non-separator characters
+    `**`        matches any sequence of characters
+    `?`         matches any single non-separator character
+    `[` [ `!` ] { character-range } `]`
+                character class (must be non-empty)
+    `{` pattern-list `}`
+                pattern alternatives
+    c           matches character c (c != `*`, `**`, `?`, `\`, `[`, `{`, `}`)
+    `\` c       matches character c
+
+character-range:
+    c           matches character c (c != `\\`, `-`, `]`)
+    `\` c       matches character c
+    lo `-` hi   matches character c for lo <= c <= hi
+
+pattern-list:
+    pattern { `,` pattern }
+                comma-separated (without spaces) patterns
+```
+
+### Separators
+
+The separators are not part of the pattern syntax -- they are configured
+once, at compilation time, as the extra arguments of `Compile`:
+
+```go
+g := glob.MustCompile("api.*.com", '.', '/')
+```
+
+They only limit the wildcards: `*` and `?` never match a separator, while
+`**` matches across them; the literals and the character classes are not
+affected. With no separators given, `*` and `**` are equivalent. A compiled
+`*glob.Pattern` keeps its separators for all matches -- to match the same
+pattern with different separators, compile it again.
+
+## Performance
+
+This library is created for compile-once patterns. This means, that
+compilation could take time, but strings matching is done faster, than in
+case when always parsing template.
+
+If you will not use compiled `*glob.Pattern` object, and do
+`g := glob.MustCompile(pattern); g.Match(...)` every time, then your code
+will be much more slower.
+
+`Match` performs zero allocations and is safe for concurrent use. Common
+pattern shapes (literals, prefixes, suffixes, substrings) are recognized at
+compile time and matched with plain string comparisons; the backtracking
+engine behind the rest is differentially fuzzed against the `regexp` package
+(see `FuzzMatchRegexp`).
+
+Run `go test -bench=.` from source root to see the benchmarks (the numbers
+below are from an Apple M4):
+
+Pattern | Fixture | Match | Speed (ns/op)
+--------|---------|-------|--------------
+`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my cat has very bright eyes` | `true` | 142
+`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my dog has very bright eyes` | `false` | 45
+`https://*.google.*` | `https://account.google.com` | `true` | 16
+`https://*.google.*` | `https://google.com` | `false` | 14
+`{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://yahoo.com` | `true` | 61
+`{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://google.com` | `false` | 71
+`{https://*gobwas.com,http://exclude.gobwas.com}` | `https://safe.gobwas.com` | `true` | 23
+`{https://*gobwas.com,http://exclude.gobwas.com}` | `http://safe.gobwas.com` | `false` | 32
+`google.com` | `google.com` | `true` | 4.5
+`google.com` | `gobwas.com` | `false` | 3.5
+`abc*` | `abcdef` | `true` | 4.0
+`abc*` | `af` | `false` | 6.2
+`*def` | `abcdef` | `true` | 4.2
+`*def` | `af` | `false` | 2.9
+`ab*ef` | `abcdef` | `true` | 6.2
+`ab*ef` | `af` | `false` | 2.9
+
+The same things with the `regexp` package -- not to pick on it (it is a
+general-purpose engine with much stronger guarantees), but as a reference
+for how the glob-shaped specialization pays off per pattern:
+
+Pattern | Fixture | Match | Speed (ns/op) | glob is
+--------|---------|-------|---------------|--------
+`^[a-z][^a-x].*cat.*[h][^b].*eyes.*$` | `my cat has very bright eyes` | `true` | 511 | 3.6x faster
+`^[a-z][^a-x].*cat.*[h][^b].*eyes.*$` | `my dog has very bright eyes` | `false` | 225 | 5.0x faster
+`^https://.*\.google\..*$` | `https://account.google.com` | `true` | 276 | 17x faster
+`^https://.*\.google\..*$` | `https://google.com` | `false` | 151 | 11x faster
+`^(https://.*\.google\..*\|.*yandex\..*\|.*yahoo\..*\|.*mail\.ru)$` | `http://yahoo.com` | `true` | 385 | 6.3x faster
+`^(https://.*\.google\..*\|.*yandex\..*\|.*yahoo\..*\|.*mail\.ru)$` | `http://google.com` | `false` | 549 | 7.7x faster
+`^(https://.*gobwas\.com\|http://exclude\.gobwas\.com)$` | `https://safe.gobwas.com` | `true` | 218 | 9.4x faster
+`^(https://.*gobwas\.com\|http://exclude\.gobwas\.com)$` | `http://safe.gobwas.com` | `false` | 45 | 1.4x faster
+`^google\.com$` | `google.com` | `true` | 31 | 7.0x faster
+`^google\.com$` | `gobwas.com` | `false` | 17 | 4.8x faster
+`^abc.*$` | `abcdef` | `true` | 41 | 10x faster
+`^abc.*$` | `af` | `false` | 1.3 | 4.7x slower
+`^.*def$` | `abcdef` | `true` | 72 | 17x faster
+`^.*def$` | `af` | `false` | 1.3 | 2.2x slower
+`^ab.*ef$` | `abcdef` | `true` | 77 | 12x faster
+`^ab.*ef$` | `af` | `false` | 1.3 | 2.2x slower
+
+(The three `slower` rows are the tiny-mismatch cases. Both engines reject
+them with the same literal check; `regexp` just reaches it through less
+call overhead. In absolute terms it is 2ns vs 6ns -- negligible either
+way.)
+
+[godoc-image]: https://pkg.go.dev/badge/github.com/gobwas/glob.svg
+[godoc-url]: https://pkg.go.dev/github.com/gobwas/glob
+[ci-image]: https://github.com/gobwas/glob/actions/workflows/ci.yml/badge.svg?branch=master
+[ci-url]: https://github.com/gobwas/glob/actions/workflows/ci.yml
