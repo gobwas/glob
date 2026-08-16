@@ -1,14 +1,17 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
 	"testing"
+	"text/tabwriter"
 	"unicode/utf8"
 
 	"github.com/gobwas/glob"
+	"github.com/gobwas/glob/internal/debug"
 )
 
 func benchString(r testing.BenchmarkResult) string {
@@ -32,6 +35,17 @@ func benchString(r testing.BenchmarkResult) string {
 	return fmt.Sprintf("%8d\t%s\t%s allocs", r.N, ns, allocs)
 }
 
+// pointAt renders the pattern with a pointer at the offset of the syntax
+// error, followed by its reason:
+//
+//	{a,b
+//	----^ unclosed `{`
+func pointAt(pattern string, err *glob.SyntaxError) string {
+	// The offset is in bytes, while the pointer is drawn in columns.
+	col := utf8.RuneCountInString(pattern[:min(err.Offset, len(pattern))])
+	return fmt.Sprintf("%s\n%s^ %s\n\n", pattern, strings.Repeat("-", col), err.Reason)
+}
+
 func main() {
 	var (
 		pattern      = flag.String("p", "", "pattern to draw")
@@ -39,6 +53,7 @@ func main() {
 		fixture      = flag.String("f", "", "fixture")
 		benchCompile = flag.Bool("bench-compile", false, "benchmark compilation time")
 		benchMatch   = flag.Bool("bench-match", false, "benchmark matching time")
+		verbose      = flag.Bool("v", false, "print the pattern, fixture, compiled matcher tree and result; without it only the exit status tells: 0 on match, 1 otherwise")
 	)
 
 	// Expose testing package flags.
@@ -48,7 +63,7 @@ func main() {
 
 	if *pattern == "" {
 		flag.Usage()
-		os.Exit(1)
+		os.Exit(2)
 	}
 
 	var separators []rune
@@ -58,19 +73,33 @@ func main() {
 		}
 		r, w := utf8.DecodeRuneInString(c)
 		if len(c) > w {
-			fmt.Println("only single charactered separators are allowed")
-			os.Exit(1)
+			fmt.Fprintln(os.Stderr, "only single charactered separators are allowed")
+			os.Exit(2)
 		}
 		separators = append(separators, r)
 	}
 
 	g, err := glob.Compile(*pattern, separators...)
 	if err != nil {
-		fmt.Println("could not compile pattern:", err)
-		os.Exit(1)
+		fmt.Fprintln(os.Stderr, "could not compile pattern:", err)
+		var syntaxErr *glob.SyntaxError
+		if errors.As(err, &syntaxErr) {
+			fmt.Fprint(os.Stderr, "\n"+pointAt(*pattern, syntaxErr))
+		}
+		os.Exit(2)
 	}
+	matched := g.Match(*fixture)
 
-	fmt.Printf("result: %t\n", g.Match(*fixture))
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
+	if *verbose {
+		fmt.Fprintf(w, "pattern:\t%s\n", g)
+		fmt.Fprintf(w, "fixture:\t%s\n", *fixture)
+		fmt.Fprintf(w, "matchers:\t%s\n", debug.Tree(g))
+		fmt.Fprintf(w, "result:\t%t\n", matched)
+		// Flush before the benchmarks: they take a while, and the result
+		// must not wait for them.
+		w.Flush()
+	}
 
 	if *benchCompile {
 		b := testing.Benchmark(func(b *testing.B) {
@@ -78,7 +107,7 @@ func main() {
 				glob.Compile(*pattern, separators...)
 			}
 		})
-		fmt.Println("compile:", benchString(b))
+		fmt.Fprintf(w, "compile:\t%s\n", benchString(b))
 	}
 	if *benchMatch {
 		b := testing.Benchmark(func(b *testing.B) {
@@ -86,6 +115,11 @@ func main() {
 				g.Match(*fixture)
 			}
 		})
-		fmt.Println("match:    ", benchString(b))
+		fmt.Fprintf(w, "match:\t%s\n", benchString(b))
+	}
+	w.Flush()
+
+	if !matched {
+		os.Exit(1)
 	}
 }
