@@ -3,11 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/gobwas/glob"
 	"os"
 	"strings"
 	"testing"
 	"unicode/utf8"
+
+	"github.com/gobwas/glob"
 )
 
 func benchString(r testing.BenchmarkResult) string {
@@ -32,10 +33,17 @@ func benchString(r testing.BenchmarkResult) string {
 }
 
 func main() {
-	pattern := flag.String("p", "", "pattern to draw")
-	sep := flag.String("s", "", "comma separated list of separators")
-	fixture := flag.String("f", "", "fixture")
-	verbose := flag.Bool("v", false, "verbose")
+	var (
+		pattern      = flag.String("p", "", "pattern to draw")
+		sep          = flag.String("s", "", "comma separated list of separators")
+		fixture      = flag.String("f", "", "fixture")
+		benchCompile = flag.Bool("bench-compile", false, "benchmark compilation time")
+		benchMatch   = flag.Bool("bench-match", false, "benchmark matching time")
+	)
+
+	// Expose testing package flags.
+	testing.Init()
+
 	flag.Parse()
 
 	if *pattern == "" {
@@ -45,12 +53,15 @@ func main() {
 
 	var separators []rune
 	for _, c := range strings.Split(*sep, ",") {
-		if r, w := utf8.DecodeRuneInString(c); len(c) > w {
+		if len(c) == 0 {
+			continue
+		}
+		r, w := utf8.DecodeRuneInString(c)
+		if len(c) > w {
 			fmt.Println("only single charactered separators are allowed")
 			os.Exit(1)
-		} else {
-			separators = append(separators, r)
 		}
+		separators = append(separators, r)
 	}
 
 	g, err := glob.Compile(*pattern, separators...)
@@ -59,24 +70,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	if !*verbose {
-		fmt.Println(g.Match(*fixture))
-		return
-	}
-
 	fmt.Printf("result: %t\n", g.Match(*fixture))
 
-	cb := testing.Benchmark(func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			glob.Compile(*pattern, separators...)
-		}
-	})
-	fmt.Println("compile:", benchString(cb))
-
-	mb := testing.Benchmark(func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			g.Match(*fixture)
-		}
-	})
-	fmt.Println("match:    ", benchString(mb))
+	if *benchCompile {
+		b := testing.Benchmark(func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				glob.Compile(*pattern, separators...)
+			}
+		})
+		fmt.Println("compile:", benchString(b))
+	}
+	if *benchMatch {
+		b := testing.Benchmark(func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				g.Match(*fixture)
+			}
+		})
+		fmt.Println("match:    ", benchString(b))
+	}
 }
