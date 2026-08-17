@@ -1,6 +1,5 @@
-/*
-Package syntax contains logic of parsing glob syntax.
-*/
+// Package syntax implements the lexer of the glob pattern syntax. The parser
+// lives in package glob; the syntax itself is described at [glob.Compile].
 package syntax
 
 import (
@@ -10,23 +9,41 @@ import (
 	"unicode/utf8"
 )
 
+// TokenType tells the kind of a [Token].
 type TokenType int
 
 const (
+	// EOF marks the end of the input; the lexer returns it repeatedly.
 	EOF TokenType = iota
+	// Error carries an error message in Token.Data; the lexer keeps
+	// returning it once it happened. Note that the lexer catches only the
+	// errors local to a token (an invalid UTF-8 sequence, a malformed
+	// character class): the structural ones, like an unclosed `{`, are for
+	// the parser to detect.
 	Error
+	// Text is a run of literal characters, with the escapes resolved.
 	Text
-	Char
+	// Any is the `*` wildcard.
 	Any
+	// Super is the `**` wildcard.
 	Super
+	// Single is the `?` wildcard.
 	Single
+	// Not is the `!` right after the `[` of a character class.
 	Not
+	// TermSeparator is the `,` between the alternatives of a `{...}` group.
+	// Outside of a group a comma is a plain Text character.
 	TermSeparator
+	// RangeOpen and RangeClose are the `[` and `]` of a character class.
+	// Between them the lexer produces either a Text token (a set of
+	// characters, `[abc]`) or a RangeLo, RangeBetween, RangeHi triple (a
+	// range, `[a-c]`), possibly preceded by Not.
 	RangeOpen
 	RangeClose
 	RangeLo
 	RangeHi
 	RangeBetween
+	// TermsOpen and TermsClose are the `{` and `}` of an alternatives group.
 	TermsOpen
 	TermsClose
 )
@@ -39,8 +56,6 @@ func (tt TokenType) String() string {
 		return "error"
 	case Text:
 		return "text"
-	case Char:
-		return "char"
 	case Any:
 		return "any"
 	case Super:
@@ -70,6 +85,9 @@ func (tt TokenType) String() string {
 	}
 }
 
+// Token is a lexeme of the pattern: its kind and the source text it was
+// read from (or the error message for Error, the literal characters with
+// the escapes resolved for Text).
 type Token struct {
 	Type TokenType
 	Data string
@@ -102,6 +120,9 @@ var specials = []byte{
 	char_terms_close,
 }
 
+// IsSpecial reports whether c is a glob meta character, that is, one that
+// [glob.QuoteMeta] escapes. Note that `,`, `!` and `-` are not among them:
+// they are special only inside `{...}` and `[...]` respectively, which are.
 func IsSpecial(c byte) bool {
 	return bytes.IndexByte(specials, c) != -1
 }
@@ -127,6 +148,7 @@ func (i *tokens) empty() bool {
 // can appear in a valid pattern -- note that U+0000 can.
 const eof rune = -1
 
+// Lexer splits a pattern into tokens; see [Lexer.Next].
 type Lexer struct {
 	data string
 	pos  int
@@ -140,6 +162,7 @@ type Lexer struct {
 	hasRune      bool
 }
 
+// NewLexer returns a lexer over the source pattern.
 func NewLexer(source string) *Lexer {
 	l := &Lexer{
 		data:   source,
@@ -154,6 +177,8 @@ func (l *Lexer) Offset() int {
 	return l.pos
 }
 
+// Next returns the next token. Once the input is over it returns EOF, and
+// once an error happened it returns that Error, repeatedly.
 func (l *Lexer) Next() Token {
 	if l.err != nil {
 		return Token{Error, l.err.Error()}
@@ -172,8 +197,9 @@ func (l *Lexer) peek() (r rune, w int) {
 	}
 
 	r, w = utf8.DecodeRuneInString(l.data[l.pos:])
-	if r == utf8.RuneError {
-		l.errorf("could not read rune")
+	if r == utf8.RuneError && w == 1 {
+		// An invalid encoding: a valid U+FFFD decodes at its width of 3.
+		l.errorf("invalid UTF-8 sequence")
 		r = eof
 		w = 0
 	}
@@ -328,6 +354,9 @@ reading:
 	for {
 		r := l.read()
 		if r == eof {
+			if escaped {
+				l.errorf("trailing backslash")
+			}
 			break
 		}
 

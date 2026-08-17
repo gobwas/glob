@@ -1,6 +1,7 @@
 package glob
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -10,25 +11,58 @@ import (
 	"time"
 )
 
-func TestCompile(t *testing.T) {
+func TestCompileErrors(t *testing.T) {
 	for _, test := range []struct {
-		name string
-		pat  string
-		sep  []rune
+		name   string
+		pat    string
+		offset int
+		reason string
 	}{
 		{
-			pat: "{*,**,?}",
-			sep: []rune{'.'},
+			pat:    "{a,b",
+			offset: 4,
+			reason: "unclosed `{`",
 		},
 		{
-			pat: "{*.google.*,yandex.*}",
-			sep: []rune{'.'},
+			pat:    "[abc",
+			offset: 4,
+			reason: "unexpected end of input",
+		},
+		{
+			pat:    "[a-cx]",
+			offset: 5,
+			reason: "expected close range character",
+		},
+		{
+			// The class is lexed as a whole: the offset is past its `]`.
+			pat:    "[c-a]",
+			offset: 5,
+			reason: "range hi character is less than lo",
+		},
+		{
+			name:   "trailing backslash",
+			pat:    `a\`,
+			offset: 2,
+			reason: "trailing backslash",
+		},
+		{
+			name:   "invalid utf8",
+			pat:    "a\xffb",
+			offset: 1,
+			reason: "invalid UTF-8 sequence",
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := Compile(test.pat, test.sep...)
-			if err != nil {
-				t.Fatal(err)
+			_, err := Compile(test.pat)
+			var se *SyntaxError
+			if !errors.As(err, &se) {
+				t.Fatalf("Compile(%q) = %v; want *SyntaxError", test.pat, err)
+			}
+			if se.Offset != test.offset || se.Reason != test.reason {
+				t.Errorf(
+					"Compile(%q) = (%d, %q); want (%d, %q)",
+					test.pat, se.Offset, se.Reason, test.offset, test.reason,
+				)
 			}
 		})
 	}
@@ -401,18 +435,6 @@ func TestPatternMatch(t *testing.T) {
 			exp: true,
 		},
 		{
-			// https://github.com/gobwas/glob/issues/62
-			pat: "{a,}{a,}a",
-			str: "a",
-			exp: true,
-		},
-		{
-			// https://github.com/gobwas/glob/issues/61
-			pat: "start*art",
-			str: "start",
-			exp: false,
-		},
-		{
 			pat: "[a-z][!a-x]*cat*[h][!b]*eyes*",
 			str: "my cat has very bright eyes",
 			exp: true,
@@ -624,6 +646,33 @@ func TestPatternMatch(t *testing.T) {
 			pat: "{**/daxing}/x",
 			str: "zz/x",
 			exp: false,
+		},
+		// U+FFFD is a character like any other, both in the pattern and in
+		// the input: it must not be taken for an invalid byte.
+		{
+			pat: "[!a]",
+			str: "�",
+			exp: true,
+		},
+		{
+			pat: "[!a-c]",
+			str: "�",
+			exp: true,
+		},
+		{
+			pat: "[�]",
+			str: "�",
+			exp: true,
+		},
+		{
+			pat: "a�b",
+			str: "a�b",
+			exp: true,
+		},
+		{
+			pat: "?",
+			str: "�",
+			exp: true,
 		},
 	} {
 

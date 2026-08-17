@@ -2,7 +2,7 @@ package glob
 
 // This file is parked research and is not wired into the release code path.
 //
-// factor() rewrites the alts by pulling the common prefixes and the common
+// [factor] rewrites the alts by pulling the common prefixes and the common
 // suffixes of their alternatives out:
 //
 //	{a,ab}    => a{,b}
@@ -16,7 +16,7 @@ package glob
 //
 //   - A tail alt (one with nothing after it in the pattern) must never be
 //     factored: its alternatives specialize into the O(1) shaped matchers
-//     (see specialize()), which beats sharing a factored-out part by far.
+//     (see [specialize]), which beats sharing a factored-out part by far.
 //     Naive factoring regressed `{https://*gobwas.com,...}` 10x by pulling
 //     the alt out of its terminal position.
 //
@@ -31,17 +31,18 @@ package glob
 //
 //	m = simplify(factor(m, true))
 //
-// between the simplify() and specialize() calls in compile(). The pass is
+// between the [simplify] and [specialize] calls in [compile]. The pass is
 // differentially guarded by the independent FuzzMatchRegexp oracle.
 
 import (
 	"maps"
 	"slices"
+	"unicode/utf8"
 )
 
 // factor rewrites the alts of the simplified matcher tree by factoring the
 // common parts of their alternatives out. The tail flag tells whether
-// nothing follows m in the pattern; a tail alt is left for specialize().
+// nothing follows m in the pattern; a tail alt is left for [specialize].
 func factor(m matcher, tail bool) matcher {
 	switch v := m.(type) {
 	case multiMatcher:
@@ -249,4 +250,19 @@ func matcherEqual(a, b matcher) bool {
 		return ok && slices.EqualFunc(x, y, matcherEqual)
 	}
 	return false
+}
+
+// commonPrefix returns the longest common prefix of a and b, never
+// splitting a multi-byte rune; the mirror of [commonSuffix].
+func commonPrefix(a, b string) string {
+	i := 0
+	for i < len(a) && i < len(b) {
+		ra, wa := utf8.DecodeRuneInString(a[i:])
+		rb, wb := utf8.DecodeRuneInString(b[i:])
+		if ra != rb || wa != wb {
+			break
+		}
+		i += wa
+	}
+	return a[:i]
 }

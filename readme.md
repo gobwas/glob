@@ -123,17 +123,17 @@ term:
     `*`         matches any sequence of non-separator characters
     `**`        matches any sequence of characters
     `?`         matches any single non-separator character
-    `[` [ `!` ] { character-range } `]`
-                character class (must be non-empty)
+    `[` [ `!` ] class `]`
+                character class; `!` negates it
     `{` pattern-list `}`
                 pattern alternatives
     c           matches character c (c != `*`, `**`, `?`, `\`, `[`, `{`, `}`)
     `\` c       matches character c
 
-character-range:
-    c           matches character c (c != `\\`, `-`, `]`)
-    `\` c       matches character c
+class:
     lo `-` hi   matches character c for lo <= c <= hi
+    { c }       matches any of the listed characters (c != `\`, `]`;
+                `\` c matches c, `-` is literal here); must be non-empty
 
 pattern-list:
     pattern { `,` pattern }
