@@ -56,6 +56,11 @@ func FuzzMatchRegexp(f *testing.F) {
 			dotSep:  true,
 		},
 		{
+			pattern: "{*,**,?}",
+			fixture: "a.b",
+			dotSep:  true,
+		},
+		{
 			pattern: "{a,ab}c",
 			fixture: "abc",
 		},
@@ -98,6 +103,16 @@ func FuzzMatchRegexp(f *testing.F) {
 			// in matchContext.storeStar().
 			pattern: "*{*0,}",
 			fixture: "1",
+		},
+		{
+			// U+FFFD is a valid character, not an invalid byte: the class
+			// must match it, and the pattern must compile.
+			pattern: "[!a]",
+			fixture: "�",
+		},
+		{
+			pattern: "[�]*",
+			fixture: "�x",
 		},
 	} {
 		f.Add(seed.pattern, seed.fixture, seed.dotSep)
@@ -146,9 +161,9 @@ func FuzzMatchRegexp(f *testing.F) {
 }
 
 // translateGlob translates the glob pattern into an equivalent anchored
-// regular expression. It is intentionally independent from Compile(): a
-// naive rune-by-rune re-implementation of the documented syntax, sharing no
-// code with the lexer or the parser, to serve as the differential oracle.
+// regular expression. It is intentionally independent from Compile(): a naive
+// rune-by-rune re-implementation of the documented syntax, sharing no code
+// with the lexer or the parser, to serve as the differential oracle.
 func translateGlob(pattern string, sep []rune) (string, error) {
 	var sb strings.Builder
 	sb.WriteString("^(?:")
@@ -157,7 +172,7 @@ func translateGlob(pattern string, sep []rune) (string, error) {
 	for i := 0; i < len(rs); i++ {
 		switch r := rs[i]; r {
 		case '\\':
-			// Note: the trailing backslash is silently dropped.
+			// A trailing backslash does not compile, so it never gets here.
 			if i+1 < len(rs) {
 				i++
 				sb.WriteString(regexp.QuoteMeta(string(rs[i])))

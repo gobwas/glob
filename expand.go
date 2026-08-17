@@ -4,7 +4,7 @@ package glob
 //
 // It explores an alternative approach to handling the brace alternatives:
 // instead of keeping them in the matcher tree and backtracking over the
-// alternative checkpoints at match time (what Pattern.Match() does now), the
+// alternative checkpoints at match time (what [Pattern.Match] does now), the
 // braces could be expanded at compile time into a cartesian product of flat
 // patterns:
 //
