@@ -113,7 +113,12 @@ g.Separators() // []rune{'.'}
 ## Syntax
 
 Syntax is inspired by [standard wildcards](http://tldp.org/LDP/GNU-Linux-Tools-Summary/html/x11655.htm),
-except that `**` is aka super-asterisk, that do not sensitive for separators.
+with one addition: `**` (the "super-asterisk"), which matches any sequence
+of characters *including* the separators, where `*` stops at them. Note that
+it is just that -- a `*` that crosses separators -- and not the `**/`
+"globstar" of shells and file globbers: `**/x` requires the literal `/`, so
+it does not match `x`; use `{**/,}x` for that. The same applies to a
+`**` between separators, e.g. `a/**/b` does not match `a/b`.
 
 ```
 pattern:
@@ -139,6 +144,14 @@ pattern-list:
     pattern { `,` pattern }
                 comma-separated (without spaces) patterns
 ```
+
+### Escaping
+
+The backslash is the escape character: `\*` is a literal asterisk, and a
+backslash itself is `\\`. Mind the Go string literals: `"foo\\bar"` is the
+pattern `foo\bar`, which is the literal `foobar`, not `foo\bar`. To match a
+backslash (e.g. in the Windows paths) write `"foo\\\\bar"` or `` `foo\\bar` ``,
+or use `QuoteMeta` on the literal part.
 
 ### Separators
 
@@ -176,49 +189,52 @@ below are from an Apple M4):
 
 Pattern | Fixture | Match | Speed (ns/op)
 --------|---------|-------|--------------
-`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my cat has very bright eyes` | `true` | 142
-`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my dog has very bright eyes` | `false` | 45
+`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my cat has very bright eyes` | `true` | 141
+`[a-z][!a-x]*cat*[h][!b]*eyes*` | `my dog has very bright eyes` | `false` | 46
 `https://*.google.*` | `https://account.google.com` | `true` | 16
-`https://*.google.*` | `https://google.com` | `false` | 14
+`https://*.google.*` | `https://google.com` | `false` | 13
 `{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://yahoo.com` | `true` | 61
-`{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://google.com` | `false` | 71
-`{https://*gobwas.com,http://exclude.gobwas.com}` | `https://safe.gobwas.com` | `true` | 23
+`{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}` | `http://google.com` | `false` | 70
+`{https://*gobwas.com,http://exclude.gobwas.com}` | `https://safe.gobwas.com` | `true` | 24
 `{https://*gobwas.com,http://exclude.gobwas.com}` | `http://safe.gobwas.com` | `false` | 32
-`google.com` | `google.com` | `true` | 4.5
-`google.com` | `gobwas.com` | `false` | 3.5
-`abc*` | `abcdef` | `true` | 4.0
-`abc*` | `af` | `false` | 6.2
-`*def` | `abcdef` | `true` | 4.2
+`google.com` | `google.com` | `true` | 5.0
+`google.com` | `gobwas.com` | `false` | 3.9
+`abc*` | `abcdef` | `true` | 4.1
+`abc*` | `af` | `false` | 3.0
+`*def` | `abcdef` | `true` | 4.1
 `*def` | `af` | `false` | 2.9
-`ab*ef` | `abcdef` | `true` | 6.2
-`ab*ef` | `af` | `false` | 2.9
+`ab*ef` | `abcdef` | `true` | 6.0
+`ab*ef` | `af` | `false` | 3.0
 
 The same things with the `regexp` package -- not to pick on it (it is a
 general-purpose engine with much stronger guarantees), but as a reference
-for how the glob-shaped specialization pays off per pattern:
+for how the glob-shaped specialization pays off per pattern. The regular
+expressions are the exact equivalents: anchored, and with the `s` flag
+where there is a `*`, since a `*` matches a newline like any other
+character (see `BenchmarkCompareGlobAndRegexp`):
 
 Pattern | Fixture | Match | Speed (ns/op) | glob is
 --------|---------|-------|---------------|--------
-`^[a-z][^a-x].*cat.*[h][^b].*eyes.*$` | `my cat has very bright eyes` | `true` | 511 | 3.6x faster
-`^[a-z][^a-x].*cat.*[h][^b].*eyes.*$` | `my dog has very bright eyes` | `false` | 225 | 5.0x faster
-`^https://.*\.google\..*$` | `https://account.google.com` | `true` | 276 | 17x faster
-`^https://.*\.google\..*$` | `https://google.com` | `false` | 151 | 11x faster
-`^(https://.*\.google\..*\|.*yandex\..*\|.*yahoo\..*\|.*mail\.ru)$` | `http://yahoo.com` | `true` | 385 | 6.3x faster
-`^(https://.*\.google\..*\|.*yandex\..*\|.*yahoo\..*\|.*mail\.ru)$` | `http://google.com` | `false` | 549 | 7.7x faster
-`^(https://.*gobwas\.com\|http://exclude\.gobwas\.com)$` | `https://safe.gobwas.com` | `true` | 218 | 9.4x faster
-`^(https://.*gobwas\.com\|http://exclude\.gobwas\.com)$` | `http://safe.gobwas.com` | `false` | 45 | 1.4x faster
-`^google\.com$` | `google.com` | `true` | 31 | 7.0x faster
-`^google\.com$` | `gobwas.com` | `false` | 17 | 4.8x faster
-`^abc.*$` | `abcdef` | `true` | 41 | 10x faster
-`^abc.*$` | `af` | `false` | 1.3 | 4.7x slower
-`^.*def$` | `abcdef` | `true` | 72 | 17x faster
-`^.*def$` | `af` | `false` | 1.3 | 2.2x slower
-`^ab.*ef$` | `abcdef` | `true` | 77 | 12x faster
-`^ab.*ef$` | `af` | `false` | 1.3 | 2.2x slower
+`(?s)^[a-z][^a-x].*cat.*[h][^b].*eyes.*$` | `my cat has very bright eyes` | `true` | 505 | 3.6x faster
+`(?s)^[a-z][^a-x].*cat.*[h][^b].*eyes.*$` | `my dog has very bright eyes` | `false` | 221 | 4.9x faster
+`(?s)^https://.*\.google\..*$` | `https://account.google.com` | `true` | 251 | 16x faster
+`(?s)^https://.*\.google\..*$` | `https://google.com` | `false` | 128 | 9.6x faster
+`(?s)^(https://.*\.google\..*\|.*yandex\..*\|.*yahoo\..*\|.*mail\.ru)$` | `http://yahoo.com` | `true` | 396 | 6.5x faster
+`(?s)^(https://.*\.google\..*\|.*yandex\..*\|.*yahoo\..*\|.*mail\.ru)$` | `http://google.com` | `false` | 558 | 8.0x faster
+`(?s)^(https://.*gobwas\.com\|http://exclude\.gobwas\.com)$` | `https://safe.gobwas.com` | `true` | 210 | 8.8x faster
+`(?s)^(https://.*gobwas\.com\|http://exclude\.gobwas\.com)$` | `http://safe.gobwas.com` | `false` | 46 | 1.4x faster
+`^google\.com$` | `google.com` | `true` | 25 | 5.0x faster
+`^google\.com$` | `gobwas.com` | `false` | 17 | 4.3x faster
+`(?s)^abc.*$` | `abcdef` | `true` | 43 | 10x faster
+`(?s)^abc.*$` | `af` | `false` | 1.5 | 2.0x slower
+`(?s)^.*def$` | `abcdef` | `true` | 73 | 18x faster
+`(?s)^.*def$` | `af` | `false` | 1.5 | 1.9x slower
+`(?s)^ab.*ef$` | `abcdef` | `true` | 77 | 13x faster
+`(?s)^ab.*ef$` | `af` | `false` | 1.5 | 2.0x slower
 
 (The three `slower` rows are the tiny-mismatch cases. Both engines reject
 them with the same literal check; `regexp` just reaches it through less
-call overhead. In absolute terms it is 2ns vs 6ns -- negligible either
+call overhead. In absolute terms it is 1.5ns vs 3ns -- negligible either
 way.)
 
 [godoc-image]: https://pkg.go.dev/badge/github.com/gobwas/glob.svg

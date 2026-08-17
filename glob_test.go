@@ -895,6 +895,10 @@ func BenchmarkPattern(b *testing.B) {
 	}
 }
 
+// BenchmarkCompareGlobAndRegexp is what the regexp table in the readme is
+// made of. The regexps are the exact equivalents of the globs: anchored,
+// with the meta characters escaped and, since `*` matches a newline as any
+// other character, with the `s` flag (see issue #21).
 func BenchmarkCompareGlobAndRegexp(b *testing.B) {
 	for _, test := range []struct {
 		name   string
@@ -905,7 +909,7 @@ func BenchmarkCompareGlobAndRegexp(b *testing.B) {
 		{
 			name:   "cat",
 			glob:   `[a-z][!a-x]*cat*[h][!b]*eyes*`,
-			regexp: `^[a-z][^a-x].*cat.*[h][^b].*eyes.*$`,
+			regexp: `(?s)^[a-z][^a-x].*cat.*[h][^b].*eyes.*$`,
 			input: map[string]string{
 				"match":    "my cat has very bright eyes",
 				"mismatch": "my dog has very bright eyes",
@@ -914,7 +918,7 @@ func BenchmarkCompareGlobAndRegexp(b *testing.B) {
 		{
 			name:   "wildcard",
 			glob:   `https://*.google.*`,
-			regexp: `^https://.*.google..*$`,
+			regexp: `(?s)^https://.*\.google\..*$`,
 			input: map[string]string{
 				"match":    "https://account.google.com",
 				"mismatch": "https://google.com",
@@ -923,7 +927,7 @@ func BenchmarkCompareGlobAndRegexp(b *testing.B) {
 		{
 			name:   "alternatives",
 			glob:   `{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}`,
-			regexp: `^(https://.*.google..*|.*yandex..*|.*yahoo..*|.*mail.ru)$`,
+			regexp: `(?s)^(https://.*\.google\..*|.*yandex\..*|.*yahoo\..*|.*mail\.ru)$`,
 			input: map[string]string{
 				"match":    "http://yahoo.com",
 				"mismatch": "http://google.com",
@@ -932,7 +936,7 @@ func BenchmarkCompareGlobAndRegexp(b *testing.B) {
 		{
 			name:   "alternatives_suffix_first",
 			glob:   `{https://*gobwas.com,http://exclude.gobwas.com}`,
-			regexp: `^(https://.*gobwas.com|http://exclude.gobwas.com)$`,
+			regexp: `(?s)^(https://.*gobwas\.com|http://exclude\.gobwas\.com)$`,
 			input: map[string]string{
 				"match":    "https://safe.gobwas.com",
 				"mismatch": "http://safe.gobwas.com",
@@ -941,7 +945,7 @@ func BenchmarkCompareGlobAndRegexp(b *testing.B) {
 		{
 			name:   "alternatives_suffix_second",
 			glob:   `{https://*gobwas.com,http://exclude.gobwas.com}`,
-			regexp: `^(https://.*gobwas.com|http://exclude.gobwas.com)$`,
+			regexp: `(?s)^(https://.*gobwas\.com|http://exclude\.gobwas\.com)$`,
 			input: map[string]string{
 				"match": "http://exclude.gobwas.com",
 				//"mismatch": "",
@@ -950,7 +954,7 @@ func BenchmarkCompareGlobAndRegexp(b *testing.B) {
 		{
 			name:   "alternatives_combine_lite",
 			glob:   `{abc*def,abc?def,abc[zte]def}`,
-			regexp: `^(abc.*def|abc.def|abc[zte]def)$`,
+			regexp: `(?s)^(abc.*def|abc.def|abc[zte]def)$`,
 			input: map[string]string{
 				"match": "abczdef",
 				//"mismatch": "",
@@ -959,7 +963,7 @@ func BenchmarkCompareGlobAndRegexp(b *testing.B) {
 		{
 			name:   "alternatives_combine_hard",
 			glob:   `{abc*[a-c]def,abc?[d-g]def,abc[zte]?def}`,
-			regexp: `^(abc.*[a-c]def|abc.[d-g]def|abc[zte].def)$`,
+			regexp: `(?s)^(abc.*[a-c]def|abc.[d-g]def|abc[zte].def)$`,
 			input: map[string]string{
 				"match": "abczqdef",
 				//"mismatch": "",
@@ -968,7 +972,7 @@ func BenchmarkCompareGlobAndRegexp(b *testing.B) {
 		{
 			name:   "plain",
 			glob:   `google.com`,
-			regexp: `^google.com$`,
+			regexp: `^google\.com$`,
 			input: map[string]string{
 				"match":    "google.com",
 				"mismatch": "gobwas.com",
@@ -977,7 +981,7 @@ func BenchmarkCompareGlobAndRegexp(b *testing.B) {
 		{
 			name:   "prefix",
 			glob:   `abc*`,
-			regexp: `^abc.*$`,
+			regexp: `(?s)^abc.*$`,
 			input: map[string]string{
 				"match":    "abcdef",
 				"mismatch": "af",
@@ -986,7 +990,7 @@ func BenchmarkCompareGlobAndRegexp(b *testing.B) {
 		{
 			name:   "suffix",
 			glob:   `*def`,
-			regexp: `^.*def$`,
+			regexp: `(?s)^.*def$`,
 			input: map[string]string{
 				"match":    "abcdef",
 				"mismatch": "af",
@@ -995,7 +999,7 @@ func BenchmarkCompareGlobAndRegexp(b *testing.B) {
 		{
 			name:   "prefix_and_suffix",
 			glob:   `ab*ef`,
-			regexp: `^ab.*ef$`,
+			regexp: `(?s)^ab.*ef$`,
 			input: map[string]string{
 				"match":    "abcdef",
 				"mismatch": "af",
