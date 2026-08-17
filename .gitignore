@@ -7,3 +7,4 @@ glob.iml
 *.png
 *.svg
 patterns.txt
+*.bench
