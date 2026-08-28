@@ -12,9 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: stable
 
@@ -23,7 +23,7 @@ jobs:
         run: echo "dir=$(go env GOCACHE)/fuzz" >> "$GITHUB_OUTPUT"
 
       - name: restore corpus
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ${{ steps.cache-dir.outputs.dir }}
           # A fresh key every run plus a prefix restore key: the job always
@@ -39,7 +39,7 @@ jobs:
       - name: save corpus
         # Save even when the fuzzing found a failure -- especially then.
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ${{ steps.cache-dir.outputs.dir }}
           key: fuzz-corpus-${{ github.run_id }}
@@ -48,7 +48,7 @@ jobs:
         # A found failure is minimized and written into testdata/fuzz/;
         # keep it as an artifact so it can be committed as a regression.
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: crashers
           path: testdata/fuzz/
