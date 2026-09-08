@@ -238,6 +238,7 @@ parsing:
 	m := simplify(multiMatcher(stack))
 	m = specialize(m, true)
 	annotateStars(m, true)
+	m = foldTailAlts(m, true)
 	if debug.Enabled {
 		debug.Printf("compiled %#q: %s\n", str, m)
 	}
@@ -580,6 +581,31 @@ func annotateStars(m matcher, tail bool) {
 	}
 }
 
+// foldTailAlts rewrites the tail alts whose branches are all stateless into
+// [tailAltMatcher]s: such a branch either matches the whole remainder or
+// fails, so the alternatives are tried with a plain loop and the alt saves
+// no checkpoints. An alt with a stateful branch (e.g. a non-terminal star
+// inside, as in `{a*b*c,d}`) is left as is.
+//
+// It must run after [annotateStars]: [needsState] reads the Terminal flag
+// it computes.
+func foldTailAlts(m matcher, tail bool) matcher {
+	switch v := m.(type) {
+	case multiMatcher:
+		for i, c := range v {
+			v[i] = foldTailAlts(c, tail && i == len(v)-1)
+		}
+	case altMatcher:
+		for i, c := range v {
+			v[i] = foldTailAlts(c, tail)
+		}
+		if tail && !slices.ContainsFunc(v, needsState) {
+			return tailAltMatcher(v)
+		}
+	}
+	return m
+}
+
 // leadingLiteral returns the literal the given matcher is guaranteed to
 // begin its match with, if any.
 func leadingLiteral(m matcher) string {
@@ -614,6 +640,8 @@ func minLength(m matcher) (n int) {
 			n += minLength(c)
 		}
 		return n
+	case tailAltMatcher:
+		return minLength(altMatcher(v))
 	case altMatcher:
 		n = minLength(v[0])
 		for _, c := range v[1:] {
@@ -635,6 +663,8 @@ func requiredSuffix(m matcher) string {
 		return v.Suffix
 	case multiMatcher:
 		return requiredSuffix(v[len(v)-1])
+	case tailAltMatcher:
+		return requiredSuffix(altMatcher(v))
 	case altMatcher:
 		s := requiredSuffix(v[0])
 		for _, c := range v[1:] {
