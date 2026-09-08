@@ -103,7 +103,7 @@ func main() {
 
 	if *benchCompile {
 		b := testing.Benchmark(func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				glob.Compile(*pattern, separators...)
 			}
 		})
@@ -111,7 +111,7 @@ func main() {
 	}
 	if *benchMatch {
 		b := testing.Benchmark(func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				g.Match(*fixture)
 			}
 		})

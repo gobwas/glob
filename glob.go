@@ -146,7 +146,7 @@ func QuoteMeta(s string) string {
 	b := make([]byte, 2*len(s))
 	j := 0
 	// A byte loop is correct here because all meta characters are ASCII.
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if syntax.IsSpecial(s[i]) {
 			b[j] = '\\'
 			j++
