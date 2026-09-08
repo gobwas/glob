@@ -3,6 +3,7 @@ package glob
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -879,15 +880,15 @@ func BenchmarkPattern(b *testing.B) {
 		},
 	} {
 		b.Run(test.name+"-compile", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				MustCompile(test.pat)
 			}
 		})
 		pat := MustCompile(test.pat)
-		for _, key := range keysInOrder(test.input) {
+		for _, key := range slices.Sorted(maps.Keys(test.input)) {
 			str := test.input[key]
 			b.Run(test.name+"-match-"+key, func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for b.Loop() {
 					pat.Match(str)
 				}
 			})
@@ -1007,12 +1008,12 @@ func BenchmarkCompareGlobAndRegexp(b *testing.B) {
 		},
 	} {
 		b.Run(test.name+"-glob-compile", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				MustCompile(test.glob)
 			}
 		})
 		b.Run(test.name+"-regexp-compile", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				regexp.MustCompile(test.regexp)
 			}
 		})
@@ -1020,15 +1021,15 @@ func BenchmarkCompareGlobAndRegexp(b *testing.B) {
 			pat = MustCompile(test.glob)
 			exp = regexp.MustCompile(test.regexp)
 		)
-		for _, key := range keysInOrder(test.input) {
+		for _, key := range slices.Sorted(maps.Keys(test.input)) {
 			str := test.input[key]
 			b.Run(test.name+"-glob-"+key, func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for b.Loop() {
 					pat.Match(str)
 				}
 			})
 			b.Run(test.name+"-regexp-"+key, func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for b.Loop() {
 					exp.MatchString(str)
 				}
 			})
@@ -1126,13 +1127,4 @@ func TestPatternSeparatorsAliasing(t *testing.T) {
 	if !p.Match("axb") {
 		t.Errorf("Match() picked up the modification of the given slice")
 	}
-}
-
-func keysInOrder(m map[string]string) []string {
-	keys := make([]string, 0, len(m))
-	for key := range m {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	return keys
 }
