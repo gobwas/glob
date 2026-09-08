@@ -1036,6 +1036,55 @@ func BenchmarkCompareGlobAndRegexp(b *testing.B) {
 	}
 }
 
+// TestTailAlts verifies that a tail alternative group with stateless
+// branches compiles into a stateless pattern (see foldTailAlts), while
+// the alts that may need backtracking keep the state.
+func TestTailAlts(t *testing.T) {
+	for _, test := range []struct {
+		pat   string
+		sep   []rune
+		state bool
+	}{
+		{
+			pat: "{abc*def,abc?def,abc[zte]def}",
+		},
+		{
+			pat: "{cat,bat,[fr]at}",
+		},
+		{
+			pat: "{a,}",
+		},
+		{
+			pat: "{*,b}",
+		},
+		{
+			pat: "x{a,{b,c}}",
+		},
+		{
+			pat: "{*.go,*.js}",
+			sep: []rune{'/'},
+		},
+		{
+			// Not a tail alt: something follows it.
+			pat:   "{a,b}c",
+			state: true,
+		},
+		{
+			// A tail alt, but a branch keeps a non-terminal star.
+			pat:   "{a*b*c,d}",
+			state: true,
+		},
+	} {
+		p := MustCompile(test.pat, test.sep...)
+		if p.state != test.state {
+			t.Errorf(
+				"Compile(%q).state = %t; want %t (compiled: %s)",
+				test.pat, p.state, test.state, p.m,
+			)
+		}
+	}
+}
+
 func TestPatternString(t *testing.T) {
 	for _, test := range []struct {
 		name string
