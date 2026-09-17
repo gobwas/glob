@@ -113,12 +113,15 @@ g.Separators() // []rune{'.'}
 ## Syntax
 
 Syntax is inspired by [standard wildcards](http://tldp.org/LDP/GNU-Linux-Tools-Summary/html/x11655.htm),
-with one addition: `**` (the "super-asterisk"), which matches any sequence
-of characters *including* the separators, where `*` stops at them. Note that
-it is just that -- a `*` that crosses separators -- and not the `**/`
-"globstar" of shells and file globbers: `**/x` requires the literal `/`, so
-it does not match `x`; use `{**/,}x` for that. The same applies to a
-`**` between separators, e.g. `a/**/b` does not match `a/b`.
+with two additions: `**` (the "super-asterisk") and the extended groups of
+the bash `extglob`.
+
+`**` matches any sequence of characters *including* the separators, where
+`*` stops at them. Note that it is just that -- a `*` that crosses
+separators -- and not the `**/` "globstar" of shells and file globbers:
+`**/x` requires the literal `/`, so it does not match `x`; use `{**/,}x`
+for that. The same applies to a `**` between separators, e.g. `a/**/b`
+does not match `a/b`.
 
 ```
 pattern:
@@ -132,6 +135,17 @@ term:
                 character class; `!` negates it
     `{` pattern-list `}`
                 pattern alternatives
+    `@(` group-list `)`
+                exactly one of the alternatives
+    `?(` group-list `)`
+                at most one of the alternatives
+    `*(` group-list `)`
+                any number of the alternatives, including none
+    `+(` group-list `)`
+                any number of the alternatives, at least one
+    `!(` group-list `)`
+                any sequence of non-separator characters but one
+                matching an alternative
     c           matches character c (c != `*`, `**`, `?`, `\`, `[`, `{`, `}`)
     `\` c       matches character c
 
@@ -143,7 +157,27 @@ class:
 pattern-list:
     pattern { `,` pattern }
                 comma-separated (without spaces) patterns
+
+group-list:
+    pattern { `|` pattern }
+                bar-separated (without spaces) patterns
 ```
+
+Each alternative of a group is matched as a whole pattern of its own: an
+iteration of a `*(...)` or a `+(...)` is a sub-string some alternative
+matches exactly, and a `!(...)` is a sub-string -- without separators, like
+a `*` -- that no alternative matches exactly. So `@(ab|a)c` matches `abc`
+and `ac`, `+(a*b|c)` matches `abcc`, `!(*_test).go` matches `a.go` but not
+`a_test.go`, and a `*` inside an alternative reaches only to the end of its
+own sub-string, never past it into what follows the group.
+
+The `(` opens a group only right after one of the five operator characters;
+anywhere else it is a plain character, and it binds to the character right
+before it -- so `(a)` and `a(b|c)` match themselves, and `**(a)` is a `*`
+followed by the group `*(a)`. Likewise `|` and `)` are plain characters
+outside of a group, and `,` and `}` inside of one: the innermost open
+construct decides which characters are special, so that the groups and the
+`{...}` alternatives nest freely.
 
 ### Escaping
 
@@ -152,6 +186,12 @@ backslash itself is `\\`. Mind the Go string literals: `"foo\\bar"` is the
 pattern `foo\bar`, which is the literal `foobar`, not `foo\bar`. To match a
 backslash (e.g. in the Windows paths) write `"foo\\\\bar"` or `` `foo\\bar` ``,
 or use `QuoteMeta` on the literal part.
+
+`QuoteMeta` escapes `(` and `)` along with the other meta characters; since
+a group opener is a pair, escaping either half of it is enough, so `\@(a)`
+and `@\(a)` are both the literal text `@(a)`. A `|` needs escaping only
+inside a group and a `,` only inside a `{...}`, where they separate the
+alternatives; everywhere else they are literal already.
 
 ### Separators
 
