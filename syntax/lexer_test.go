@@ -177,6 +177,129 @@ func TestLexGood(t *testing.T) {
 				{EOF, ""},
 			},
 		},
+		{
+			pattern: "@(a|b)",
+			items: []Token{
+				{GroupOpen, "@("},
+				{Text, "a"},
+				{GroupSeparator, "|"},
+				{Text, "b"},
+				{GroupClose, ")"},
+				{EOF, ""},
+			},
+		},
+		{
+			pattern: "*(a)?(b)+(c)!(d)",
+			items: []Token{
+				{GroupOpen, "*("},
+				{Text, "a"},
+				{GroupClose, ")"},
+				{GroupOpen, "?("},
+				{Text, "b"},
+				{GroupClose, ")"},
+				{GroupOpen, "+("},
+				{Text, "c"},
+				{GroupClose, ")"},
+				{GroupOpen, "!("},
+				{Text, "d"},
+				{GroupClose, ")"},
+				{EOF, ""},
+			},
+		},
+		{
+			// Outside of a group `(`, `)` and `|` are plain text, and so is
+			// an operator character with no `(` right after it.
+			pattern: "a|b)c",
+			items: []Token{
+				{Text, "a|b)c"},
+				{EOF, ""},
+			},
+		},
+		{
+			pattern: "(a)",
+			items: []Token{
+				{Text, "(a)"},
+				{EOF, ""},
+			},
+		},
+		{
+			pattern: "!@(a)",
+			items: []Token{
+				{Text, "!"},
+				{GroupOpen, "@("},
+				{Text, "a"},
+				{GroupClose, ")"},
+				{EOF, ""},
+			},
+		},
+		{
+			// The `(` binds to the character right before it.
+			pattern: "**(a)",
+			items: []Token{
+				{Any, "*"},
+				{GroupOpen, "*("},
+				{Text, "a"},
+				{GroupClose, ")"},
+				{EOF, ""},
+			},
+		},
+		{
+			pattern: "***(a)",
+			items: []Token{
+				{Super, "**"},
+				{GroupOpen, "*("},
+				{Text, "a"},
+				{GroupClose, ")"},
+				{EOF, ""},
+			},
+		},
+		{
+			pattern: "\\@(a)",
+			items: []Token{
+				{Text, "@(a)"},
+				{EOF, ""},
+			},
+		},
+		{
+			pattern: "@(a\\|b)",
+			items: []Token{
+				{GroupOpen, "@("},
+				{Text, "a|b"},
+				{GroupClose, ")"},
+				{EOF, ""},
+			},
+		},
+		{
+			// The innermost open construct decides which characters are
+			// special: `,` and `}` inside a `{...}`, `|` and `)` inside a
+			// group.
+			pattern: "{@(a,b),c}",
+			items: []Token{
+				{TermsOpen, "{"},
+				{GroupOpen, "@("},
+				{Text, "a,b"},
+				{GroupClose, ")"},
+				{TermSeparator, ","},
+				{Text, "c"},
+				{TermsClose, "}"},
+				{EOF, ""},
+			},
+		},
+		{
+			pattern: "@(a|{b,c|d})",
+			items: []Token{
+				{GroupOpen, "@("},
+				{Text, "a"},
+				{GroupSeparator, "|"},
+				{TermsOpen, "{"},
+				{Text, "b"},
+				{TermSeparator, ","},
+				{Text, "c|d"},
+				{TermsClose, "}"},
+				{GroupClose, ")"},
+				{EOF, ""},
+			},
+		},
 	} {
 		lexer := NewLexer(test.pattern)
 		for i, exp := range test.items {

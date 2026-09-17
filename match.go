@@ -317,6 +317,23 @@ type matchState struct {
 	// spares the per-path lifetime reasoning: a path may be shared between
 	// the current frame and several checkpoints.
 	arena []int
+
+	// scratch and reach are the buffers the extended groups find their
+	// candidates with; see [matchState.boundaries] and
+	// [matchState.reachable]. A group's body is matched as a pattern of its
+	// own, with a state of its own, so a single pair per state is enough.
+	scratch []int
+	reach   []bool
+}
+
+// reachable returns the reach buffer, n entries long and cleared.
+func (st *matchState) reachable(n int) []bool {
+	if cap(st.reach) < n {
+		st.reach = make([]bool, n)
+	}
+	st.reach = st.reach[:n]
+	clear(st.reach)
+	return st.reach
 }
 
 // allocPath returns a zeroed []int of length n allocated from the state's
@@ -347,8 +364,11 @@ func acquireState() *matchState {
 func releaseState(st *matchState) {
 	resetCheckpoints(&st.stars)
 	resetCheckpoints(&st.stack)
-	// The arena holds no references; keep the (largest) chunk as is.
+	// The arena holds no references; keep the (largest) chunk as is, and
+	// the scratch buffers likewise.
 	st.arena = st.arena[:0]
+	st.scratch = st.scratch[:0]
+	st.reach = st.reach[:0]
 	statePool.Put(st)
 }
 
@@ -785,4 +805,185 @@ func popLast[T any, E ~[]T](s *E) T {
 	r := (*s)[n-1]
 	*s = (*s)[:n-1]
 	return r
+}
+
+// The extended groups below, `*(...)`, `+(...)` and `!(...)`, match their
+// body -- the alternatives of the group compiled into a pattern of their own,
+// see [newGroup] -- against the candidate sub-strings of the input, each as
+// a whole: an iteration of a repeating group is a sub-string the body
+// matches exactly, and a negated group is a sub-string the body does not.
+//
+// Unlike a star, which extends one rune at a time by re-entering itself from
+// a restart point, a group can not resume this way: on resuming, a matcher
+// sees the input from the checkpoint offset only and does not know where the
+// group began, while the candidates depend on that beginning. So a group
+// finds all of its candidates when it is entered, takes the shortest one,
+// and saves the others as restart points that carry the candidate length in
+// the path: an entry past the group's own depth, where a live walk never
+// has one (a group is a leaf of the tree). On resuming such a restart point
+// the group merely consumes the recorded length; see [matchContext.resumed]
+// and [matchContext.storeCandidate].
+
+// resumed reports whether the current node is being resumed from one of its
+// own candidate restart points, returning the candidate length then; see
+// [matchContext.storeCandidate].
+func (x matchContext) resumed() (n int, ok bool) {
+	if d := x.frame.depth; len(x.frame.path) == d+1 {
+		return x.frame.path[d], true
+	}
+	return 0, false
+}
+
+// storeCandidate saves a restart point for the current node at the current
+// offset, recording the candidate length n as the extra path entry.
+//
+// The restart points go to the stars pile: like the star's, they are the
+// positions a following separator-free star can extend over, so it may
+// discard them the same way; see [matchContext.storeStar].
+func (x matchContext) storeCandidate(n int) {
+	d := x.frame.depth
+	path := x.state.allocPath(d + 1)
+	copy(path, x.frame.path)
+	path[d] = n
+	x.state.stars = append(x.state.stars, checkpoint{
+		offset: x.offset,
+		path:   path,
+	})
+	if debug.Enabled {
+		debug.Printf("candidate offset=%d n=%d path=%v\n", x.offset, n, path)
+	}
+}
+
+// takeCandidates consumes the shortest of the candidates (ascending byte
+// lengths) and saves the others as the restart points, the longest first so
+// that the next shortest is resumed first.
+func (x matchContext) takeCandidates(candidates []int) (int, bool) {
+	if len(candidates) == 0 {
+		return 0, false
+	}
+	for i := len(candidates) - 1; i >= 1; i-- {
+		x.storeCandidate(candidates[i])
+	}
+	return candidates[0], true
+}
+
+// boundaries returns the rune boundaries of s up to and including n, that
+// is, the lengths of its prefixes a matcher may consume, in ascending order.
+// The zero length is included. The slice is the state's scratch buffer,
+// valid until the next call.
+func (st *matchState) boundaries(s string, n int) []int {
+	b := st.scratch[:0]
+	for i := 0; ; {
+		b = append(b, i)
+		if i >= n {
+			break
+		}
+		_, w := utf8.DecodeRuneInString(s[i:])
+		i += w
+	}
+	st.scratch = b
+	return b
+}
+
+// repeatMatcher is a `*(...)` or a `+(...)` group: a sequence of at least
+// Min (zero or one) sub-strings each matching the group's body exactly.
+type repeatMatcher struct {
+	Body *Pattern
+	Min  int
+}
+
+func (m *repeatMatcher) String() string {
+	if m.Min > 0 {
+		return "+(" + m.Body.m.String() + ")"
+	}
+	return "*(" + m.Body.m.String() + ")"
+}
+
+func (m *repeatMatcher) Match(x matchContext, s string) (int, bool) {
+	if n, ok := x.resumed(); ok {
+		return n, true
+	}
+	// The candidates are the ends of the iteration chains starting at the
+	// beginning of s: a boundary is reachable if it is the beginning, or
+	// if the body matches the sub-string from some reachable boundary
+	// before it. Scanning the boundaries in ascending order settles each
+	// one before it is used as a start.
+	var (
+		bounds = x.state.boundaries(s, len(s))
+		reach  = x.state.reachable(len(bounds))
+		empty  = m.Body.Match("")
+	)
+	reach[0] = true
+	for i, from := range bounds {
+		if !reach[i] {
+			continue
+		}
+		for j := i + 1; j < len(bounds); j++ {
+			if !reach[j] && m.Body.Match(s[from:bounds[j]]) {
+				reach[j] = true
+			}
+		}
+	}
+	// Reuse the boundaries buffer for the candidates: entry i is consumed
+	// before it may be overwritten.
+	candidates := bounds[:0]
+	for i, n := range bounds {
+		if !reach[i] {
+			continue
+		}
+		if i == 0 && m.Min > 0 && !empty {
+			// At least one iteration, and the body does not match
+			// the empty string: the empty prefix is not a candidate.
+			continue
+		}
+		candidates = append(candidates, n)
+	}
+	return x.takeCandidates(candidates)
+}
+
+// notMatcher is a `!(...)` group: any sequence of non-separator characters
+// (the reach of a `*`) but one matching the group's body exactly.
+type notMatcher struct {
+	Body   *Pattern
+	Sep    []rune
+	SepStr string
+}
+
+func (m *notMatcher) String() string {
+	var sb strings.Builder
+	sb.WriteString("!(")
+	sb.WriteString(m.Body.m.String())
+	sb.WriteByte(')')
+	if len(m.Sep) > 0 {
+		sb.WriteByte('(')
+		formatRunes(&sb, m.Sep)
+		sb.WriteByte(')')
+	}
+	return sb.String()
+}
+
+// reach returns the length of the prefix of s the group may extend over:
+// everything up to the nearest separator, the same as [starMatcher.reach].
+func (m *notMatcher) reach(s string) int {
+	if m.SepStr == "" {
+		return len(s)
+	}
+	if e := strings.IndexAny(s, m.SepStr); e >= 0 {
+		return e
+	}
+	return len(s)
+}
+
+func (m *notMatcher) Match(x matchContext, s string) (int, bool) {
+	if n, ok := x.resumed(); ok {
+		return n, true
+	}
+	bounds := x.state.boundaries(s, m.reach(s))
+	candidates := bounds[:0]
+	for _, n := range bounds {
+		if !m.Body.Match(s[:n]) {
+			candidates = append(candidates, n)
+		}
+	}
+	return x.takeCandidates(candidates)
 }

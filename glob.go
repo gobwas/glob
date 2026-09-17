@@ -115,6 +115,17 @@ func init() {
 //	                character class; `!` negates it
 //	    `{` pattern-list `}`
 //	                pattern alternatives
+//	    `@(` group-list `)`
+//	                exactly one of the alternatives
+//	    `?(` group-list `)`
+//	                at most one of the alternatives
+//	    `*(` group-list `)`
+//	                any number of the alternatives, including none
+//	    `+(` group-list `)`
+//	                any number of the alternatives, at least one
+//	    `!(` group-list `)`
+//	                any sequence of non-separator characters but one
+//	                matching an alternative
 //	    c           matches character c (c != `*`, `**`, `?`, `\`, `[`, `{`, `}`)
 //	    `\` c       matches character c
 //
@@ -126,6 +137,20 @@ func init() {
 //	pattern-list:
 //	    pattern { `,` pattern }
 //	                comma-separated (without spaces) patterns
+//
+//	group-list:
+//	    pattern { `|` pattern }
+//	                bar-separated (without spaces) patterns
+//
+// The extended groups are the ones of the bash extglob. Each alternative
+// is matched as a whole pattern of its own: an iteration of a `*(...)` or
+// a `+(...)` is a sub-string some alternative matches exactly, and a
+// `!(...)` is a sub-string (without separators, like a `*`) no alternative
+// matches exactly. The `(` opens a group only right after one of the five
+// operator characters; anywhere else it is a plain character, and so are
+// `|` and `)` outside of a group and `,` and `}` inside of one -- the
+// innermost open group tells which characters are special, so that the
+// groups and the `{...}` alternatives nest freely.
 func Compile(pattern string, separators ...rune) (*Pattern, error) {
 	return compile(pattern, separators)
 }

@@ -29,10 +29,14 @@ func compile(str string, sep []rune) (*Pattern, error) {
 	type operator struct {
 		kind  int
 		index int
+		// op is the operator character of an opGroup: `?`, `*`, `+`, `@`
+		// or `!`; see [newGroup].
+		op byte
 	}
 	const (
 		opTerms = iota
 		opList
+		opGroup
 	)
 	/*
 		Stack-based parsing is a technique used to evaluate mathematical
@@ -65,7 +69,12 @@ func compile(str string, sep []rune) (*Pattern, error) {
 		    altMatcher;
 
 		  - at the EOF whatever is left on the stack is the top-level
-		    sequence; a leftover operator means an unclosed `{`.
+		    sequence; a leftover operator means an unclosed `{` or `(`.
+
+		The extended groups, `@(a|b)` and the like, go the same way with
+		opGroup in place of opTerms and `|` in place of `,`: the `)` pops
+		the opGroup and builds the group matcher out of the alternatives
+		collected above its index; see [newGroup].
 
 		For example, `a{b*,c}d` goes like this (list@i is an opList with
 		index i, likewise terms@i):
@@ -148,12 +157,23 @@ parsing:
 				debug.Printf("terms enter: %d\n", len(stack))
 			}
 
-		case syntax.TermSeparator:
+		case syntax.GroupOpen:
+			// Same as TermsOpen: the `(` opens both the group and its
+			// first alternative.
+			operators = append(operators,
+				operator{kind: opGroup, index: len(stack), op: token.Data[0]},
+				operator{kind: opList, index: len(stack)},
+			)
+			if debug.Enabled {
+				debug.Printf("group enter: %d\n", len(stack))
+			}
+
+		case syntax.TermSeparator, syntax.GroupSeparator:
 			k := len(operators) - 1
 			if k < 0 {
 				return nil, &SyntaxError{
 					Offset: lex.Offset(),
-					Reason: "unexpected `,`",
+					Reason: "unexpected `" + token.Data + "`",
 				}
 			}
 			x := operators[k]
@@ -182,13 +202,13 @@ parsing:
 				debug.Printf("terms separator: %d\n", len(stack))
 			}
 
-		case syntax.TermsClose:
+		case syntax.TermsClose, syntax.GroupClose:
 			for {
 				k := len(operators) - 1
 				if k < 0 {
 					return nil, &SyntaxError{
 						Offset: lex.Offset(),
-						Reason: "unexpected `}`",
+						Reason: "unexpected `" + token.Data + "`",
 					}
 				}
 				x := operators[k]
@@ -200,6 +220,8 @@ parsing:
 				switch x.kind {
 				case opTerms:
 					m = altMatcher(c)
+				case opGroup:
+					m = newGroup(x.op, c, sepCopy, sepStr)
 				case opList:
 					m = multiMatcher(c)
 				}
@@ -217,7 +239,7 @@ parsing:
 						x.kind, i, stack[i],
 					)
 				}
-				if x.kind == opTerms {
+				if x.kind != opList {
 					break
 				}
 			}
@@ -230,20 +252,41 @@ parsing:
 		}
 	}
 	if len(operators) != 0 {
+		// Report the innermost unclosed group: the last operator that is
+		// not an alternative delimiter.
+		unclosed := "`{`"
+		for k := len(operators) - 1; k >= 0; k-- {
+			if operators[k].kind == opGroup {
+				unclosed = "`(`"
+				break
+			}
+			if operators[k].kind == opTerms {
+				break
+			}
+		}
 		return nil, &SyntaxError{
 			Offset: lex.Offset(),
-			Reason: "unclosed `{`",
+			Reason: "unclosed " + unclosed,
 		}
 	}
-	m := simplify(multiMatcher(stack))
+	p := newPattern(multiMatcher(stack))
+	p.str = str
+	p.sep = sep
+	if debug.Enabled {
+		debug.Printf("compiled %#q: %s\n", str, p.m)
+	}
+	return p, nil
+}
+
+// newPattern turns the freshly parsed matcher tree into a Pattern: it
+// simplifies and specializes the tree and computes the match-time hints and
+// preconditions. Besides the top-level pattern it makes the sub-patterns
+// the extended groups match their bodies with; see [newGroup].
+func newPattern(m matcher) *Pattern {
+	m = simplify(m)
 	m = specialize(m, true)
 	annotateStars(m, true)
-	if debug.Enabled {
-		debug.Printf("compiled %#q: %s\n", str, m)
-	}
 	p := &Pattern{
-		str:   str,
-		sep:   sep,
 		m:     m,
 		state: needsState(m),
 	}
@@ -251,7 +294,36 @@ parsing:
 		p.minLen = minLength(m)
 		p.suffix = requiredSuffix(m)
 	}
-	return p, nil
+	return p
+}
+
+// newGroup builds the matcher of an extended group out of its alternatives,
+// each one a (not yet simplified) sequence:
+//
+//	@(a|b)  => {"a"|"b"}      exactly one of the alternatives -- an alt
+//	?(a|b)  => {"a"|"b"|void} at most one of them -- an alt with a void
+//	*(a|b)  => *({"a"|"b"})   any number of them, including none
+//	+(a|b)  => +({"a"|"b"})   any number of them, at least one
+//	!(a|b)  => !({"a"|"b"})   anything but one of them
+//
+// The first two are the plain alternatives the tree already has. The other
+// three are the repeating and the negating matchers, which match their
+// alternatives as a whole pattern of their own against the candidate
+// sub-strings; see [repeatMatcher] and [notMatcher].
+func newGroup(op byte, alts []matcher, sep []rune, sepStr string) matcher {
+	switch op {
+	case '@':
+		return altMatcher(alts)
+	case '?':
+		return altMatcher(append(alts, &voidMatcher{}))
+	case '*':
+		return &repeatMatcher{Body: newPattern(altMatcher(alts))}
+	case '+':
+		return &repeatMatcher{Body: newPattern(altMatcher(alts)), Min: 1}
+	case '!':
+		return &notMatcher{Body: newPattern(altMatcher(alts)), Sep: sep, SepStr: sepStr}
+	}
+	panic("glob: unknown group operator " + string(op))
 }
 
 // parseRange parses a character class, called right after its opening `[`
@@ -609,6 +681,11 @@ func minLength(m matcher) (n int) {
 		return len(v.Prefix) + len(v.Suffix)
 	case *containsMatcher:
 		return len(v.Text)
+	case *repeatMatcher:
+		if v.Min > 0 {
+			return minLength(v.Body.m)
+		}
+		return 0
 	case multiMatcher:
 		for _, c := range v {
 			n += minLength(c)
@@ -633,6 +710,13 @@ func requiredSuffix(m matcher) string {
 		return v.Text
 	case *prefixSuffixMatcher:
 		return v.Suffix
+	case *repeatMatcher:
+		// The last iteration, if any, ends the match: a `+` group ends
+		// with what its body ends with, a `*` group may match nothing.
+		if v.Min > 0 {
+			return requiredSuffix(v.Body.m)
+		}
+		return ""
 	case multiMatcher:
 		return requiredSuffix(v[len(v)-1])
 	case altMatcher:
@@ -645,7 +729,7 @@ func requiredSuffix(m matcher) string {
 		}
 		return s
 	}
-	return "" // A star, a single-character matcher or a void.
+	return "" // A star, a single-character matcher, a negation or a void.
 }
 
 // commonSuffix returns the longest common suffix of a and b, never splitting
@@ -664,11 +748,11 @@ func commonSuffix(a, b string) string {
 }
 
 // needsState reports whether matching m may save a checkpoint. Only the
-// alts and the non-terminal stars do; a pattern without them is matched
-// with a plain call chain -- see [Pattern.Match].
+// alts, the extended groups and the non-terminal stars do; a pattern without
+// them is matched with a plain call chain -- see [Pattern.Match].
 func needsState(m matcher) bool {
 	switch v := m.(type) {
-	case altMatcher:
+	case altMatcher, *repeatMatcher, *notMatcher:
 		return true
 	case multiMatcher:
 		return slices.ContainsFunc(v, needsState)
