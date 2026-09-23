@@ -756,6 +756,10 @@ func TestQuoteMeta(t *testing.T) {
 			in:  `some text and *?\[]{}`,
 			out: `some text and \*\?\\\[\]\{\}`,
 		},
+		{
+			in:  `a,b`,
+			out: `a\,b`,
+		},
 	} {
 		act := QuoteMeta(test.in)
 		if act != test.out {
@@ -764,6 +768,21 @@ func TestQuoteMeta(t *testing.T) {
 		if _, err := Compile(act); err != nil {
 			t.Errorf("#%d _, err := Compile(QuoteMeta(%q) = %q); err = %q", id, test.in, act, err)
 		}
+	}
+}
+
+func TestQuoteMetaInsideAlternatives(t *testing.T) {
+	quoted := QuoteMeta("a,b")
+	plain, err := Compile(quoted)
+	if err != nil || !plain.Match("a,b") {
+		t.Fatalf("quoted comma should remain literal outside a group: pattern %q, err %v", quoted, err)
+	}
+	g, err := Compile("{" + quoted + ",zz}")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !g.Match("a,b") || !g.Match("zz") || g.Match("a") || g.Match("b") {
+		t.Fatalf("QuoteMeta(%q) = %q did not preserve a literal alternative", "a,b", quoted)
 	}
 }
 
