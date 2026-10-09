@@ -701,6 +701,23 @@ func TestPatternMatch(t *testing.T) {
 				t.Errorf("too slow: %.4fms", latency.Seconds()*1000)
 			}
 		})
+		t.Run("glob-bytes"+suffix, func(t *testing.T) {
+			var (
+				pat     = MustCompile(test.pat, test.sep...)
+				start   = time.Now()
+				result  = pat.MatchBytes([]byte(test.str))
+				latency = time.Since(start)
+			)
+			if result != test.exp {
+				t.Errorf(
+					"pattern %q matching bytes %q should be %v but got %v",
+					test.pat, test.str, test.exp, result,
+				)
+			}
+			if latency > 5*time.Millisecond {
+				t.Errorf("too slow: %.4fms", latency.Seconds()*1000)
+			}
+		})
 		if len(test.sep) == 0 && !strings.ContainsAny(test.pat, "{}") {
 			// NOTE: filepath.Match doesn't support `{}`.
 			t.Run("filepath"+suffix, func(t *testing.T) {
@@ -1126,5 +1143,147 @@ func TestPatternSeparatorsAliasing(t *testing.T) {
 	}
 	if !p.Match("axb") {
 		t.Errorf("Match() picked up the modification of the given slice")
+	}
+}
+
+func TestPatternMatchBytes(t *testing.T) {
+	t.Run("nil slice", func(t *testing.T) {
+		p := MustCompile("")
+		if !p.MatchBytes(nil) {
+			t.Errorf("empty pattern MatchBytes(nil) = false; want true")
+		}
+		p2 := MustCompile("a")
+		if p2.MatchBytes(nil) {
+			t.Errorf("non-empty pattern MatchBytes(nil) = true; want false")
+		}
+	})
+
+	t.Run("empty slice", func(t *testing.T) {
+		p := MustCompile("")
+		if !p.MatchBytes([]byte{}) {
+			t.Errorf("empty pattern MatchBytes([]byte{}) = false; want true")
+		}
+		p2 := MustCompile("a")
+		if p2.MatchBytes([]byte{}) {
+			t.Errorf("non-empty pattern MatchBytes([]byte{}) = true; want false")
+		}
+	})
+
+	t.Run("subslice with offset and capacity", func(t *testing.T) {
+		p := MustCompile("world")
+		buf := []byte("hello world 12345")
+		sub := buf[6:11]
+		if !p.MatchBytes(sub) {
+			t.Errorf("MatchBytes(%q) = false; want true", sub)
+		}
+		if p.MatchBytes(buf[0:5]) {
+			t.Errorf("MatchBytes(%q) = true; want false", buf[0:5])
+		}
+	})
+
+	t.Run("binary and null bytes", func(t *testing.T) {
+		p := MustCompile("a\x00b")
+		if !p.MatchBytes([]byte("a\x00b")) {
+			t.Errorf("MatchBytes(a\\x00b) = false; want true")
+		}
+		if p.MatchBytes([]byte("a\x00c")) {
+			t.Errorf("MatchBytes(a\\x00c) = true; want false")
+		}
+	})
+}
+
+func TestGlobInterface(t *testing.T) {
+	var g Glob = MustCompile("*.github.com")
+	if !g.Match("api.github.com") {
+		t.Errorf("Glob.Match() = false; want true")
+	}
+	if !g.MatchBytes([]byte("api.github.com")) {
+		t.Errorf("Glob.MatchBytes() = false; want true")
+	}
+	if g.Match("api.google.com") {
+		t.Errorf("Glob.Match() = true; want false")
+	}
+	if g.MatchBytes([]byte("api.google.com")) {
+		t.Errorf("Glob.MatchBytes() = true; want false")
+	}
+}
+
+func TestPatternMatchBytesZeroAllocs(t *testing.T) {
+	cases := []struct {
+		pat string
+		b   []byte
+	}{
+		{"google.com", []byte("google.com")},
+		{"abc*", []byte("abcdef")},
+		{"*def", []byte("abcdef")},
+		{"ab*ef", []byte("abcdef")},
+		{"https://*.google.*", []byte("https://account.google.com")},
+		{"{cat,bat,[fr]at}", []byte("fat")},
+	}
+	for _, c := range cases {
+		p := MustCompile(c.pat)
+		_ = p.MatchBytes(c.b)
+		allocs := testing.AllocsPerRun(100, func() {
+			if !p.MatchBytes(c.b) {
+				t.Fatalf("pattern %q did not match", c.pat)
+			}
+		})
+		if allocs > 0 {
+			t.Errorf("pattern %q: MatchBytes allocated %f times; want 0", c.pat, allocs)
+		}
+	}
+}
+
+func BenchmarkCompareMatchAndMatchBytes(b *testing.B) {
+	for _, test := range []struct {
+		name string
+		glob string
+		str  string
+	}{
+		{
+			name: "plain",
+			glob: "google.com",
+			str:  "google.com",
+		},
+		{
+			name: "prefix",
+			glob: "abc*",
+			str:  "abcdef",
+		},
+		{
+			name: "suffix",
+			glob: "*def",
+			str:  "abcdef",
+		},
+		{
+			name: "wildcard",
+			glob: "https://*.google.*",
+			str:  "https://account.google.com",
+		},
+		{
+			name: "alternatives",
+			glob: "{https://*.google.*,*yandex.*,*yahoo.*,*mail.ru}",
+			str:  "http://yahoo.com",
+		},
+	} {
+		pat := MustCompile(test.glob)
+		str := test.str
+		bts := []byte(str)
+
+		b.Run(test.name+"-string", func(b *testing.B) {
+			for b.Loop() {
+				pat.Match(str)
+			}
+		})
+		b.Run(test.name+"-bytes", func(b *testing.B) {
+			for b.Loop() {
+				pat.MatchBytes(bts)
+			}
+		})
+		b.Run(test.name+"-bytes-to-string-alloc", func(b *testing.B) {
+			for b.Loop() {
+				pat.Match(string(bts))
+			}
+		})
 	}
 }

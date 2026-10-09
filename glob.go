@@ -2,10 +2,19 @@ package glob
 
 import (
 	"fmt"
+	"unsafe"
 
 	"github.com/gobwas/glob/internal/debug"
 	"github.com/gobwas/glob/syntax"
 )
+
+// Glob represents a compiled glob pattern.
+type Glob interface {
+	Match(string) bool
+	MatchBytes([]byte) bool
+}
+
+var _ Glob = (*Pattern)(nil)
 
 // SyntaxError is returned by [Compile] when the given pattern can not be
 // parsed. Offset points at the place in the pattern the error was detected
@@ -87,6 +96,11 @@ func (p *Pattern) String() string {
 // array: it is not copied on the way in or out. Matching does not use it.
 func (p *Pattern) Separators() []rune {
 	return p.sep
+}
+
+// MatchBytes reports whether b matches the pattern.
+func (p *Pattern) MatchBytes(b []byte) bool {
+	return p.Match(unsafe.String(unsafe.SliceData(b), len(b)))
 }
 
 func init() {
