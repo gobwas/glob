@@ -753,8 +753,24 @@ func TestQuoteMeta(t *testing.T) {
 			out: `\*\?\\\[\]\{\}`,
 		},
 		{
+			in:  `a,b`,
+			out: `a\,b`,
+		},
+		{
+			in:  `,`,
+			out: `\,`,
+		},
+		{
+			in:  `*?\[]{},`,
+			out: `\*\?\\\[\]\{\}\,`,
+		},
+		{
 			in:  `some text and *?\[]{}`,
 			out: `some text and \*\?\\\[\]\{\}`,
+		},
+		{
+			in:  `some, text and *?\[]{}`,
+			out: `some\, text and \*\?\\\[\]\{\}`,
 		},
 	} {
 		act := QuoteMeta(test.in)
@@ -763,6 +779,50 @@ func TestQuoteMeta(t *testing.T) {
 		}
 		if _, err := Compile(act); err != nil {
 			t.Errorf("#%d _, err := Compile(QuoteMeta(%q) = %q); err = %q", id, test.in, act, err)
+		}
+	}
+}
+
+func TestQuoteMetaAlternatives(t *testing.T) {
+	for id, test := range []struct {
+		pattern  string
+		match    []string
+		mismatch []string
+	}{
+		{
+			pattern:  "{" + QuoteMeta("a,b") + ",zz}",
+			match:    []string{"a,b", "zz"},
+			mismatch: []string{"a", "b", "z", "a,b,zz"},
+		},
+		{
+			pattern:  "{" + QuoteMeta("foo,bar") + "," + QuoteMeta("baz,qux") + "}",
+			match:    []string{"foo,bar", "baz,qux"},
+			mismatch: []string{"foo", "bar", "baz", "qux"},
+		},
+		{
+			pattern:  "{" + QuoteMeta(",") + ",x}",
+			match:    []string{",", "x"},
+			mismatch: []string{"", ",x"},
+		},
+		{
+			pattern:  QuoteMeta("a,b"),
+			match:    []string{"a,b"},
+			mismatch: []string{"a", "b", "a,b,c"},
+		},
+	} {
+		g, err := Compile(test.pattern)
+		if err != nil {
+			t.Fatalf("#%d Compile(%q) failed: %v", id, test.pattern, err)
+		}
+		for _, s := range test.match {
+			if !g.Match(s) {
+				t.Errorf("#%d pattern %q failed to match %q", id, test.pattern, s)
+			}
+		}
+		for _, s := range test.mismatch {
+			if g.Match(s) {
+				t.Errorf("#%d pattern %q unexpectedly matched %q", id, test.pattern, s)
+			}
 		}
 	}
 }

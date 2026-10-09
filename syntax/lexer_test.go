@@ -190,3 +190,16 @@ func TestLexGood(t *testing.T) {
 		}
 	}
 }
+
+func TestIsSpecial(t *testing.T) {
+	for _, c := range []byte{'*', ',', '?', '\\', '[', ']', '{', '}'} {
+		if !IsSpecial(c) {
+			t.Errorf("IsSpecial(%q) = false; want true", c)
+		}
+	}
+	for _, c := range []byte{'a', 'z', '0', '9', '!', '-', '_', '.', ' ', '/', 0} {
+		if IsSpecial(c) {
+			t.Errorf("IsSpecial(%q) = true; want false", c)
+		}
+	}
+}

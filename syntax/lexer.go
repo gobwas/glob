@@ -112,6 +112,7 @@ const (
 
 var specials = []byte{
 	char_any,
+	char_comma,
 	char_single,
 	char_escape,
 	char_range_open,
@@ -121,8 +122,8 @@ var specials = []byte{
 }
 
 // IsSpecial reports whether c is a glob meta character, that is, one that
-// [glob.QuoteMeta] escapes. Note that `,`, `!` and `-` are not among them:
-// they are special only inside `{...}` and `[...]` respectively, which are.
+// [glob.QuoteMeta] escapes. Note that `!` and `-` are not among them:
+// they are special only inside `[...]`.
 func IsSpecial(c byte) bool {
 	return bytes.IndexByte(specials, c) != -1
 }

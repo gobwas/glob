@@ -47,6 +47,12 @@ func TestOpenIssues(t *testing.T) {
 		{66, `{**/daxing,daxing,x}/**/*dev*.yaml`, "playground/daxing/generated/dev.yaml", nil, true},
 		{66, `{**/daxing,daxing}/**/*dev*.yaml`, "playground/daxing/generated/dev.yaml", nil, true},
 		{66, `{**/daxing}/**/*dev*.yaml`, "playground/daxing/generated/dev.yaml", nil, true},
+		{78, "{" + QuoteMeta("a,b") + ",zz}", "a,b", nil, true},
+		{78, "{" + QuoteMeta("a,b") + ",zz}", "a", nil, false},
+		{78, "{" + QuoteMeta("a,b") + ",zz}", "b", nil, false},
+		{78, "{" + QuoteMeta("a,b") + ",zz}", "zz", nil, true},
+		{78, QuoteMeta("a,b"), "a,b", nil, true},
+		{78, QuoteMeta("a,b"), "a", nil, false},
 	} {
 		got := MustCompile(c.pat, c.sep...).Match(c.str)
 		if got != c.exp {
