@@ -140,7 +140,11 @@ func MustCompile(pattern string, separators ...rune) *Pattern {
 	return g
 }
 
-// QuoteMeta returns a copy of the s having all glob meta characters escaped.
+// QuoteMeta returns a string that escapes all glob meta characters inside s;
+// the returned string is a glob pattern matching the literal text.
+//
+// Characters that are special only in a particular context, such as `,` inside
+// `{...}` or `-` and `!` inside `[...]`, are not escaped.
 func QuoteMeta(s string) string {
 	// 2 is a pessimistic way of allocating an extra byte per each byte in s.
 	b := make([]byte, 2*len(s))
