@@ -1,4 +1,5 @@
 go test fuzz v1
 string("**\x00")
 string("0")
-bool(true)
+string("")
+bool(false)

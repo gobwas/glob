@@ -50,6 +50,7 @@ func main() {
 	var (
 		pattern      = flag.String("p", "", "pattern to draw")
 		sep          = flag.String("s", "", "comma separated list of separators")
+		globstar     = flag.Bool("globstar", false, "make **/ match zero or more segments, as the shells do")
 		fixture      = flag.String("f", "", "fixture")
 		benchCompile = flag.Bool("bench-compile", false, "benchmark compilation time")
 		benchMatch   = flag.Bool("bench-match", false, "benchmark matching time")
@@ -79,7 +80,11 @@ func main() {
 		separators = append(separators, r)
 	}
 
-	g, err := glob.Compile(*pattern, separators...)
+	c := glob.Compiler{
+		Separators: separators,
+		Globstar:   *globstar,
+	}
+	g, err := c.Compile(*pattern)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "could not compile pattern:", err)
 		var syntaxErr *glob.SyntaxError
@@ -93,6 +98,8 @@ func main() {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 	if *verbose {
 		fmt.Fprintf(w, "pattern:\t%s\n", g)
+		fmt.Fprintf(w, "separators:\t%q\n", g.Separators())
+		fmt.Fprintf(w, "globstar:\t%t\n", g.Globstar())
 		fmt.Fprintf(w, "fixture:\t%s\n", *fixture)
 		fmt.Fprintf(w, "matchers:\t%s\n", debug.Tree(g))
 		fmt.Fprintf(w, "result:\t%t\n", matched)
@@ -104,7 +111,7 @@ func main() {
 	if *benchCompile {
 		b := testing.Benchmark(func(b *testing.B) {
 			for b.Loop() {
-				glob.Compile(*pattern, separators...)
+				c.Compile(*pattern)
 			}
 		})
 		fmt.Fprintf(w, "compile:\t%s\n", benchString(b))

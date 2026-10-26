@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -11,12 +12,13 @@ import (
 
 // FuzzMatchRegexp verifies Pattern.Match() against the regexp package.
 //
-// The fuzzer generates arbitrary (pattern, string, separator) inputs; each
-// compilable pattern is translated into an equivalent anchored regular
-// expression by translateGlob() -- a naive, independent re-implementation
-// of the glob syntax -- and the match results are compared. Since the
-// translator shares no code with Compile(), this validates the lexer, the
-// parser, the compile-time rewrites and the matching engine all at once.
+// The fuzzer generates arbitrary (pattern, string, separators, globstar)
+// inputs; each compilable pattern is translated into an equivalent anchored
+// regular expression by translateGlob() -- a naive, independent
+// re-implementation of the glob syntax -- and the match results are
+// compared. Since the translator shares no code with Compile(), this
+// validates the lexer, the parser, the compile-time rewrites and the
+// matching engine all at once.
 //
 // Run with:
 //
@@ -25,9 +27,10 @@ import (
 // Without -fuzz only the seed corpus is run, as a regression test.
 func FuzzMatchRegexp(f *testing.F) {
 	for _, seed := range []struct {
-		pattern string
-		fixture string
-		dotSep  bool
+		pattern  string
+		fixture  string
+		seps     string // The separators, one rune each.
+		globstar bool
 	}{
 		{
 			pattern: "",
@@ -48,17 +51,17 @@ func FuzzMatchRegexp(f *testing.F) {
 		{
 			pattern: "**a*b",
 			fixture: "axc.ab",
-			dotSep:  true,
+			seps:    ".",
 		},
 		{
 			pattern: "*a**b",
 			fixture: "xa.b",
-			dotSep:  true,
+			seps:    ".",
 		},
 		{
 			pattern: "{*,**,?}",
 			fixture: "a.b",
-			dotSep:  true,
+			seps:    ".",
 		},
 		{
 			pattern: "{a,ab}c",
@@ -67,7 +70,7 @@ func FuzzMatchRegexp(f *testing.F) {
 		{
 			pattern: "{*.google.*,yandex.*}",
 			fixture: "www.google.com",
-			dotSep:  true,
+			seps:    ".",
 		},
 		{
 			pattern: "{https://*gobwas.com,http://exclude.gobwas.com}",
@@ -114,32 +117,75 @@ func FuzzMatchRegexp(f *testing.F) {
 			pattern: "[�]*",
 			fixture: "�x",
 		},
+		{
+			// Globstar: a leading `**.` may match zero segments.
+			pattern:  "**.x",
+			fixture:  "x",
+			seps:     ".",
+			globstar: true,
+		},
+		{
+			pattern:  "a.**.b",
+			fixture:  "a.b",
+			seps:     ".",
+			globstar: true,
+		},
+		{
+			// Adjacent `**/` coalesce only with the same separator:
+			// `{**.,}{**/,}x` is not `{**.,}x`.
+			pattern:  "**.**/x",
+			fixture:  "a.b/x",
+			seps:     "./",
+			globstar: true,
+		},
+		{
+			pattern:  "**.**/x",
+			fixture:  "x",
+			seps:     "./",
+			globstar: true,
+		},
+		{
+			// An escaped separator is a separator too.
+			pattern:  `**\.**.x`,
+			fixture:  "a.x",
+			seps:     ".",
+			globstar: true,
+		},
 	} {
-		f.Add(seed.pattern, seed.fixture, seed.dotSep)
+		f.Add(seed.pattern, seed.fixture, seed.seps, seed.globstar)
 	}
-	f.Fuzz(func(t *testing.T, pattern, s string, dotSep bool) {
+	f.Fuzz(func(t *testing.T, pattern, s, seps string, globstar bool) {
 		if len(pattern) > 32 || len(s) > 64 {
 			t.Skip("too large")
 		}
-		if !utf8.ValidString(pattern) || !utf8.ValidString(s) {
+		if !utf8.ValidString(pattern) || !utf8.ValidString(s) || !utf8.ValidString(seps) {
 			// The regexp package normalizes invalid UTF-8; the comparison
 			// makes no sense for it.
 			t.Skip("invalid utf8")
 		}
-		var sep []rune
-		if dotSep {
-			sep = []rune{'.'}
+		if len(seps) > 3 || strings.ContainsAny(seps, `*?[]{}\\,!-`) {
+			// A meta character as a separator is a degenerate case the
+			// naive oracle does not define; the rest is enough.
+			t.Skip("odd separators")
+		}
+		sep := []rune(seps)
+		if len(sep) > 0 {
 			if strings.Count(pattern, "*") > 4 {
 				// Backtracking over many separator-limited stars is
 				// combinatorial in the worst case; keep the fuzzing fast.
 				t.Skip("too many stars")
 			}
 		}
-		p, err := Compile(pattern, sep...)
+		if globstar && strings.ContainsAny(pattern, "{}") {
+			// The oracle below does not track the segment starts across
+			// the alternatives; TestGlobstar covers them.
+			t.Skip("globstar with braces")
+		}
+		p, err := Compiler{Separators: sep, Globstar: globstar}.Compile(pattern)
 		if err != nil {
 			t.Skip("does not compile")
 		}
-		reStr, err := translateGlob(pattern, sep)
+		reStr, err := translateGlob(pattern, sep, globstar)
 		if err != nil {
 			t.Fatalf("Compile() accepted %#q but the translator did not: %v", pattern, err)
 		}
@@ -153,8 +199,8 @@ func FuzzMatchRegexp(f *testing.F) {
 		)
 		if got != want {
 			t.Errorf(
-				"sep=%q pattern=%#q (regexp %#q) string=%#q: Match()=%t, regexp=%t",
-				string(sep), pattern, re, s, got, want,
+				"sep=%q globstar=%t pattern=%#q (regexp %#q) string=%#q: Match()=%t, regexp=%t",
+				string(sep), globstar, pattern, re, s, got, want,
 			)
 		}
 	})
@@ -164,7 +210,11 @@ func FuzzMatchRegexp(f *testing.F) {
 // regular expression. It is intentionally independent from Compile(): a naive
 // rune-by-rune re-implementation of the documented syntax, sharing no code
 // with the lexer or the parser, to serve as the differential oracle.
-func translateGlob(pattern string, sep []rune) (string, error) {
+//
+// With globstar set, a run of two or more stars that begins the pattern or
+// follows a separator, and is followed by a (possibly escaped) separator,
+// is an optional run of segments. Braces are not supported in this mode.
+func translateGlob(pattern string, sep []rune, globstar bool) (string, error) {
 	var sb strings.Builder
 	sb.WriteString("^(?:")
 	rs := []rune(pattern)
@@ -179,12 +229,27 @@ func translateGlob(pattern string, sep []rune) (string, error) {
 			}
 
 		case '*':
-			if i+1 < len(rs) && rs[i+1] == '*' {
+			// Adjacent stars are one star: the most general of them.
+			at := i
+			for i+1 < len(rs) && rs[i+1] == '*' {
 				i++
-				sb.WriteString(`(?s:.*)`)
-			} else {
-				sb.WriteString(sepClassRegexp(sep) + `*`)
 			}
+			if at == i {
+				sb.WriteString(sepClassRegexp(sep) + `*`)
+				break
+			}
+			if globstar && (at == 0 || slices.Contains(sep, rs[at-1])) {
+				j := i + 1
+				if j < len(rs) && rs[j] == '\\' {
+					j++
+				}
+				if j < len(rs) && slices.Contains(sep, rs[j]) {
+					sb.WriteString(`(?:(?s:.*)` + regexp.QuoteMeta(string(rs[j])) + `)?`)
+					i = j
+					break
+				}
+			}
+			sb.WriteString(`(?s:.*)`)
 
 		case '?':
 			sb.WriteString(sepClassRegexp(sep))
