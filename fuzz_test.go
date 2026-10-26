@@ -114,6 +114,39 @@ func FuzzMatchRegexp(f *testing.F) {
 			pattern: "[�]*",
 			fixture: "�x",
 		},
+		{
+			pattern: "@(ab|a)c",
+			fixture: "abc",
+		},
+		{
+			pattern: "?(a*)b",
+			fixture: "axxb",
+		},
+		{
+			pattern: "*(ab|c)",
+			fixture: "cabab",
+		},
+		{
+			pattern: "+(a*b|c)",
+			fixture: "abcc",
+		},
+		{
+			pattern: "*(a?(b)|bc)",
+			fixture: "abbc",
+		},
+		{
+			// The `(` binds to the star right before it: a `*` and a `*(`,
+			// not a `**` and a literal `(`.
+			pattern: "**(a)",
+			fixture: "x.a",
+			dotSep:  true,
+		},
+		{
+			// A literal separator inside an alternative matches itself.
+			pattern: "*(a.)b",
+			fixture: "a.a.b",
+			dotSep:  true,
+		},
 	} {
 		f.Add(seed.pattern, seed.fixture, seed.dotSep)
 	}
@@ -125,6 +158,13 @@ func FuzzMatchRegexp(f *testing.F) {
 			// The regexp package normalizes invalid UTF-8; the comparison
 			// makes no sense for it.
 			t.Skip("invalid utf8")
+		}
+		if strings.Contains(pattern, "!(") {
+			// A `!(...)` matches what its alternatives do not, and RE2 has
+			// no negation to translate that into. The negated groups are
+			// covered by TestGroupReference, against a backtracking
+			// reference matcher instead of a regular expression.
+			t.Skip("negation group")
 		}
 		var sep []rune
 		if dotSep {
@@ -168,9 +208,31 @@ func translateGlob(pattern string, sep []rune) (string, error) {
 	var sb strings.Builder
 	sb.WriteString("^(?:")
 	rs := []rune(pattern)
-	depth := 0
+	// nesting is the stack of the constructs the translator is inside of, the
+	// innermost last: `{` for a `{...}` and the operator character for an
+	// extended group. The innermost one tells which characters are special:
+	// `,` and `}` inside a `{...}`, `|` and `)` inside a group.
+	var nesting []rune
+	innermost := func() rune {
+		if n := len(nesting); n > 0 {
+			return nesting[n-1]
+		}
+		return 0
+	}
 	for i := 0; i < len(rs); i++ {
-		switch r := rs[i]; r {
+		r := rs[i]
+		// A `(` opens an extended group only right after one of the five
+		// operator characters; anywhere else it is a plain character.
+		if i+1 < len(rs) && rs[i+1] == '(' && strings.ContainsRune("?*+@!", r) {
+			if r == '!' {
+				return "", errNegationGroup
+			}
+			nesting = append(nesting, r)
+			sb.WriteString(`(?:`)
+			i++
+			continue
+		}
+		switch r {
 		case '\\':
 			// A trailing backslash does not compile, so it never gets here.
 			if i+1 < len(rs) {
@@ -179,7 +241,9 @@ func translateGlob(pattern string, sep []rune) (string, error) {
 			}
 
 		case '*':
-			if i+1 < len(rs) && rs[i+1] == '*' {
+			// The `(` binds to the `*` right before it, so `**(` is a `*`
+			// followed by the `*(` group opener, not a `**` and a `(`.
+			if i+1 < len(rs) && rs[i+1] == '*' && (i+2 >= len(rs) || rs[i+2] != '(') {
 				i++
 				sb.WriteString(`(?s:.*)`)
 			} else {
@@ -190,25 +254,53 @@ func translateGlob(pattern string, sep []rune) (string, error) {
 			sb.WriteString(sepClassRegexp(sep))
 
 		case '{':
-			depth++
+			nesting = append(nesting, '{')
 			sb.WriteString(`(?:`)
 
 		case '}':
-			if depth == 0 {
+			if innermost() != '{' {
 				// A literal outside of braces.
 				sb.WriteString(regexp.QuoteMeta(`}`))
 				break
 			}
-			depth--
+			nesting = nesting[:len(nesting)-1]
 			sb.WriteString(`)`)
 
 		case ',':
-			if depth == 0 {
+			if innermost() != '{' {
 				// A literal outside of braces.
 				sb.WriteString(`,`)
 				break
 			}
 			sb.WriteString(`|`)
+
+		case '|':
+			if op := innermost(); op == 0 || op == '{' {
+				// A literal outside of a group.
+				sb.WriteString(regexp.QuoteMeta(`|`))
+				break
+			}
+			sb.WriteString(`|`)
+
+		case ')':
+			op := innermost()
+			if op == 0 || op == '{' {
+				// A literal outside of a group.
+				sb.WriteString(regexp.QuoteMeta(`)`))
+				break
+			}
+			nesting = nesting[:len(nesting)-1]
+			sb.WriteString(`)`)
+			// `@(...)` is the bare alternation; the other operators are it
+			// repeated, which is exactly what the regexp quantifiers do.
+			switch op {
+			case '?':
+				sb.WriteString(`?`)
+			case '*':
+				sb.WriteString(`*`)
+			case '+':
+				sb.WriteString(`+`)
+			}
 
 		case '[':
 			n, err := translateClass(&sb, rs[i:])
@@ -221,12 +313,19 @@ func translateGlob(pattern string, sep []rune) (string, error) {
 			sb.WriteString(regexp.QuoteMeta(string(r)))
 		}
 	}
-	if depth != 0 {
-		return "", errors.New("unclosed `{`")
+	if n := len(nesting); n > 0 {
+		if nesting[n-1] == '{' {
+			return "", errors.New("unclosed `{`")
+		}
+		return "", errors.New("unclosed `(`")
 	}
 	sb.WriteString(`)$`)
 	return sb.String(), nil
 }
+
+// errNegationGroup is returned for the patterns translateGlob() can not
+// handle; see the skip in FuzzMatchRegexp.
+var errNegationGroup = errors.New("`!(...)` has no regexp equivalent")
 
 // translateClass translates the `[...]` character class rs begins with and
 // returns the number of runes consumed. Mirroring the syntax, a class is

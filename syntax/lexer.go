@@ -46,6 +46,15 @@ const (
 	// TermsOpen and TermsClose are the `{` and `}` of an alternatives group.
 	TermsOpen
 	TermsClose
+	// GroupOpen is the opening of an extended group: the operator character
+	// together with the `(` right after it, one of `?(`, `*(`, `+(`, `@(`
+	// and `!(`; Token.Data carries both characters. GroupSeparator is the
+	// `|` between the alternatives of a group and GroupClose is its `)`.
+	// Outside of a group `|` and `)` are plain Text characters, and so is a
+	// `(` not preceded by an operator character.
+	GroupOpen
+	GroupSeparator
+	GroupClose
 )
 
 func (tt TokenType) String() string {
@@ -80,6 +89,12 @@ func (tt TokenType) String() string {
 		return "terms_open"
 	case TermsClose:
 		return "terms_close"
+	case GroupOpen:
+		return "group_open"
+	case GroupSeparator:
+		return "group_separator"
+	case GroupClose:
+		return "group_close"
 	default:
 		return "<unknown token type>"
 	}
@@ -108,6 +123,12 @@ const (
 	char_terms_close   = '}'
 	char_range_not     = '!'
 	char_range_between = '-'
+	char_group_open    = '('
+	char_group_close   = ')'
+	char_group_sep     = '|'
+	char_group_plus    = '+'
+	char_group_at      = '@'
+	char_group_not     = '!'
 )
 
 var specials = []byte{
@@ -118,11 +139,16 @@ var specials = []byte{
 	char_range_close,
 	char_terms_open,
 	char_terms_close,
+	char_group_open,
+	char_group_close,
 }
 
 // IsSpecial reports whether c is a glob meta character, that is, one that
-// [glob.QuoteMeta] escapes. Note that `,`, `!` and `-` are not among them:
-// they are special only inside `{...}` and `[...]` respectively, which are.
+// [glob.QuoteMeta] escapes. Note that `,`, `|`, `!` and `-` are not among
+// them: they are special only inside `{...}`, `(...)` and `[...]`
+// respectively, which are. Likewise the operator characters of the extended
+// groups are not: `+`, `@` and `!` open a group only together with a `(`
+// right after them, and escaping the `(` is enough to break the pair.
 func IsSpecial(c byte) bool {
 	return bytes.IndexByte(specials, c) != -1
 }
@@ -154,8 +180,13 @@ type Lexer struct {
 	pos  int
 	err  error
 
-	tokens     tokens
-	termsLevel int
+	tokens tokens
+	// nesting is the stack of the open groups the lexer is inside of, the
+	// innermost last: char_terms_open for a `{...}` and char_group_open for
+	// an extended `(...)` group. The innermost one tells which characters
+	// are special: `,` and `}` inside a `{...}`, `|` and `)` inside a
+	// `(...)`; the others are plain text there.
+	nesting []rune
 
 	lastRune     rune
 	lastRuneSize int
@@ -240,20 +271,44 @@ func (l *Lexer) errorf(f string, v ...any) {
 	l.err = fmt.Errorf(f, v...)
 }
 
+// innermost returns the kind of the innermost open group, or eof when the
+// lexer is at the top level.
+func (l *Lexer) innermost() rune {
+	if n := len(l.nesting); n > 0 {
+		return l.nesting[n-1]
+	}
+	return eof
+}
+
 func (l *Lexer) inTerms() bool {
-	return l.termsLevel > 0
+	return l.innermost() == char_terms_open
 }
 
-func (l *Lexer) termsEnter() {
-	l.termsLevel++
+func (l *Lexer) inGroup() bool {
+	return l.innermost() == char_group_open
 }
 
-func (l *Lexer) termsLeave() {
-	l.termsLevel--
+func (l *Lexer) enter(kind rune) {
+	l.nesting = append(l.nesting, kind)
+}
+
+func (l *Lexer) leave() {
+	l.nesting = l.nesting[:len(l.nesting)-1]
+}
+
+// isGroupOperator reports whether r followed by a `(` opens an extended
+// group; see [GroupOpen].
+func isGroupOperator(r rune) bool {
+	switch r {
+	case char_single, char_any, char_group_plus, char_group_at, char_group_not:
+		return true
+	}
+	return false
 }
 
 var inTextBreakers = []rune{char_single, char_any, char_range_open, char_terms_open}
 var inTermsBreakers = append(inTextBreakers, char_terms_close, char_comma)
+var inGroupBreakers = append(inTextBreakers, char_group_close, char_group_sep)
 
 func (l *Lexer) fetchItem() {
 	r := l.read()
@@ -262,7 +317,7 @@ func (l *Lexer) fetchItem() {
 		l.tokens.push(Token{EOF, ""})
 
 	case r == char_terms_open:
-		l.termsEnter()
+		l.enter(char_terms_open)
 		l.tokens.push(Token{TermsOpen, string(r)})
 
 	case r == char_comma && l.inTerms():
@@ -270,17 +325,31 @@ func (l *Lexer) fetchItem() {
 
 	case r == char_terms_close && l.inTerms():
 		l.tokens.push(Token{TermsClose, string(r)})
-		l.termsLeave()
+		l.leave()
+
+	case r == char_group_sep && l.inGroup():
+		l.tokens.push(Token{GroupSeparator, string(r)})
+
+	case r == char_group_close && l.inGroup():
+		l.tokens.push(Token{GroupClose, string(r)})
+		l.leave()
 
 	case r == char_range_open:
 		l.tokens.push(Token{RangeOpen, string(r)})
 		l.fetchRange()
 
+	case isGroupOperator(r) && l.peekIs(char_group_open):
+		l.read()
+		l.enter(char_group_open)
+		l.tokens.push(Token{GroupOpen, string(r) + string(char_group_open)})
+
 	case r == char_single:
 		l.tokens.push(Token{Single, string(r)})
 
 	case r == char_any:
-		if l.read() == char_any {
+		// A `(` binds to the `*` right before it, so `**(` is a `*`
+		// followed by the `*(` group opener, not a `**` and a literal `(`.
+		if l.read() == char_any && !l.peekIs(char_group_open) {
 			l.tokens.push(Token{Super, string(r) + string(r)})
 		} else {
 			l.unread()
@@ -291,13 +360,22 @@ func (l *Lexer) fetchItem() {
 		l.unread()
 
 		var breakers []rune
-		if l.inTerms() {
+		switch l.innermost() {
+		case char_terms_open:
 			breakers = inTermsBreakers
-		} else {
+		case char_group_open:
+			breakers = inGroupBreakers
+		default:
 			breakers = inTextBreakers
 		}
 		l.fetchText(breakers)
 	}
+}
+
+// peekIs reports whether the next rune is r, without consuming it.
+func (l *Lexer) peekIs(r rune) bool {
+	n, _ := l.peek()
+	return n == r
 }
 
 func (l *Lexer) fetchRange() {
@@ -366,6 +444,12 @@ reading:
 				continue
 			}
 			if slices.Contains(breakers, r) {
+				l.unread()
+				break reading
+			}
+			// The `+`, `@` and `!` are plain text unless a `(` follows:
+			// then they open an extended group.
+			if isGroupOperator(r) && l.peekIs(char_group_open) {
 				l.unread()
 				break reading
 			}
