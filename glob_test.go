@@ -648,6 +648,27 @@ func TestPatternMatch(t *testing.T) {
 			str: "zz/x",
 			exp: false,
 		},
+		// `**` is a `*` that crosses separators, not the shells' globstar:
+		// it never consumes the adjacent separator, so `a/**/b` requires
+		// `a/` + anything + `/b`, and does not match `a/b`. See #58, #76.
+		{
+			pat: "a/**/b",
+			str: "a/b",
+			sep: []rune{'/'},
+			exp: false,
+		},
+		{
+			pat: "a/**/b",
+			str: "a//b",
+			sep: []rune{'/'},
+			exp: true,
+		},
+		{
+			pat: "{**/,}b",
+			str: "b",
+			sep: []rune{'/'},
+			exp: true,
+		},
 		// U+FFFD is a character like any other, both in the pattern and in
 		// the input: it must not be taken for an invalid byte.
 		{
