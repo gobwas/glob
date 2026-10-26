@@ -108,6 +108,21 @@ it a `fmt.Stringer`, like `regexp.Regexp`):
 g := glob.MustCompile("*.github.com", '.')
 g.String()     // "*.github.com"
 g.Separators() // []rune{'.'}
+g.Globstar()   // false
+```
+
+`Compile` covers the common case; the full set of options lives on
+`Compiler`, of which `Compile` is a shorthand (the way `net.Dial` is for
+`net.Dialer.Dial`):
+
+```go
+c := glob.Compiler{
+    Separators: []rune{'/'},
+    Globstar:   true, // `**/` matches zero or more segments, as in the shells.
+}
+g, err := c.Compile("**/*.go")
+g.Match("main.go")        // true
+g.Match("cmd/app/main.go") // true
 ```
 
 ## Syntax
@@ -118,7 +133,8 @@ of characters *including* the separators, where `*` stops at them. Note that
 it is just that -- a `*` that crosses separators -- and not the `**/`
 "globstar" of shells and file globbers: `**/x` requires the literal `/`, so
 it does not match `x`; use `{**/,}x` for that. The same applies to a
-`**` between separators, e.g. `a/**/b` does not match `a/b`.
+`**` between separators, e.g. `a/**/b` does not match `a/b`. See
+[Globstar](#globstar) for the opt-in shell semantics.
 
 ```
 pattern:
@@ -156,7 +172,8 @@ or use `QuoteMeta` on the literal part.
 ### Separators
 
 The separators are not part of the pattern syntax -- they are configured
-once, at compilation time, as the extra arguments of `Compile`:
+once, at compilation time, as the extra arguments of `Compile` (or the
+`Separators` field of `Compiler`):
 
 ```go
 g := glob.MustCompile("api.*.com", '.', '/')
@@ -167,6 +184,30 @@ They only limit the wildcards: `*` and `?` never match a separator, while
 affected. With no separators given, `*` and `**` are equivalent. A compiled
 `*glob.Pattern` keeps its separators for all matches -- to match the same
 pattern with different separators, compile it again.
+
+### Globstar
+
+> [!WARNING]
+> By default `**` is just a `*` that crosses the separators, not the `**/` of
+> `shopt -s globstar`, gitignore or most file globbers: `**/x` requires the `/`
+> and does not match `x`, and `a/**/b` does not match `a/b`. If your patterns
+> come from users who expect the shell behaviour, enable the option below.
+
+The `Globstar` option of `Compiler` gives `**/` the semantics of the shells and
+gitignore: a `**` that is a whole segment and is followed by a separator
+matches zero or more segments.
+
+```go
+c := glob.Compiler{Separators: []rune{'/'}, Globstar: true}
+g, _ := c.Compile("a/**/b")
+g.Match("a/b")     // true (false by default)
+g.Match("a/x/y/b") // true
+```
+
+It is the same as writing `{**/,}` by hand, and only a `**` that is a whole
+segment followed by a separator is affected: `a**/b` and a trailing `a/**`
+keep their meaning (`a/**` does not match `a`, as in gitignore). It needs the
+separators, which define the segments.
 
 ## Performance
 

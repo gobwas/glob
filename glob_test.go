@@ -617,7 +617,7 @@ func TestPatternMatch(t *testing.T) {
 		},
 
 		// Braces without commas hold a single alternative: `{ab*}` is the
-		// pattern `ab*`, not `{ab,*}`. See the opList handling in compile().
+		// pattern `ab*`, not `{ab,*}`. See the opList handling in Compiler.Compile().
 		{
 			pat: "{ab*}x",
 			str: "abzx",
@@ -1197,4 +1197,155 @@ func TestPatternSeparatorsAliasing(t *testing.T) {
 	if !p.Match("axb") {
 		t.Errorf("Match() picked up the modification of the given slice")
 	}
+}
+
+// TestGlobstar compares the plain and the globstar compilation of the same
+// pattern side by side; see [Compiler.Globstar] and #58, #76.
+func TestGlobstar(t *testing.T) {
+	slash := []rune{'/'}
+	// The plain and the globstar compilation of a pattern side by side.
+	t.Run("match", func(t *testing.T) {
+		for _, test := range []struct {
+			sep      []rune
+			pat      string
+			str      string
+			plain    bool // Compile(pat, sep...)
+			globstar bool // Compiler{Separators: sep, Globstar: true}.Compile(pat)
+		}{
+			// A leading `**/` may match zero segments.
+			{slash, `**/x`, "x", false, true},
+			{slash, `**/x`, "a/x", true, true},
+			{slash, `**/x`, "a/b/x", true, true},
+			{slash, `**/x`, "/x", true, true},
+			{slash, `**/x`, "ax", false, false},
+
+			// So may a `/**/` in the middle.
+			{slash, `a/**/b`, "a/b", false, true},
+			{slash, `a/**/b`, "a/x/b", true, true},
+			{slash, `a/**/b`, "a/x/y/b", true, true},
+			{slash, `a/**/b`, "a//b", true, true},
+			{slash, `a/**/b`, "ab", false, false},
+			{slash, `a/**/b`, "a/x", false, false},
+			{slash, `a/**/b`, "a/b/", false, false},
+
+			// A trailing `/**` still requires the `/`: `a/**` does not match
+			// `a`, as in gitignore and the shells.
+			{slash, `a/**`, "a", false, false},
+			{slash, `a/**`, "a/", true, true},
+			{slash, `a/**`, "a/b/c", true, true},
+			{slash, `a/**/`, "a/", false, true},
+			{slash, `a/**/`, "a/b/", true, true},
+
+			// A `**` that is not a whole segment keeps its meaning.
+			{slash, `a**/b`, "ab", false, false},
+			{slash, `a**/b`, "a/b", true, true},
+			{slash, `a**/b`, "ax/y/b", true, true},
+			{slash, `**x`, "x", true, true},
+			{slash, `**x`, "a/x", true, true},
+
+			// Every `**/` in a row may match zero segments.
+			{slash, `**/**/x`, "x", false, true},
+			{slash, `**/**/x`, "a/x", false, true},
+			{slash, `**/**/x`, "a/b/x", true, true},
+
+			// Adjacent stars coalesce into a `**` before the rewrite.
+			{slash, `***/x`, "x", false, true},
+
+			// The hand-written idiom is unaffected.
+			{slash, `{**/,}x`, "x", true, true},
+			{slash, `{**/,}x`, "a/x", true, true},
+
+			// A `**` at the start of an alternative begins a segment when the
+			// group does.
+			{slash, `{**/a,b}/x`, "a/x", false, true},
+			{slash, `{**/a,b}/x`, "q/a/x", true, true},
+			{slash, `{**/a,b}/x`, "b/x", true, true},
+			{slash, `{**/a,b}/x`, "x", false, false},
+			// ...and does not when the group does not: no rewrite here.
+			{slash, `q{**/a,b}/x`, "q/a/x", true, true},
+			{slash, `q{**/a,b}/x`, "qa/x", false, false},
+
+			// A group ends at a segment start when all of its alternatives do.
+			{slash, `{a/,}**/x`, "x", false, true},
+			{slash, `{a/,}**/x`, "a/x", true, true},
+			{slash, `{a/,}**/x`, "a/b/x", true, true},
+			// ...and does not otherwise, even if the shells' brace expansion
+			// would give `b/**/x` here: the `**` stays a plain one.
+			{slash, `{a,b/}**/x`, "b/x", false, false},
+			{slash, `{a,b/}**/x`, "a/x", true, true},
+
+			// An escaped separator is a separator.
+			{slash, `**\/x`, "x", false, true},
+			{slash, `a\/**\/b`, "a/b", false, true},
+
+			// Any of the separators does, in any encoding.
+			{[]rune{'/', '\\'}, `**\\x`, "x", false, true},
+			{[]rune{'/', '\\'}, `a\\**/b`, "a\\b", false, true},
+			// Adjacent `**/` are coalesced into one, but only with the same
+			// separator: `{**/,}{**\,}` is not `{**/,}`.
+			{[]rune{'/', '\\'}, `**/**\\x`, "a/b\\x", true, true},
+			{[]rune{'/', '\\'}, `**/**\\x`, "x", false, true},
+			{[]rune{'·'}, `a·**·b`, "a·b", false, true},
+			{[]rune{'·'}, `a·**·b`, "a·x·b", true, true},
+
+			// Without separators there are no segments: nothing changes.
+			{nil, `**/x`, "x", false, false},
+			{nil, `**/x`, "a/x", true, true},
+		} {
+			t.Run(fmt.Sprintf("%q/%q", test.pat, test.str), func(t *testing.T) {
+				plain := MustCompile(test.pat, test.sep...)
+				if got := plain.Match(test.str); got != test.plain {
+					t.Errorf("Compile(%q) matching %q: got %t, want %t", test.pat, test.str, got, test.plain)
+				}
+				p, err := Compiler{Separators: test.sep, Globstar: true}.Compile(test.pat)
+				if err != nil {
+					t.Fatalf("Compiler.Compile(%q): %v", test.pat, err)
+				}
+				if got := p.Match(test.str); got != test.globstar {
+					t.Errorf("globstar %q matching %q: got %t, want %t", test.pat, test.str, got, test.globstar)
+				}
+				if p.String() != test.pat {
+					t.Errorf("String() = %q, want the source %q", p.String(), test.pat)
+				}
+				if !p.Globstar() || plain.Globstar() {
+					t.Errorf("Globstar() = %t/%t, want true/false", p.Globstar(), plain.Globstar())
+				}
+				if !slices.Equal(p.Separators(), test.sep) {
+					t.Errorf("Separators() = %q, want %q", p.Separators(), test.sep)
+				}
+			})
+		}
+	})
+
+	// Adjacent `**/` with the same separator compile to a single `{**/,}`.
+	t.Run("coalesce", func(t *testing.T) {
+		c := Compiler{Separators: slash, Globstar: true}
+		for _, pat := range []string{`**/**/x`, `**/**/**/x`, `a/**/**/b`} {
+			single := strings.Replace(pat, `**/**/`, `**/`, 1)
+			single = strings.Replace(single, `**/**/`, `**/`, 1)
+			var (
+				got  = must(c.Compile(pat)).m.String()
+				want = must(c.Compile(single)).m.String()
+			)
+			if got != want {
+				t.Errorf("%q compiles to %s, want %s as %q does", pat, got, want, single)
+			}
+		}
+		// Different separators do not merge.
+		c.Separators = []rune{'/', '\\'}
+		var (
+			got  = must(c.Compile(`**/**\\x`)).m.String()
+			same = must(c.Compile(`**/x`)).m.String()
+		)
+		if got == same {
+			t.Errorf("`**/**\\x` compiles to %s, must not merge the groups", got)
+		}
+	})
+}
+
+func must(p *Pattern, err error) *Pattern {
+	if err != nil {
+		panic(err)
+	}
+	return p
 }
