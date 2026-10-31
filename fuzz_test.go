@@ -194,13 +194,20 @@ func FuzzMatchRegexp(f *testing.F) {
 			t.Fatalf("bad regexp translation of %#q: %v", pattern, err)
 		}
 		var (
-			got  = p.Match(s)
-			want = re.MatchString(s)
+			got      = p.Match(s)
+			gotBytes = p.MatchBytes([]byte(s))
+			want     = re.MatchString(s)
 		)
 		if got != want {
 			t.Errorf(
 				"sep=%q globstar=%t pattern=%#q (regexp %#q) string=%#q: Match()=%t, regexp=%t",
 				string(sep), globstar, pattern, re, s, got, want,
+			)
+		}
+		if gotBytes != want {
+			t.Errorf(
+				"sep=%q globstar=%t pattern=%#q (regexp %#q) string=%#q: MatchBytes()=%t, regexp=%t",
+				string(sep), globstar, pattern, re, s, gotBytes, want,
 			)
 		}
 	})

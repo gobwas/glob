@@ -12,6 +12,8 @@ func TestOpenIssues(t *testing.T) {
 		sep      []rune
 		exp      bool
 	}{
+		{32, "*.github.com", "api.github.com", nil, true},
+		{32, "*.github.com", "github.com", nil, false},
 		{33, "test*201901*.12*", "test.20190101.120000", nil, true},
 		{33, "test.*201901*.14*", "test.20190101.130000", nil, false},
 		{33, "test.*201901*.14*", "test.20190101.140000", nil, true},
@@ -48,9 +50,13 @@ func TestOpenIssues(t *testing.T) {
 		{66, `{**/daxing,daxing}/**/*dev*.yaml`, "playground/daxing/generated/dev.yaml", nil, true},
 		{66, `{**/daxing}/**/*dev*.yaml`, "playground/daxing/generated/dev.yaml", nil, true},
 	} {
-		got := MustCompile(c.pat, c.sep...).Match(c.str)
+		p := MustCompile(c.pat, c.sep...)
+		got := p.Match(c.str)
 		if got != c.exp {
 			t.Errorf("issue #%d: Match(%q, %q) = %t; want %t", c.issue, c.pat, c.str, got, c.exp)
+		}
+		if gotBytes := p.MatchBytes([]byte(c.str)); gotBytes != c.exp {
+			t.Errorf("issue #%d: MatchBytes(%q, %q) = %t; want %t", c.issue, c.pat, c.str, gotBytes, c.exp)
 		}
 	}
 	// Crashers: old versions panicked, new must return a syntax error.
@@ -59,5 +65,16 @@ func TestOpenIssues(t *testing.T) {
 	}
 	if _, err := Compile("0{", '.', '/'); err == nil {
 		t.Errorf("issue #56: Compile succeeded; want error")
+	}
+}
+
+func TestIssue32(t *testing.T) {
+	var g Glob
+	g = MustCompile("*.github.com")
+	if !g.MatchBytes([]byte("api.github.com")) {
+		t.Errorf("issue #32: MatchBytes() = false; want true")
+	}
+	if g.MatchBytes([]byte("api.google.com")) {
+		t.Errorf("issue #32: MatchBytes() = true; want false")
 	}
 }
