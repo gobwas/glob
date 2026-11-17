@@ -332,7 +332,8 @@ func (l *Lexer) fetchRange() {
 			continue
 		}
 
-		if n, w := l.peek(); n == char_range_between {
+		// A leading escape belongs to a set: `\-` is a literal hyphen.
+		if n, w := l.peek(); r != char_escape && n == char_range_between {
 			l.seek(w)
 			l.tokens.push(Token{RangeLo, string(r)})
 			l.tokens.push(Token{RangeBetween, string(n)})
