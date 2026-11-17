@@ -118,6 +118,18 @@ func FuzzMatchRegexp(f *testing.F) {
 			fixture: "�x",
 		},
 		{
+			pattern: `[\-]`,
+			fixture: "-",
+		},
+		{
+			pattern: `[\-a]`,
+			fixture: "_",
+		},
+		{
+			pattern: `[!\-日]`,
+			fixture: "a",
+		},
+		{
 			// Globstar: a leading `**.` may match zero segments.
 			pattern:  "**.x",
 			fixture:  "x",
@@ -305,7 +317,7 @@ func translateClass(sb *strings.Builder, rs []rune) (int, error) {
 		not = "^"
 		i++
 	}
-	if i+1 < len(rs) && rs[i+1] == '-' {
+	if i+1 < len(rs) && rs[i] != '\\' && rs[i+1] == '-' {
 		// A range.
 		if i+3 >= len(rs) || rs[i+3] != ']' {
 			return 0, errors.New("unclosed range")

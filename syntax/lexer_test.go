@@ -86,6 +86,25 @@ func TestLexGood(t *testing.T) {
 			},
 		},
 		{
+			pattern: `[\-]`,
+			items: []Token{
+				{RangeOpen, "["},
+				{Text, "-"},
+				{RangeClose, "]"},
+				{EOF, ""},
+			},
+		},
+		{
+			pattern: `[!\-日]`,
+			items: []Token{
+				{RangeOpen, "["},
+				{Not, "!"},
+				{Text, "-日"},
+				{RangeClose, "]"},
+				{EOF, ""},
+			},
+		},
+		{
 			pattern: "[日-語]",
 			items: []Token{
 				{RangeOpen, "["},

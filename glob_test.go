@@ -69,6 +69,41 @@ func TestCompileErrors(t *testing.T) {
 	}
 }
 
+// Escaping the first hyphen makes it a set member, not a range operator.
+func TestPatternMatchEscapedHyphen(t *testing.T) {
+	for _, test := range []struct {
+		pat     string
+		matches []string
+		misses  []string
+	}{
+		{`[\-]`, []string{"-"}, []string{"", "a", "_", "--"}},
+		{`[!\-]`, []string{"a", "_", "日"}, []string{"", "-", "--"}},
+		{`[\-a]`, []string{"-", "a"}, []string{"", "_", "\\", "b"}},
+		{`[!\-a]`, []string{"_", "\\", "b", "日"}, []string{"", "-", "a"}},
+		{`[\-日]`, []string{"-", "日"}, []string{"a", "語", "\\"}},
+		{`[!\-日]`, []string{"a", "語", "\\"}, []string{"-", "日"}},
+		{`[a\-]`, []string{"-", "a"}, []string{"_", "\\", "b"}},
+		{`[\\-]`, []string{"\\", "-"}, []string{"a", "_"}},
+	} {
+		t.Run(test.pat, func(t *testing.T) {
+			p, err := Compile(test.pat)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, s := range test.matches {
+				if !p.Match(s) {
+					t.Errorf("Match(%q) = false, want true", s)
+				}
+			}
+			for _, s := range test.misses {
+				if p.Match(s) {
+					t.Errorf("Match(%q) = true, want false", s)
+				}
+			}
+		})
+	}
+}
+
 func TestPatternMatch(t *testing.T) {
 	for i, test := range []struct {
 		sep []rune
