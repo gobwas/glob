@@ -252,7 +252,7 @@ func (l *Lexer) termsLeave() {
 	l.termsLevel--
 }
 
-var inTextBreakers = []rune{char_single, char_any, char_range_open, char_terms_open}
+var inTextBreakers = []rune{char_single, char_any, char_range_open, char_terms_open, char_terms_close}
 var inTermsBreakers = append(inTextBreakers, char_terms_close, char_comma)
 
 func (l *Lexer) fetchItem() {
@@ -268,9 +268,11 @@ func (l *Lexer) fetchItem() {
 	case r == char_comma && l.inTerms():
 		l.tokens.push(Token{TermSeparator, string(r)})
 
-	case r == char_terms_close && l.inTerms():
+	case r == char_terms_close:
 		l.tokens.push(Token{TermsClose, string(r)})
-		l.termsLeave()
+		if l.inTerms() {
+			l.termsLeave()
+		}
 
 	case r == char_range_open:
 		l.tokens.push(Token{RangeOpen, string(r)})
